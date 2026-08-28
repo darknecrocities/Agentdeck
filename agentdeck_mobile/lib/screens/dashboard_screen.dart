@@ -5,6 +5,8 @@ import '../services/api_service.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/terminal_widgets.dart';
 import 'session_screen.dart';
+import 'token_monitor_screen.dart';
+import 'account_switcher_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int) onNavigate;
@@ -85,6 +87,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: const AgentDeckLogoHeader(size: 26),
         actions: [
           IconButton(
+            icon: const Icon(Icons.token_outlined, color: TerminalColors.pureWhite, size: 20),
+            tooltip: 'Token & Quota Monitor',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TokenMonitorScreen()),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.manage_accounts_outlined, color: TerminalColors.pureWhite, size: 20),
+            tooltip: 'Switch Accounts',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AccountSwitcherScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_outlined, color: TerminalColors.pureWhite, size: 20),
             onPressed: () => widget.onNavigate(6),
           ),
@@ -97,6 +115,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Token & Quota Quick Pill
+            InkWell(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TokenMonitorScreen()),
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: TerminalColors.surface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: TerminalColors.cardBorderLight),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.speed, color: TerminalColors.pureWhite, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ANTIGRAVITY QUOTA: ACTIVE & READY',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontWeight: FontWeight.bold,
+                              color: TerminalColors.pureWhite,
+                              fontSize: 11,
+                            ),
+                          ),
+                          Text(
+                            'Gemini 2.5 Pro (Thinking) • Resets at 00:00 UTC',
+                            style: GoogleFonts.jetBrainsMono(
+                              color: TerminalColors.zinc,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, color: TerminalColors.zinc, size: 16),
+                  ],
+                ),
+              ),
+            ),
             // Approvals Alert Banner
             if (_approvals.isNotEmpty) ...[
               InkWell(

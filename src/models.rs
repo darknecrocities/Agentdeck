@@ -223,3 +223,60 @@ pub struct DeviceInfo {
     pub tailscale_status: String,
     pub uptime_secs: u64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthProfile {
+    pub id: String,
+    pub agent_id: String, // "antigravity", "claude", "gemini", "openai", "ollama"
+    pub account_name: String,
+    pub token_masked: String,
+    pub token_value: String,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateAuthProfileRequest {
+    pub agent_id: String,
+    pub account_name: String,
+    pub token_value: String,
+    pub set_active: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenUsageRecord {
+    pub id: String,
+    pub agent: String,
+    pub model: String,
+    pub session_id: Option<String>,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub thinking_tokens: u64,
+    pub total_tokens: u64,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelQuotaStatus {
+    pub agent: String,
+    pub model: String,
+    pub tier: String, // "Pro", "Free", "Tier 1"
+    pub requests_today: u64,
+    pub requests_daily_limit: u64,
+    pub tokens_today: u64,
+    pub tokens_daily_limit: u64,
+    pub percent_used: f64,
+    pub is_available: bool,
+    pub reset_time_utc: String,
+    pub reset_countdown_seconds: i64,
+    pub active_account: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenSummaryResponse {
+    pub total_tokens_all_time: u64,
+    pub total_tokens_today: u64,
+    pub models_quota: Vec<ModelQuotaStatus>,
+    pub recent_usage: Vec<TokenUsageRecord>,
+}

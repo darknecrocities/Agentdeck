@@ -69,6 +69,13 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/approvals", get(handlers::approvals::list_approvals))
         .route("/api/approvals/:id/approve", post(handlers::approvals::approve_request))
         .route("/api/approvals/:id/deny", post(handlers::approvals::deny_request))
+        // Auth & Accounts
+        .route("/api/auth/profiles", get(handlers::auth::list_profiles).post(handlers::auth::create_profile))
+        .route("/api/auth/profiles/:id/activate", post(handlers::auth::activate_profile))
+        .route("/api/auth/profiles/:id", delete(handlers::auth::delete_profile))
+        // Token Quota & Monitoring
+        .route("/api/tokens/summary", get(handlers::tokens::get_token_summary))
+        .route("/api/tokens/record", post(handlers::tokens::record_token_usage))
         // WebSockets
         .route("/ws/events", get(handlers::ws::ws_events_handler))
         .route("/ws/sessions/:id", get(handlers::ws::ws_session_handler))
