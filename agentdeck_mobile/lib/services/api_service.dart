@@ -12,6 +12,8 @@ class ApiService {
   String baseUrl = 'http://100.114.182.27:8765';
   String? authToken;
 
+  static const Duration _timeout = Duration(milliseconds: 2500);
+
   Map<String, String> get _headers {
     final map = <String, String>{'Content-Type': 'application/json'};
     if (authToken != null && authToken!.isNotEmpty) {
@@ -46,39 +48,55 @@ class ApiService {
     } catch (_) {}
   }
 
+  // HTTP Helpers with fast failure timeout
+  Future<dynamic> _get(String path, {Map<String, String>? query}) async {
+    final uri = Uri.parse('$baseUrl$path').replace(queryParameters: query);
+    final res = await http.get(uri, headers: _headers).timeout(_timeout);
+    return jsonDecode(res.body);
+  }
+
+  Future<dynamic> _post(String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final res = await http.post(uri, headers: _headers, body: jsonEncode(body)).timeout(_timeout);
+    return jsonDecode(res.body);
+  }
+
+  Future<bool> _del(String path) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final res = await http.delete(uri, headers: _headers).timeout(_timeout);
+    return res.statusCode == 200;
+  }
+
   // System
   Future<Map<String, dynamic>> getHealth() async {
-    final res = await http.get(Uri.parse('$baseUrl/health'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/health');
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<Map<String, dynamic>> getStatus() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/status'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/status');
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<Map<String, dynamic>> getDevice() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/device'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/device');
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<Map<String, dynamic>> getDiagnostics() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/diagnostics'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/diagnostics');
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<Map<String, dynamic>> browseDirectories({String? path}) async {
-    final uri = Uri.parse('$baseUrl/api/system/browse').replace(
-      queryParameters: path != null ? {'path': path} : null,
-    );
-    final res = await http.get(uri, headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/system/browse', query: path != null ? {'path': path} : null);
+    return data is Map<String, dynamic> ? data : {};
   }
 
   // Projects
   Future<List<dynamic>> getProjects() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/projects'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/projects');
+    return data is List<dynamic> ? data : [];
   }
 
   Future<Map<String, dynamic>> createProject({
@@ -86,12 +104,8 @@ class ApiService {
     required String path,
     String defaultAgent = 'antigravity',
   }) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/projects'),
-      headers: _headers,
-      body: jsonEncode({'name': name, 'path': path, 'default_agent': defaultAgent}),
-    );
-    return jsonDecode(res.body);
+    final data = await _post('/api/projects', {'name': name, 'path': path, 'default_agent': defaultAgent});
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<Map<String, dynamic>> scaffoldProject({
@@ -101,56 +115,42 @@ class ApiService {
     String? initialPrompt,
     String defaultAgent = 'antigravity',
   }) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/projects/scaffold'),
-      headers: _headers,
-      body: jsonEncode({
-        'name': name,
-        'parent_path': parentPath,
-        'template': template,
-        'initial_prompt': initialPrompt,
-        'default_agent': defaultAgent,
-      }),
-    );
-    return jsonDecode(res.body);
+    final data = await _post('/api/projects/scaffold', {
+      'name': name,
+      'parent_path': parentPath,
+      'template': template,
+      'initial_prompt': initialPrompt,
+      'default_agent': defaultAgent,
+    });
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<bool> deleteProject(String id) async {
-    final res = await http.delete(Uri.parse('$baseUrl/api/projects/$id'), headers: _headers);
-    return res.statusCode == 200;
+    return await _del('/api/projects/$id');
   }
 
   Future<Map<String, dynamic>> getProjectFiles(String id, {String? path}) async {
-    final uri = Uri.parse('$baseUrl/api/projects/$id/files').replace(
-      queryParameters: path != null ? {'path': path} : null,
-    );
-    final res = await http.get(uri, headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/projects/$id/files', query: path != null ? {'path': path} : null);
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<String> getFileContent(String id, String path) async {
-    final uri = Uri.parse('$baseUrl/api/projects/$id/files/content').replace(
-      queryParameters: {'path': path},
-    );
-    final res = await http.get(uri, headers: _headers);
-    final data = jsonDecode(res.body);
+    final data = await _get('/api/projects/$id/files/content', query: {'path': path});
     return data['content'] ?? '';
   }
 
   Future<Map<String, dynamic>> getGitStatus(String projectId) async {
-    final res = await http.get(Uri.parse('$baseUrl/api/projects/$projectId/git/status'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/projects/$projectId/git/status');
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<String> getGitDiff(String projectId) async {
-    final res = await http.get(Uri.parse('$baseUrl/api/projects/$projectId/git/diff'), headers: _headers);
-    final data = jsonDecode(res.body);
+    final data = await _get('/api/projects/$projectId/git/diff');
     return data['diff'] ?? '';
   }
 
   Future<List<dynamic>> getGitLog(String projectId) async {
-    final res = await http.get(Uri.parse('$baseUrl/api/projects/$projectId/git/log'), headers: _headers);
-    final data = jsonDecode(res.body);
+    final data = await _get('/api/projects/$projectId/git/log');
     return data['log'] ?? [];
   }
 
@@ -159,34 +159,37 @@ class ApiService {
       Uri.parse('$baseUrl/api/projects/$projectId/git/commit'),
       headers: _headers,
       body: jsonEncode({'message': message}),
-    );
+    ).timeout(_timeout);
     return res.statusCode == 200;
   }
 
   Future<bool> pushGit(String projectId) async {
-    final res = await http.post(Uri.parse('$baseUrl/api/projects/$projectId/git/push'), headers: _headers);
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/projects/$projectId/git/push'),
+      headers: _headers,
+    ).timeout(_timeout);
     return res.statusCode == 200;
   }
 
   Future<Map<String, dynamic>> getGitHubOverview(String projectId) async {
-    final res = await http.get(Uri.parse('$baseUrl/api/projects/$projectId/github'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/projects/$projectId/github');
+    return data is Map<String, dynamic> ? data : {};
   }
 
   // Agents & Sessions
   Future<List<dynamic>> getAgents() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/agents'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/agents');
+    return data is List<dynamic> ? data : [];
   }
 
   Future<List<dynamic>> getSessions() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/sessions'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/sessions');
+    return data is List<dynamic> ? data : [];
   }
 
   Future<Map<String, dynamic>> getSession(String id) async {
-    final res = await http.get(Uri.parse('$baseUrl/api/sessions/$id'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/sessions/$id');
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<Map<String, dynamic>> startSession({
@@ -197,82 +200,91 @@ class ApiService {
     String? model,
     String? effort,
   }) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/sessions'),
-      headers: _headers,
-      body: jsonEncode({
-        'project_id': projectId,
-        'agent': agent,
-        'prompt': prompt,
-        'conversation_id': conversationId,
-        'model': model,
-        'effort': effort,
-      }),
-    );
-    return jsonDecode(res.body);
+    final data = await _post('/api/sessions', {
+      'project_id': projectId,
+      'agent': agent,
+      'prompt': prompt,
+      'conversation_id': conversationId,
+      'model': model,
+      'effort': effort,
+    });
+    return data is Map<String, dynamic> ? data : {};
   }
 
-  Future<bool> sendPrompt(String sessionId, String prompt) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/sessions/$sessionId/prompt'),
-      headers: _headers,
-      body: jsonEncode({'prompt': prompt}),
-    );
-    return res.statusCode == 200;
+  Future<Map<String, dynamic>> sendPrompt(String sessionId, String prompt) async {
+    final data = await _post('/api/sessions/$sessionId/prompt', {'prompt': prompt});
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<bool> continueSession(String sessionId) async {
-    final res = await http.post(Uri.parse('$baseUrl/api/sessions/$sessionId/continue'), headers: _headers);
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/sessions/$sessionId/continue'),
+      headers: _headers,
+    ).timeout(_timeout);
     return res.statusCode == 200;
   }
 
   Future<bool> stopSession(String sessionId) async {
-    final res = await http.post(Uri.parse('$baseUrl/api/sessions/$sessionId/stop'), headers: _headers);
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/sessions/$sessionId/stop'),
+      headers: _headers,
+    ).timeout(_timeout);
+    return res.statusCode == 200;
+  }
+
+  Future<bool> killSession(String sessionId) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/sessions/$sessionId/kill'),
+      headers: _headers,
+    ).timeout(_timeout);
     return res.statusCode == 200;
   }
 
   Future<List<dynamic>> getSessionEvents(String sessionId, {int afterEventId = 0}) async {
-    final uri = Uri.parse('$baseUrl/api/sessions/$sessionId/events').replace(
-      queryParameters: {'after_event_id': afterEventId.toString()},
-    );
-    final res = await http.get(uri, headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/sessions/$sessionId/events', query: {'after_event_id': afterEventId.toString()});
+    return data is List<dynamic> ? data : [];
   }
 
   // Approvals
   Future<List<dynamic>> getApprovals() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/approvals'), headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/approvals');
+    return data is List<dynamic> ? data : [];
   }
 
   Future<bool> resolveApproval(String id, bool approve) async {
-    final endpoint = approve ? 'approve' : 'deny';
-    final res = await http.post(Uri.parse('$baseUrl/api/approvals/$id/$endpoint'), headers: _headers);
+    final path = approve ? '/api/approvals/$id/approve' : '/api/approvals/$id/deny';
+    final res = await http.post(Uri.parse('$baseUrl$path'), headers: _headers).timeout(_timeout);
     return res.statusCode == 200;
   }
 
-  // Terminals
-  Future<List<dynamic>> getTerminals() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/terminal/sessions'), headers: _headers);
-    return jsonDecode(res.body);
+  // Terminal PTY
+  Future<Map<String, dynamic>> spawnTerminal({int cols = 80, int rows = 24, String? projectId, String? cwd}) async {
+    final data = await _post('/api/terminal/session', {
+      'cols': cols,
+      'rows': rows,
+      'project_id': projectId,
+      'cwd': cwd,
+    });
+    return data is Map<String, dynamic> ? data : {};
   }
 
-  Future<Map<String, dynamic>> spawnTerminal({String? projectId, int cols = 80, int rows = 24}) async {
+  Future<bool> sendTerminalInput(String id, String data) async {
     final res = await http.post(
-      Uri.parse('$baseUrl/api/terminal/session'),
+      Uri.parse('$baseUrl/api/terminal/$id/input'),
       headers: _headers,
-      body: jsonEncode({'project_id': projectId, 'cols': cols, 'rows': rows}),
-    );
-    return jsonDecode(res.body);
+      body: jsonEncode({'data': data}),
+    ).timeout(_timeout);
+    return res.statusCode == 200;
   }
 
-  // Auth Profiles & Account Switching
+  Future<bool> closeTerminal(String id) async {
+    return await _del('/api/terminal/$id');
+  }
+
+  // Auth Profiles
   Future<List<dynamic>> getAuthProfiles({String? agent}) async {
-    final uri = Uri.parse('$baseUrl/api/auth/profiles').replace(
-      queryParameters: agent != null ? {'agent': agent} : null,
-    );
-    final res = await http.get(uri, headers: _headers);
-    return jsonDecode(res.body);
+    final data = await _get('/api/auth/profiles', query: agent != null ? {'agent': agent} : null);
+    return data is List<dynamic> ? data : [];
   }
 
   Future<Map<String, dynamic>> createAuthProfile({
@@ -281,76 +293,37 @@ class ApiService {
     required String tokenValue,
     bool setActive = true,
   }) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/auth/profiles'),
-      headers: _headers,
-      body: jsonEncode({
-        'agent_id': agentId,
-        'account_name': accountName,
-        'token_value': tokenValue,
-        'set_active': setActive,
-      }),
-    );
-    return jsonDecode(res.body);
+    final data = await _post('/api/auth/profiles', {
+      'agent_id': agentId,
+      'account_name': accountName,
+      'token_value': tokenValue,
+      'set_active': setActive,
+    });
+    return data is Map<String, dynamic> ? data : {};
   }
 
   Future<bool> activateAuthProfile(String id) async {
-    final res = await http.post(Uri.parse('$baseUrl/api/auth/profiles/$id/activate'), headers: _headers);
+    final res = await http.post(Uri.parse('$baseUrl/api/auth/profiles/$id/activate'), headers: _headers).timeout(_timeout);
     return res.statusCode == 200;
   }
 
   Future<bool> deleteAuthProfile(String id) async {
-    final res = await http.delete(Uri.parse('$baseUrl/api/auth/profiles/$id'), headers: _headers);
-    return res.statusCode == 200;
+    return await _del('/api/auth/profiles/$id');
   }
 
-  // Token Monitoring & Model Quotas
-  Future<Map<String, dynamic>> getTokenSummary() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/tokens/summary'), headers: _headers);
-    return jsonDecode(res.body);
-  }
-
-  // Remote File & Media Upload
-  Future<Map<String, dynamic>> uploadFile({
-    required String destinationPath,
-    required String filename,
-    required List<int> bytes,
-  }) async {
-    final base64Content = base64Encode(bytes);
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/files/upload'),
-      headers: _headers,
-      body: jsonEncode({
-        'destination_path': destinationPath,
-        'filename': filename,
-        'content_base64': base64Content,
-      }),
-    );
-    return jsonDecode(res.body);
-  }
-
-  Future<Map<String, dynamic>> createDirectory(String path) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/system/mkdir'),
-      headers: _headers,
-      body: jsonEncode({'path': path}),
-    );
-    return jsonDecode(res.body);
-  }
-
+  // Antigravity IDE Accounts
   Future<Map<String, dynamic>> getAntigravityAccount() async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/api/accounts/antigravity'), headers: _headers);
-      if (res.statusCode == 200) {
-        return jsonDecode(res.body);
-      }
-    } catch (_) {}
-    return {
-      'active_account': 'parejasarronkian@gmail.com',
-      'accounts': ['parejasarronkian@gmail.com'],
-      'auth_type': 'Google OAuth (Personal)',
-      'status': 'authenticated',
-    };
+      final data = await _get('/api/accounts/antigravity');
+      return data is Map<String, dynamic> ? data : {};
+    } catch (_) {
+      return {
+        'active_account': 'parejasarronkian@gmail.com',
+        'accounts': ['parejasarronkian@gmail.com'],
+        'auth_type': 'Google OAuth (Personal)',
+        'status': 'authenticated',
+      };
+    }
   }
 
   Future<bool> switchAntigravityAccount(String email) async {
@@ -359,11 +332,36 @@ class ApiService {
         Uri.parse('$baseUrl/api/accounts/antigravity/switch'),
         headers: _headers,
         body: jsonEncode({'email': email}),
-      );
+      ).timeout(_timeout);
       return res.statusCode == 200;
     } catch (_) {
       return false;
     }
+  }
+
+  // Token Quotas & Monitoring
+  Future<Map<String, dynamic>> getTokenSummary() async {
+    final data = await _get('/api/tokens/summary');
+    return data is Map<String, dynamic> ? data : {};
+  }
+
+  // File Upload & System Browsing
+  Future<Map<String, dynamic>> uploadFile({
+    required String destinationPath,
+    required String filename,
+    required String base64Content,
+  }) async {
+    final data = await _post('/api/files/upload', {
+      'destination_path': destinationPath,
+      'filename': filename,
+      'content_base64': base64Content,
+    });
+    return data is Map<String, dynamic> ? data : {};
+  }
+
+  Future<Map<String, dynamic>> createDirectory(String path) async {
+    final data = await _post('/api/system/mkdir', {'path': path});
+    return data is Map<String, dynamic> ? data : {};
   }
 
   // WebSockets
