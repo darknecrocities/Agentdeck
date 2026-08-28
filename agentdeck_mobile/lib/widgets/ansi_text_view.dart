@@ -2,11 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AnsiParser {
-  static final RegExp _ansiRegex = RegExp(r'\x1b\[([0-9;]*)([a-zA-Z])');
+  // Matches all escape sequences (SGR colors, DEC private mode, OSC, cursor commands)
+  static final RegExp _ansiRegex = RegExp(
+    r'\x1b(?:'
+    r'\[\??([0-9;]*)([a-zA-Z])' // CSI sequences: e.g. \x1b[0;32m or \x1b[?25h or \x1b[?2004l
+    r'|\][^\x07\x1b]*(?:\x07|\x1b\\|\n|$)' // OSC sequences: e.g. \x1b]11;?\x1b\
+    r'|\([AB012]' // Character sets
+    r'|[=>NOM78]' // Keypad/cursor modes
+    r')',
+  );
+
+  static String sanitizeRawText(String text) {
+    if (text.isEmpty) return '';
+
+    // Remove standalone bracketed paste or DEC artifacts if any raw fragments remain
+    var s = text;
+    // Replace \r\n with \n
+    s = s.replaceAll('\r\n', '\n');
+    // For standalone carriage returns (like animated spinners), collapse to newline or space
+    s = s.replaceAll('\r', '\n');
+    return s;
+  }
 
   static List<TextSpan> parse(String text, {double fontSize = 11.5}) {
     if (text.isEmpty) return [];
 
+    final cleanText = sanitizeRawText(text);
     final List<TextSpan> spans = [];
     int lastIndex = 0;
 
@@ -16,27 +37,30 @@ class AnsiParser {
     FontStyle currentStyle = FontStyle.normal;
     TextDecoration currentDeco = TextDecoration.none;
 
-    for (final match in _ansiRegex.allMatches(text)) {
+    for (final match in _ansiRegex.allMatches(cleanText)) {
       if (match.start > lastIndex) {
-        final rawText = text.substring(lastIndex, match.start);
-        spans.add(TextSpan(
-          text: rawText,
-          style: GoogleFonts.jetBrainsMono(
-            color: currentColor,
-            backgroundColor: currentBg,
-            fontWeight: currentWeight,
-            fontStyle: currentStyle,
-            decoration: currentDeco,
-            fontSize: fontSize,
-            height: 1.25,
-          ),
-        ));
+        final rawText = cleanText.substring(lastIndex, match.start);
+        if (rawText.isNotEmpty) {
+          spans.add(TextSpan(
+            text: rawText,
+            style: GoogleFonts.jetBrainsMono(
+              color: currentColor,
+              backgroundColor: currentBg,
+              fontWeight: currentWeight,
+              fontStyle: currentStyle,
+              decoration: currentDeco,
+              fontSize: fontSize,
+              height: 1.25,
+            ),
+          ));
+        }
       }
 
-      final codesStr = match.group(1) ?? '';
-      final command = match.group(2) ?? '';
+      final codesStr = match.group(1);
+      final command = match.group(2);
 
-      if (command == 'm') {
+      // Only 'm' is Select Graphic Rendition (SGR) for colors/styles
+      if (command == 'm' && codesStr != null) {
         if (codesStr.isEmpty || codesStr == '0') {
           currentColor = const Color(0xFFE5E5E5);
           currentBg = null;
@@ -67,7 +91,7 @@ class AnsiParser {
               case 4:
                 currentDeco = TextDecoration.underline;
                 break;
-              // Normal foreground colors
+              // Standard foreground colors
               case 30:
                 currentColor = const Color(0xFF3E3E3E);
                 break;
@@ -120,7 +144,7 @@ class AnsiParser {
               case 97:
                 currentColor = const Color(0xFFFFFFFF);
                 break;
-              // Backgrounds
+              // Background colors
               case 40:
                 currentBg = const Color(0xFF1E1E1E);
                 break;
@@ -156,20 +180,22 @@ class AnsiParser {
       lastIndex = match.end;
     }
 
-    if (lastIndex < text.length) {
-      final rawText = text.substring(lastIndex);
-      spans.add(TextSpan(
-        text: rawText,
-        style: GoogleFonts.jetBrainsMono(
-          color: currentColor,
-          backgroundColor: currentBg,
-          fontWeight: currentWeight,
-          fontStyle: currentStyle,
-          decoration: currentDeco,
-          fontSize: fontSize,
-          height: 1.25,
-        ),
-      ));
+    if (lastIndex < cleanText.length) {
+      final rawText = cleanText.substring(lastIndex);
+      if (rawText.isNotEmpty) {
+        spans.add(TextSpan(
+          text: rawText,
+          style: GoogleFonts.jetBrainsMono(
+            color: currentColor,
+            backgroundColor: currentBg,
+            fontWeight: currentWeight,
+            fontStyle: currentStyle,
+            decoration: currentDeco,
+            fontSize: fontSize,
+            height: 1.25,
+          ),
+        ));
+      }
     }
 
     return spans;
