@@ -1,0 +1,50 @@
+[package]
+name = "agentdeck"
+version = "0.1.0"
+edition = "2021"
+authors = ["AgentDeck Team"]
+description = "Local-first remote AI engineering control plane"
+
+[lib]
+name = "agentdeck"
+path = "src/lib.rs"
+
+[[bin]]
+name = "agentdeckd"
+path = "src/bin/daemon.rs"
+
+[[bin]]
+name = "agentdeck"
+path = "src/bin/cli.rs"
+
+[dependencies]
+tokio = { version = "1.40", features = ["full"] }
+axum = { version = "0.7", features = ["ws", "macros"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+rusqlite = { version = "0.32", features = ["bundled", "chrono", "uuid"] }
+portable-pty = "0.8"
+notify = "7.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "time", "json"] }
+clap = { version = "4.5", features = ["derive"] }
+uuid = { version = "1.10", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2.0"
+anyhow = "1.0"
+futures = "0.3"
+futures-util = "0.3"
+tokio-stream = "0.1"
+sysinfo = "0.31"
+async-trait = "0.1"
+regex = "1.11"
+reqwest = { version = "0.12", features = ["json"] }
+colored = "2.2"
+which = "7.0"
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3.12"

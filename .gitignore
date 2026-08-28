@@ -1,0 +1,70 @@
+# ── Rust & Cargo ───────────────────────────────────────────────
+/target/
+**/*.rs.bk
+*.pdb
+
+# ── Databases & Persistence ───────────────────────────────────
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite3
+agentdeck.db
+
+# ── Secrets & Environment Variables ───────────────────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ── macOS & System Files ──────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ── Flutter & Dart ────────────────────────────────────────────
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# Flutter Android
+agentdeck_mobile/android/**/gradle-wrapper.jar
+agentdeck_mobile/android/.gradle
+agentdeck_mobile/android/captures/
+agentdeck_mobile/android/gradlew
+agentdeck_mobile/android/gradlew.bat
+agentdeck_mobile/android/local.properties
+agentdeck_mobile/android/**/GeneratedPluginRegistrant.java
+
+# Flutter iOS / macOS
+agentdeck_mobile/ios/**/*.mode1v3
+agentdeck_mobile/ios/**/*.mode2v3
+agentdeck_mobile/ios/**/*.moved-aside
+agentdeck_mobile/ios/**/*.pbxuser
+agentdeck_mobile/ios/**/*.perspectivev3
+agentdeck_mobile/ios/**/DerivedData/
+agentdeck_mobile/ios/**/Pods/
+agentdeck_mobile/ios/**/Generated.xcconfig
+agentdeck_mobile/ios/**/flutter_export_environment.sh
+agentdeck_mobile/macos/**/Generated.xcconfig
+agentdeck_mobile/macos/**/flutter_export_environment.sh
+agentdeck_mobile/macos/**/Pods/
+
+# Flutter Web & Ephemeral
+agentdeck_mobile/lib/generated_plugin_registrant.dart
+agentdeck_mobile/linux/flutter/ephemeral/
+agentdeck_mobile/windows/flutter/ephemeral/
+
+# IDE & Editors
+.idea/
+*.iml
+.vscode/
+.history/
