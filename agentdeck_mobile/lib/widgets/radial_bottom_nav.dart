@@ -35,7 +35,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
     super.initState();
     _radialCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 240),
     );
     _expandAnim = CurvedAnimation(
       parent: _radialCtrl,
@@ -70,50 +70,73 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
     }
   }
 
-  Widget _buildPositionedButton({
-    required double angleDeg,
-    required double distance,
+  Widget _buildVerticalActionItem({
+    required int index,
     required IconData icon,
     required String label,
     required Color color,
     required VoidCallback onTap,
   }) {
-    final rad = angleDeg * (pi / 180.0);
-
     return AnimatedBuilder(
       animation: _expandAnim,
       builder: (context, child) {
         final progress = _expandAnim.value;
         if (progress <= 0.01) return const SizedBox.shrink();
 
-        final currentDistance = distance * progress;
-        // Position relative to bottom-right corner
-        final bottomPos = 72.0 + (sin(rad) * currentDistance);
-        final rightPos = 18.0 + (cos(rad) * currentDistance);
+        final verticalOffset = 74.0 + (index * 52.0 * progress);
 
         return Positioned(
-          bottom: bottomPos,
-          right: rightPos,
+          bottom: verticalOffset,
+          right: 14.0,
           child: Transform.scale(
             scale: progress.clamp(0.0, 1.0),
+            alignment: Alignment.bottomRight,
             child: Opacity(
               opacity: progress.clamp(0.0, 1.0),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(24),
                   onTap: () {
                     _closeRadial();
                     onTap();
                   },
                   child: Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: Column(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 2.0),
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Action Label Badge (Left of Button)
                         Container(
-                          width: 52,
-                          height: 52,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF121212),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF383838), width: 1.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.95),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            label,
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10.0,
+                              fontWeight: FontWeight.w900,
+                              color: TerminalColors.pureWhite,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+
+                        // Circular Action Icon Orb
+                        Container(
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.black,
@@ -121,36 +144,12 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.white.withValues(alpha: 0.28),
-                                blurRadius: 18,
+                                blurRadius: 14,
                                 spreadRadius: 1,
                               ),
                             ],
                           ),
-                          child: Icon(icon, color: color, size: 24),
-                        ),
-                        const SizedBox(height: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xFF404040), width: 1.0),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.9),
-                                blurRadius: 8,
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            label,
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 9.0,
-                              fontWeight: FontWeight.w900,
-                              color: TerminalColors.pureWhite,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
+                          child: Icon(icon, color: color, size: 20),
                         ),
                       ],
                     ),
@@ -191,43 +190,47 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
               ),
             ),
 
-            // 2. Direct Positioned Floating Action Buttons
-            // 1. Find Deck (Top-left) - 100 deg, 220px
-            _buildPositionedButton(
-              angleDeg: 100,
-              distance: 220,
-              icon: Icons.explore_rounded,
-              label: 'FIND DECK',
-              color: TerminalColors.pureWhite,
+            // 2. Vertical Stack of Action Items (From Bottom to Top)
+            // Index 0: Accounts (Lowest)
+            _buildVerticalActionItem(
+              index: 0,
+              icon: Icons.manage_accounts_rounded,
+              label: 'ACCOUNTS',
+              color: TerminalColors.zinc,
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const FindDeckScreen()),
+                  MaterialPageRoute(builder: (_) => const AccountSwitcherScreen()),
                 );
               },
             ),
 
-            // 2. Vibe Agent - 80 deg, 195px
-            _buildPositionedButton(
-              angleDeg: 80,
-              distance: 195,
-              icon: Icons.record_voice_over_rounded,
-              label: 'VIBE AGENT',
-              color: TerminalColors.pureWhite,
+            // Index 1: File Uploader
+            _buildVerticalActionItem(
+              index: 1,
+              icon: Icons.cloud_upload_rounded,
+              label: 'UPLOAD',
+              color: TerminalColors.silver,
               onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => const VoicePromptModal(),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FileUploaderScreen()),
                 );
               },
             ),
 
-            // 3. Machine Remote Control (Screen, Cam, Apps) - 60 deg, 220px
-            _buildPositionedButton(
-              angleDeg: 60,
-              distance: 220,
+            // Index 2: Interactive Terminal
+            _buildVerticalActionItem(
+              index: 2,
+              icon: Icons.terminal_rounded,
+              label: 'TERMINAL',
+              color: TerminalColors.silver,
+              onTap: () => widget.onTabSelected(4),
+            ),
+
+            // Index 3: Remote Machine (Screen & Webcam)
+            _buildVerticalActionItem(
+              index: 3,
               icon: Icons.settings_remote_rounded,
               label: 'MACHINE',
               color: TerminalColors.pureWhite,
@@ -241,42 +244,32 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
               },
             ),
 
-            // 4. Interactive Terminal PTY - 40 deg, 195px
-            _buildPositionedButton(
-              angleDeg: 40,
-              distance: 195,
-              icon: Icons.terminal_rounded,
-              label: 'TERMINAL',
-              color: TerminalColors.silver,
-              onTap: () => widget.onTabSelected(4),
-            ),
-
-            // 5. File Uploader - 20 deg, 220px
-            _buildPositionedButton(
-              angleDeg: 20,
-              distance: 220,
-              icon: Icons.cloud_upload_rounded,
-              label: 'UPLOAD',
-              color: TerminalColors.silver,
+            // Index 4: Vibe Agent
+            _buildVerticalActionItem(
+              index: 4,
+              icon: Icons.record_voice_over_rounded,
+              label: 'VIBE AGENT',
+              color: TerminalColors.pureWhite,
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FileUploaderScreen()),
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const VoicePromptModal(),
                 );
               },
             ),
 
-            // 6. Google OAuth & Switcher - 0 deg, 195px
-            _buildPositionedButton(
-              angleDeg: 0,
-              distance: 195,
-              icon: Icons.manage_accounts_rounded,
-              label: 'ACCOUNTS',
-              color: TerminalColors.zinc,
+            // Index 5: Find Deck (Top-most)
+            _buildVerticalActionItem(
+              index: 5,
+              icon: Icons.explore_rounded,
+              label: 'FIND DECK',
+              color: TerminalColors.pureWhite,
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AccountSwitcherScreen()),
+                  MaterialPageRoute(builder: (_) => const FindDeckScreen()),
                 );
               },
             ),
@@ -331,7 +324,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
 
           const SizedBox(width: 6),
 
-          // Bottom-Right Radial FAB Orb
+          // Bottom-Right Action FAB Orb
           GestureDetector(
             onTap: _toggleRadial,
             child: AnimatedBuilder(
@@ -361,7 +354,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                   child: Transform.rotate(
                     angle: _expandAnim.value * (pi / 4),
                     child: Icon(
-                      isRotated ? Icons.close : Icons.apps_rounded,
+                      isRotated ? Icons.close : Icons.add,
                       color: isRotated ? Colors.black : TerminalColors.pureWhite,
                       size: 22,
                     ),
