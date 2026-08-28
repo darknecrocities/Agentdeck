@@ -177,16 +177,24 @@ class _TerminalScreenState extends State<TerminalScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: SingleChildScrollView(
                 controller: _scrollCtrl,
-                child: SelectableText.rich(
-                  TextSpan(
-                    children: _output.isEmpty
-                        ? [
-                            TextSpan(
-                              text: 'AgentDeck Remote ZSH Terminal Connected.\nType commands or tap shortcuts below.\n\n',
-                              style: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11.5),
-                            )
-                          ]
-                        : AnsiParser.parse(_output, fontSize: 11.5),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: MediaQuery.of(context).size.width - 20,
+                    ),
+                    child: SelectableText.rich(
+                      TextSpan(
+                        children: _output.isEmpty
+                            ? [
+                                TextSpan(
+                                  text: 'AgentDeck Remote ZSH Terminal Connected.\nType commands or tap shortcuts below.\n\n',
+                                  style: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11.5),
+                                )
+                              ]
+                            : AnsiParser.parse(_output, fontSize: 11.5),
+                      ),
+                    ),
                   ),
                 ),
               ),
