@@ -400,9 +400,13 @@ class ApiService {
 
   Future<String?> takeScreenshot() async {
     try {
-      final data = await _get('/api/system/screenshot');
-      if (data is Map && data['success'] == true) {
-        return data['image_base64'] as String?;
+      final uri = Uri.parse('$baseUrl/api/system/screenshot');
+      final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200 && res.body.trim().isNotEmpty) {
+        final data = jsonDecode(res.body);
+        if (data is Map && data['success'] == true) {
+          return data['image_base64'] as String?;
+        }
       }
     } catch (_) {}
     return null;
@@ -410,9 +414,13 @@ class ApiService {
 
   Future<String?> takeCameraSnapshot() async {
     try {
-      final data = await _get('/api/system/camera');
-      if (data is Map && data['success'] == true) {
-        return data['image_base64'] as String?;
+      final uri = Uri.parse('$baseUrl/api/system/camera');
+      final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200 && res.body.trim().isNotEmpty) {
+        final data = jsonDecode(res.body);
+        if (data is Map && data['success'] == true) {
+          return data['image_base64'] as String?;
+        }
       }
     } catch (_) {}
     return null;

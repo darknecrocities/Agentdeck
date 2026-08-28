@@ -28,7 +28,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   String? _screenError;
   int _screenFrameCount = 0;
   Timer? _screenStreamTimer;
-  int _screenIntervalMs = 400; // ~2.5 FPS continuous stream
+  int _screenIntervalMs = 250; // ~4 FPS live desktop stream
 
   // Webcam Stream State
   bool _isStreamingCam = false;
@@ -37,7 +37,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   String? _camError;
   int _camFrameCount = 0;
   Timer? _camStreamTimer;
-  int _camIntervalMs = 400; // ~2.5 FPS continuous stream
+  int _camIntervalMs = 150; // ~7 FPS smooth live webcam stream
 
   // Launch App State
   bool _launching = false;
@@ -645,12 +645,15 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _screenError != null ? Icons.error_outline : Icons.desktop_windows_outlined,
-                          size: 40,
-                          color: TerminalColors.zinc,
-                        ),
-                        const SizedBox(height: 10),
+                        if (_screenError != null)
+                          const Icon(Icons.error_outline, size: 36, color: TerminalColors.zinc)
+                        else
+                          const SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(strokeWidth: 2.2, color: TerminalColors.pureWhite),
+                          ),
+                        const SizedBox(height: 14),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: Text(
@@ -811,12 +814,15 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _camError != null ? Icons.videocam_off_rounded : Icons.videocam_outlined,
-                          size: 40,
-                          color: TerminalColors.zinc,
-                        ),
-                        const SizedBox(height: 10),
+                        if (_camError != null)
+                          const Icon(Icons.videocam_off_rounded, size: 36, color: TerminalColors.zinc)
+                        else
+                          const SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(strokeWidth: 2.2, color: TerminalColors.pureWhite),
+                          ),
+                        const SizedBox(height: 14),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: Text(

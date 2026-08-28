@@ -524,61 +524,63 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
 
 pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
     use base64::Engine;
-    let temp_dir = std::env::temp_dir();
-    let file_name = format!("agentdeck_cam_{}.jpg", chrono::Utc::now().timestamp_millis());
-    let target_path = temp_dir.join(&file_name);
+    let live_cam_path = std::path::PathBuf::from("/tmp/agentdeck_cam_live.jpg");
 
     #[cfg(target_os = "macos")]
     {
-        // Try imagesnap if installed, or ffmpeg (including /opt/homebrew/bin/ffmpeg)
-        let mut captured = false;
-        if which::which("imagesnap").is_ok() {
-            let res = tokio::process::Command::new("imagesnap")
-                .args(["-q", target_path.to_str().unwrap_or("/tmp/cam.jpg")])
-                .output()
-                .await;
-            if let Ok(out) = res {
-                captured = out.status.success();
+        // 1. Check if persistent live stream file is actively being written (< 3s old)
+        let is_fresh = if live_cam_path.exists() {
+            if let Ok(metadata) = std::fs::metadata(&live_cam_path) {
+                if let Ok(modified) = metadata.modified() {
+                    modified.elapsed().unwrap_or_default().as_secs() < 3
+                } else {
+                    false
+                }
+            } else {
+                false
             }
-        }
+        } else {
+            false
+        };
 
-        if !captured {
-            let ffmpeg_candidates = ["ffmpeg", "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"];
+        // 2. If not fresh or not running, spawn continuous background ffmpeg capture stream
+        if !is_fresh {
+            let ffmpeg_candidates = ["/opt/homebrew/bin/ffmpeg", "ffmpeg", "/usr/local/bin/ffmpeg"];
             for bin in ffmpeg_candidates {
                 if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
-                    let res = tokio::process::Command::new(bin)
+                    let _ = tokio::process::Command::new(bin)
                         .args([
+                            "-nostdin",
                             "-f", "avfoundation",
                             "-framerate", "30",
                             "-video_size", "640x480",
                             "-i", "0:none",
-                            "-vframes", "1",
+                            "-f", "image2",
                             "-update", "1",
                             "-y",
-                            target_path.to_str().unwrap_or("/tmp/cam.jpg"),
+                            "/tmp/agentdeck_cam_live.jpg",
                         ])
-                        .output()
-                        .await;
-                    if let Ok(out) = res {
-                        if out.status.success() {
-                            captured = true;
-                            break;
-                        }
-                    }
+                        .kill_on_drop(false)
+                        .spawn();
+                    break;
                 }
             }
+            // Allow 200ms initial frame buffer warmup on initial start
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
         }
 
-        if captured && target_path.exists() {
-            if let Ok(bytes) = std::fs::read(&target_path) {
-                let _ = std::fs::remove_file(&target_path);
-                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                return Ok(Json(serde_json::json!({
-                    "success": true,
-                    "image_base64": b64,
-                    "size_bytes": bytes.len(),
-                    "timestamp": chrono::Utc::now().to_rfc3339(),
-                })));
+        // 3. Instantly read latest available frame from disk
+        if live_cam_path.exists() {
+            if let Ok(bytes) = std::fs::read(&live_cam_path) {
+                if !bytes.is_empty() {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                    return Ok(Json(serde_json::json!({
+                        "success": true,
+                        "image_base64": b64,
+                        "size_bytes": bytes.len(),
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    })));
+                }
             }
         }
     }
