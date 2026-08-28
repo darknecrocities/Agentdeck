@@ -506,24 +506,37 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   Widget _buildScreenTab() {
     return Column(
       children: [
-        // Live Streaming Header Control Bar
+        // Live Streaming Header Control Bar with Explicit ON/OFF Switch
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 9,
+                  height: 9,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _isStreamingScreen ? TerminalColors.pureWhite : TerminalColors.zinc,
+                    boxShadow: _isStreamingScreen
+                        ? [
+                            BoxShadow(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 7),
                 Text(
-                  _isStreamingScreen ? 'LIVE SCREEN STREAM' : 'SCREEN STREAM PAUSED',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w900, color: TerminalColors.pureWhite),
+                  _isStreamingScreen ? 'SCREENSHARE: ON (LIVE)' : 'SCREENSHARE: OFF',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    color: _isStreamingScreen ? TerminalColors.pureWhite : TerminalColors.zinc,
+                  ),
                 ),
                 if (_isStreamingScreen) ...[
                   const SizedBox(width: 6),
@@ -544,18 +557,18 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             ),
             Row(
               children: [
-                // Toggle Live Stream / Pause Button
+                // Explicit Power Toggle Button (ON / OFF)
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isStreamingScreen ? const Color(0xFF1F1F1F) : TerminalColors.pureWhite,
                     foregroundColor: _isStreamingScreen ? TerminalColors.pureWhite : Colors.black,
                     side: BorderSide(color: _isStreamingScreen ? const Color(0xFF404040) : TerminalColors.pureWhite),
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
-                  icon: Icon(_isStreamingScreen ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 14),
+                  icon: Icon(_isStreamingScreen ? Icons.power_settings_new_rounded : Icons.play_arrow_rounded, size: 14),
                   label: Text(
-                    _isStreamingScreen ? 'PAUSE' : 'START STREAM',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.w900),
+                    _isStreamingScreen ? 'TURN OFF' : 'TURN ON',
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w900),
                   ),
                   onPressed: () {
                     if (_isStreamingScreen) {
@@ -589,7 +602,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFF262626)),
             ),
-            child: _screenBytes != null
+            child: _isStreamingScreen && _screenBytes != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Stack(
@@ -622,14 +635,14 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                                 Container(
                                   width: 6,
                                   height: 6,
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: _isStreamingScreen ? TerminalColors.pureWhite : TerminalColors.zinc,
+                                    color: TerminalColors.pureWhite,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _isStreamingScreen ? 'LIVE ● 60FPS COMPAT' : 'PAUSED',
+                                  'SCREEN LIVE',
                                   style: GoogleFonts.jetBrainsMono(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.bold,
@@ -647,26 +660,52 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (_screenError != null)
-                          const Icon(Icons.error_outline, size: 36, color: TerminalColors.zinc)
-                        else
-                          const SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CircularProgressIndicator(strokeWidth: 2.2, color: TerminalColors.pureWhite),
+                        if (!_isStreamingScreen) ...[
+                          const Icon(Icons.desktop_access_disabled_rounded, size: 44, color: TerminalColors.zinc),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Screenshare is currently OFF',
+                            style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite),
                           ),
-                        const SizedBox(height: 14),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Text(
-                            _screenError ?? 'Connecting to live workstation screen stream...',
+                          const SizedBox(height: 6),
+                          Text(
+                            'Tap the button below to turn on the live desktop stream.',
+                            style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11,
-                              color: TerminalColors.zinc,
+                          ),
+                          const SizedBox(height: 14),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: TerminalColors.pureWhite,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            ),
+                            icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                            label: Text('START SCREENSHARE', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w900)),
+                            onPressed: _startScreenStream,
+                          ),
+                        ] else ...[
+                          if (_screenError != null)
+                            const Icon(Icons.error_outline, size: 36, color: TerminalColors.zinc)
+                          else
+                            const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(strokeWidth: 2.2, color: TerminalColors.pureWhite),
+                            ),
+                          const SizedBox(height: 14),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Text(
+                              _screenError ?? 'Connecting to live workstation screen stream...',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 11,
+                                color: TerminalColors.zinc,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -679,24 +718,37 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   Widget _buildCameraTab() {
     return Column(
       children: [
-        // Live Webcam Streaming Header Control Bar
+        // Live Webcam Streaming Header Control Bar with Explicit ON/OFF Switch
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 9,
+                  height: 9,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _isStreamingCam ? TerminalColors.pureWhite : TerminalColors.zinc,
+                    boxShadow: _isStreamingCam
+                        ? [
+                            BoxShadow(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 7),
                 Text(
-                  _isStreamingCam ? 'LIVE WEBCAM STREAM' : 'WEBCAM PAUSED',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w900, color: TerminalColors.pureWhite),
+                  _isStreamingCam ? 'WEBCAM: ON (LIVE)' : 'WEBCAM: OFF',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    color: _isStreamingCam ? TerminalColors.pureWhite : TerminalColors.zinc,
+                  ),
                 ),
                 if (_isStreamingCam) ...[
                   const SizedBox(width: 6),
@@ -717,18 +769,18 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             ),
             Row(
               children: [
-                // Toggle Live Webcam Stream / Pause
+                // Explicit Power Toggle Button (ON / OFF)
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isStreamingCam ? const Color(0xFF1F1F1F) : TerminalColors.pureWhite,
                     foregroundColor: _isStreamingCam ? TerminalColors.pureWhite : Colors.black,
                     side: BorderSide(color: _isStreamingCam ? const Color(0xFF404040) : TerminalColors.pureWhite),
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
-                  icon: Icon(_isStreamingCam ? Icons.videocam_rounded : Icons.play_arrow_rounded, size: 14),
+                  icon: Icon(_isStreamingCam ? Icons.power_settings_new_rounded : Icons.videocam_rounded, size: 14),
                   label: Text(
-                    _isStreamingCam ? 'PAUSE' : 'START STREAM',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.w900),
+                    _isStreamingCam ? 'TURN OFF' : 'TURN ON',
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w900),
                   ),
                   onPressed: () {
                     if (_isStreamingCam) {
@@ -762,7 +814,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFF262626)),
             ),
-            child: _camBytes != null
+            child: _isStreamingCam && _camBytes != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Stack(
@@ -791,14 +843,14 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                                 Container(
                                   width: 6,
                                   height: 6,
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: _isStreamingCam ? TerminalColors.pureWhite : TerminalColors.zinc,
+                                    color: TerminalColors.pureWhite,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _isStreamingCam ? 'WEBCAM FEED ● LIVE' : 'PAUSED',
+                                  'WEBCAM LIVE',
                                   style: GoogleFonts.jetBrainsMono(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.bold,
@@ -816,26 +868,52 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (_camError != null)
-                          const Icon(Icons.videocam_off_rounded, size: 36, color: TerminalColors.zinc)
-                        else
-                          const SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CircularProgressIndicator(strokeWidth: 2.2, color: TerminalColors.pureWhite),
+                        if (!_isStreamingCam) ...[
+                          const Icon(Icons.videocam_off_rounded, size: 44, color: TerminalColors.zinc),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Webcam is currently OFF',
+                            style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite),
                           ),
-                        const SizedBox(height: 14),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Text(
-                            _camError ?? 'Connecting to workstation live webcam feed...',
+                          const SizedBox(height: 6),
+                          Text(
+                            'Hardware sensor is released and camera indicator LED is off.',
+                            style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11,
-                              color: TerminalColors.zinc,
+                          ),
+                          const SizedBox(height: 14),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: TerminalColors.pureWhite,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            ),
+                            icon: const Icon(Icons.videocam_rounded, size: 16),
+                            label: Text('START WEBCAM FEED', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w900)),
+                            onPressed: _startCamStream,
+                          ),
+                        ] else ...[
+                          if (_camError != null)
+                            const Icon(Icons.videocam_off_rounded, size: 36, color: TerminalColors.zinc)
+                          else
+                            const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(strokeWidth: 2.2, color: TerminalColors.pureWhite),
+                            ),
+                          const SizedBox(height: 14),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Text(
+                              _camError ?? 'Connecting to workstation live webcam feed...',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 11,
+                                color: TerminalColors.zinc,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
