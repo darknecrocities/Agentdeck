@@ -58,23 +58,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadData({bool silent = false}) async {
-    if (!silent) setState(() => _loading = true);
+    if (!silent && _deviceInfo == null) setState(() => _loading = true);
     try {
-      final dev = await _api.getDevice();
-      final ag = await _api.getAgents();
-      final proj = await _api.getProjects();
-      final app = await _api.getApprovals();
-      final sess = await _api.getSessions();
-      final tok = await _api.getTokenSummary();
+      final results = await Future.wait([
+        _api.getDevice().catchError((_) => <String, dynamic>{}),
+        _api.getAgents().catchError((_) => <dynamic>[]),
+        _api.getProjects().catchError((_) => <dynamic>[]),
+        _api.getApprovals().catchError((_) => <dynamic>[]),
+        _api.getSessions().catchError((_) => <dynamic>[]),
+        _api.getTokenSummary().catchError((_) => <String, dynamic>{}),
+      ]);
 
       if (mounted) {
+        final dev = results[0] as Map<String, dynamic>;
         setState(() {
-          _deviceInfo = dev;
-          _agents = ag;
-          _projects = proj;
-          _approvals = app;
-          _sessions = sess;
-          _tokenSummary = tok;
+          _deviceInfo = dev.isNotEmpty ? dev : null;
+          _agents = results[1] as List<dynamic>;
+          _projects = results[2] as List<dynamic>;
+          _approvals = results[3] as List<dynamic>;
+          _sessions = results[4] as List<dynamic>;
+          _tokenSummary = results[5] as Map<String, dynamic>;
           _loading = false;
         });
       }
@@ -95,12 +98,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading && _deviceInfo == null && _projects.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(color: TerminalColors.pureWhite),
-      );
-    }
-
     final activeWs = WorkstationManager().currentWorkstation;
     final defaultHost = activeWs?.name ?? 'Workstation';
     final defaultTs = activeWs?.endpoint.replaceFirst(RegExp(r'^https?://'), '').split(':').first ?? '127.0.0.1';
