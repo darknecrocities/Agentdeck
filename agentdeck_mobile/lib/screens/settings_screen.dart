@@ -42,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _testConnection() async {
     setState(() {
       _testing = true;
-      _testStatus = 'Testing connection to Mac...';
+      _testStatus = 'Testing connection to workstation...';
     });
 
     _api.updateConfig(url: _urlCtrl.text.trim(), token: _tokenCtrl.text.trim());
@@ -77,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'MAC TAILSCALE / LOCAL ENDPOINT',
+                  'ACTIVE WORKSTATION TAILSCALE / LOCAL ENDPOINT',
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -89,7 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   controller: _urlCtrl,
                   style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'http://100.114.182.27:8765 or http://127.0.0.1:8765',
+                    hintText: 'http://100.114.182.27:8765 or http://100.94.58.13:8765',
                     filled: true,
                     fillColor: Colors.black,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -183,7 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Your phone connects directly to your Mac over an encrypted WireGuard tunnel provided by Tailscale. No third party ever sees your source code or agent streams.',
+                  'Your phone connects directly to your computers over an encrypted WireGuard tunnel provided by Tailscale. No third party ever sees your source code or agent streams.',
                   style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.zinc),
                 ),
               ],

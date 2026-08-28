@@ -103,7 +103,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          mode == 0 ? 'AUTOMATED APP CREATOR (MAC)' : 'ATTACH EXISTING WORKSPACE',
+                          mode == 0
+                              ? 'AUTOMATED APP CREATOR (${WorkstationManager().currentWorkstation?.os.toUpperCase() ?? "MACHINE"})'
+                              : 'ATTACH EXISTING WORKSPACE',
                           style: GoogleFonts.jetBrainsMono(
                             color: TerminalColors.pureWhite,
                             fontSize: 12,
@@ -313,7 +315,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         controller: pathCtrl,
                         style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
                         decoration: InputDecoration(
-                          labelText: 'WORKSPACE PATH ON MAC',
+                          labelText: 'WORKSPACE PATH ON ${WorkstationManager().currentWorkstation?.os.toUpperCase() ?? "MACHINE"}',
                           labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
                           filled: true,
                           fillColor: Colors.black,
