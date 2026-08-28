@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Fake Agent for AgentDeck automated testing and headless streaming verification
+
+MODE="${1:-stream}"
+
+if [ "$1" == "--version" ]; then
+    echo "agy 1.2.0 (fake-agent test fixture)"
+    exit 0
+fi
+
+# If called with --output-format stream-json
+echo '{"type":"session_started","session_id":"fake-sess-123","conversation_id":"fake-conv-456","agent":"antigravity"}'
+sleep 0.1
+echo '{"type":"thinking_started"}'
+sleep 0.1
+echo '{"type":"thinking_update","stage":"Analyzing codebase architecture"}'
+sleep 0.1
+echo '{"type":"tool_started","tool":"list_dir","input":{"path":"."}}'
+sleep 0.1
+echo '{"type":"tool_finished","tool":"list_dir","success":true,"summary":"Found 12 files"}'
+sleep 0.1
+echo '{"type":"file_created","path":"src/detector_service.dart"}'
+sleep 0.1
+echo '{"type":"file_modified","path":"src/inference_service.dart"}'
+sleep 0.1
+echo '{"type":"command_started","command":"cargo test"}'
+sleep 0.1
+echo '{"type":"command_finished","command":"cargo test","exit_code":0,"output_snippet":"42 tests passed"}'
+sleep 0.1
+echo '{"type":"agent_message","content":"Object detection pipeline successfully implemented and tested."}'
+sleep 0.1
+echo '{"type":"session_completed","summary":"Completed all tasks"}'
+
+exit 0

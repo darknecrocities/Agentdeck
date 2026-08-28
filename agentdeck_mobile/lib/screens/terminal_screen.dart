@@ -1,0 +1,216 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import '../services/api_service.dart';
+import '../theme/terminal_theme.dart';
+
+class TerminalScreen extends StatefulWidget {
+  const TerminalScreen({super.key});
+
+  @override
+  State<TerminalScreen> createState() => _TerminalScreenState();
+}
+
+class _TerminalScreenState extends State<TerminalScreen> {
+  final ApiService _api = ApiService();
+  final TextEditingController _inputCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
+
+  String _terminalId = '';
+  WebSocketChannel? _wsChannel;
+  String _output = 'AgentDeck Terminal Subsystem v0.1.0\nType any command or use quick keys below.\n\n';
+  bool _connecting = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initTerminal();
+  }
+
+  @override
+  void dispose() {
+    _wsChannel?.sink.close();
+    _inputCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initTerminal() async {
+    setState(() => _connecting = true);
+    try {
+      final res = await _api.spawnTerminal();
+      _terminalId = res['id'] ?? '';
+      if (_terminalId.isNotEmpty) {
+        _wsChannel = _api.connectTerminalStream(_terminalId);
+        _wsChannel!.stream.listen(
+          (data) {
+            final text = data is List<int> ? utf8.decode(data, allowMalformed: true) : data.toString();
+            if (mounted) {
+              setState(() {
+                _output += text;
+              });
+              _scrollToBottom();
+            }
+          },
+          onError: (_) {},
+          onDone: () {},
+        );
+      }
+    } catch (e) {
+      _output += 'Failed to spawn PTY session: $e\n';
+    } finally {
+      if (mounted) setState(() => _connecting = false);
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _sendInput(String input) {
+    if (_wsChannel != null) {
+      _wsChannel!.sink.add(input);
+    }
+  }
+
+  void _submitCommand() {
+    final cmd = _inputCtrl.text;
+    _sendInput('$cmd\n');
+    _inputCtrl.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('INTERACTIVE TERMINAL (PTY)'),
+        actions: [
+          if (_connecting)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Center(
+                child: SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.neonGreen),
+                ),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: TerminalColors.neonGreen),
+            onPressed: () {
+              _wsChannel?.sink.close();
+              _output = '';
+              _initTerminal();
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Terminal Output Canvas
+          Expanded(
+            child: Container(
+              color: Colors.black,
+              padding: const EdgeInsets.all(12),
+              child: SingleChildScrollView(
+                controller: _scrollCtrl,
+                child: Text(
+                  _output,
+                  style: GoogleFonts.jetBrainsMono(
+                    color: TerminalColors.neonGreen,
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Quick Keys Toolbar for Mobile
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: const BoxDecoration(
+              color: TerminalColors.surface,
+              border: Border(top: BorderSide(color: TerminalColors.cardBorder)),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildQuickKey('Ctrl+C', () => _sendInput('\x03')),
+                  _buildQuickKey('Tab', () => _sendInput('\t')),
+                  _buildQuickKey('Esc', () => _sendInput('\x1b')),
+                  _buildQuickKey('↑', () => _sendInput('\x1b[A')),
+                  _buildQuickKey('↓', () => _sendInput('\x1b[B')),
+                  _buildQuickKey('Clear', () => setState(() => _output = '')),
+                  _buildQuickKey('ls -la', () => _sendInput('ls -la\n')),
+                  _buildQuickKey('git status', () => _sendInput('git status\n')),
+                ],
+              ),
+            ),
+          ),
+
+          // Command Input Field
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: TerminalColors.surface,
+              border: Border(top: BorderSide(color: TerminalColors.cardBorder)),
+            ),
+            child: Row(
+              children: [
+                Text('\$ ', style: GoogleFonts.jetBrainsMono(color: TerminalColors.neonGreen, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: TextField(
+                    controller: _inputCtrl,
+                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Enter shell command...',
+                      hintStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 13),
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => _submitCommand(),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send_rounded, color: TerminalColors.neonGreen, size: 20),
+                  onPressed: _submitCommand,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickKey(String label, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: TerminalColors.textPrimary,
+          side: const BorderSide(color: TerminalColors.cardBorder),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        onPressed: onTap,
+        child: Text(
+          label,
+          style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+}

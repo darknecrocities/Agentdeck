@@ -1,0 +1,37 @@
+[server]
+host = "0.0.0.0"
+port = 8765
+db_path = "agentdeck.db"
+
+[network]
+mode = "tailscale" # "tailscale" or "localhost" or "all"
+tailscale_port = 8765
+
+[security]
+require_auth = false
+auth_token = "agentdeck-secret-token-change-me"
+allowed_paths = [
+    ".",
+    "/Users/arronkianparejas"
+]
+
+[agents.antigravity]
+enabled = true
+binary = "agy"
+
+[agents.claude]
+enabled = true
+binary = "claude"
+
+[agents.gemini]
+enabled = true
+binary = "gemini"
+
+[agents.ollama]
+enabled = true
+binary = "ollama"
+
+[projects]
+roots = [
+    "/path/to/your/projects"
+]
