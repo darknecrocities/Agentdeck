@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,7 +13,9 @@ class ApiService {
   String baseUrl = 'http://127.0.0.1:8765';
   String? authToken;
 
-  static const Duration _timeout = Duration(milliseconds: 2500);
+  // Reusable HTTP client for fast connection pooling & keep-alive
+  final http.Client _client = http.Client();
+  static const Duration _timeout = Duration(milliseconds: 1800);
 
   Map<String, String> get _headers {
     final map = <String, String>{'Content-Type': 'application/json'};
@@ -50,11 +51,11 @@ class ApiService {
     } catch (_) {}
   }
 
-  // HTTP Helpers with fast failure timeout & graceful error recovery
+  // HTTP Helpers with connection reuse & fast recovery
   Future<dynamic> _get(String path, {Map<String, String>? query}) async {
     try {
       final uri = Uri.parse('$baseUrl$path').replace(queryParameters: query);
-      final res = await http.get(uri, headers: _headers).timeout(_timeout);
+      final res = await _client.get(uri, headers: _headers).timeout(_timeout);
       if (res.body.trim().isEmpty) return null;
       return jsonDecode(res.body);
     } catch (e) {
@@ -66,7 +67,7 @@ class ApiService {
   Future<dynamic> _post(String path, Map<String, dynamic> body) async {
     try {
       final uri = Uri.parse('$baseUrl$path');
-      final res = await http.post(uri, headers: _headers, body: jsonEncode(body)).timeout(_timeout);
+      final res = await _client.post(uri, headers: _headers, body: jsonEncode(body)).timeout(_timeout);
       if (res.body.trim().isEmpty) return null;
       return jsonDecode(res.body);
     } catch (e) {
@@ -78,7 +79,7 @@ class ApiService {
   Future<bool> _del(String path) async {
     try {
       final uri = Uri.parse('$baseUrl$path');
-      final res = await http.delete(uri, headers: _headers).timeout(_timeout);
+      final res = await _client.delete(uri, headers: _headers).timeout(_timeout);
       return res.statusCode == 200;
     } catch (_) {
       return false;

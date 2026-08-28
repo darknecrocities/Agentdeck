@@ -15,14 +15,12 @@ import 'widgets/radial_bottom_nav.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize workstations & saved daemon endpoint (Tailscale IP: 127.0.0.1)
-  await WorkstationManager().init();
-  await ApiService().initFromPrefs();
-
-  // Globally hide the mobile system navigation bar (Immersive Sticky Mode)
-  await SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.immersiveSticky,
-  );
+  // Parallel initialize workstations & saved daemon endpoint for fast startup
+  await Future.wait([
+    WorkstationManager().init(),
+    ApiService().initFromPrefs(),
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+  ]);
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -60,25 +58,37 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
-
-  late final List<Widget> _screens;
-
-  @override
-  void initState() {
-    super.initState();
-    _screens = [
-      DashboardScreen(onNavigate: _setIndex),
-      const ProjectsScreen(),
-      const AgentsScreen(),
-      const TimelineScreen(),
-      const TerminalScreen(),
-      const ApprovalsScreen(),
-      const SettingsScreen(),
-    ];
-  }
+  final Set<int> _loadedTabs = {0}; // Lazy loading: Only mount Dashboard on startup!
 
   void _setIndex(int index) {
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      _loadedTabs.add(index);
+    });
+  }
+
+  Widget _buildScreen(int index) {
+    if (!_loadedTabs.contains(index)) {
+      return const SizedBox.shrink();
+    }
+    switch (index) {
+      case 0:
+        return DashboardScreen(onNavigate: _setIndex);
+      case 1:
+        return const ProjectsScreen();
+      case 2:
+        return const AgentsScreen();
+      case 3:
+        return const TimelineScreen();
+      case 4:
+        return const TerminalScreen();
+      case 5:
+        return const ApprovalsScreen();
+      case 6:
+        return const SettingsScreen();
+      default:
+        return DashboardScreen(onNavigate: _setIndex);
+    }
   }
 
   @override
@@ -90,7 +100,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             padding: const EdgeInsets.only(bottom: 64),
             child: IndexedStack(
               index: _currentIndex,
-              children: _screens,
+              children: List.generate(7, (i) => _buildScreen(i)),
             ),
           ),
           Positioned(
