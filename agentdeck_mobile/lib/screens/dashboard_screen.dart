@@ -8,6 +8,9 @@ import 'session_screen.dart';
 import 'terminal_screen.dart';
 import 'token_monitor_screen.dart';
 import 'account_switcher_screen.dart';
+import 'workstation_switcher_screen.dart';
+import 'file_uploader_screen.dart';
+import '../widgets/model_selector_modal.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int) onNavigate;
@@ -27,6 +30,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> _sessions = [];
   bool _loading = true;
   Timer? _refreshTimer;
+
+  String _selectedModel = 'gemini-2.5-pro';
+  String _selectedEffort = 'high';
 
   @override
   void initState() {
@@ -87,6 +93,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const AgentDeckLogoHeader(size: 26),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.devices, color: TerminalColors.pureWhite, size: 20),
+            tooltip: 'Switch Workstations (Mac/Windows/Linux)',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WorkstationSwitcherScreen()),
+            ).then((_) => _loadData()),
+          ),
+          IconButton(
+            icon: const Icon(Icons.cloud_upload_outlined, color: TerminalColors.pureWhite, size: 20),
+            tooltip: 'Upload Files & Media',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FileUploaderScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.token_outlined, color: TerminalColors.pureWhite, size: 20),
             tooltip: 'Token & Quota Monitor',
@@ -261,6 +283,79 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Active Model & Reasoning Level Selector
+                  InkWell(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => ModelSelectorModal(
+                          currentModel: _selectedModel,
+                          currentEffort: _selectedEffort,
+                          onSelected: (model, effort) {
+                            setState(() {
+                              _selectedModel = model;
+                              _selectedEffort = effort;
+                            });
+                          },
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: TerminalColors.cardBorderLight),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.psychology, color: TerminalColors.pureWhite, size: 16),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _selectedModel.toUpperCase(),
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: TerminalColors.pureWhite,
+                                    ),
+                                  ),
+                                  Text(
+                                    'REASONING EFFORT: ${_selectedEffort.toUpperCase()}',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 9.5,
+                                      color: TerminalColors.zinc,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: TerminalColors.pureWhite,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: Text(
+                              'CHANGE',
+                              style: GoogleFonts.jetBrainsMono(fontSize: 8.5, fontWeight: FontWeight.w900, color: Colors.black),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                   Text(
                     'QUICK PROMPT DISPATCHER',
                     style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
@@ -293,7 +388,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const TerminalScreen(initialCommand: 'agy'),
+                          builder: (_) => TerminalScreen(
+                            initialCommand: 'agy --model $_selectedModel --effort $_selectedEffort',
+                          ),
                         ),
                       );
                     },
@@ -440,6 +537,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           projectId: proj['id'],
           agent: agent,
           prompt: prompt,
+          model: _selectedModel,
+          effort: _selectedEffort,
         );
         if (mounted && res['id'] != null) {
           Navigator.push(
