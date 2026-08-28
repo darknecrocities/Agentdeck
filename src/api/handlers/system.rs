@@ -50,9 +50,19 @@ pub async fn device_info_handler() -> Json<DeviceInfo> {
 
     let ts = TailscaleManager::detect().await;
 
+    let os_name = if cfg!(target_os = "macos") {
+        format!("macOS (Darwin {})", System::os_version().unwrap_or_default())
+    } else if cfg!(target_os = "windows") {
+        format!("Windows ({})", System::os_version().unwrap_or_default())
+    } else if cfg!(target_os = "linux") {
+        format!("Linux ({})", System::os_version().unwrap_or_default())
+    } else {
+        System::name().unwrap_or_else(|| "Unknown OS".to_string())
+    };
+
     let info = DeviceInfo {
-        os: format!("macOS (Darwin {})", System::os_version().unwrap_or_default()),
-        hostname: System::host_name().unwrap_or_else(|| "MacBook".to_string()),
+        os: os_name,
+        hostname: System::host_name().unwrap_or_else(|| "Workstation".to_string()),
         cpu_usage: sys.global_cpu_usage(),
         memory_used_mb: sys.used_memory() / 1024 / 1024,
         memory_total_mb: sys.total_memory() / 1024 / 1024,
@@ -102,7 +112,10 @@ pub struct BrowseQuery {
 pub async fn browse_directories_handler(
     axum::extract::Query(query): axum::extract::Query<BrowseQuery>,
 ) -> Json<serde_json::Value> {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/Users/arronkianparejas".to_string());
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_else(|_| if cfg!(windows) { "C:\\Users".to_string() } else { "/home".to_string() });
+
     let target_path = query.path.unwrap_or_else(|| home.clone());
     let path = std::path::PathBuf::from(&target_path);
 
@@ -134,12 +147,13 @@ pub async fn browse_directories_handler(
         name_a.cmp(&name_b)
     });
 
+    let home_path = std::path::Path::new(&home);
     let shortcuts = vec![
         serde_json::json!({ "label": "Home", "path": home }),
-        serde_json::json!({ "label": "Desktop", "path": format!("{}/Desktop", home) }),
-        serde_json::json!({ "label": "Documents", "path": format!("{}/Documents", home) }),
-        serde_json::json!({ "label": "Downloads", "path": format!("{}/Downloads", home) }),
-        serde_json::json!({ "label": "AgentDeck", "path": format!("{}/agentdeck", home) }),
+        serde_json::json!({ "label": "Desktop", "path": home_path.join("Desktop").to_string_lossy().to_string() }),
+        serde_json::json!({ "label": "Documents", "path": home_path.join("Documents").to_string_lossy().to_string() }),
+        serde_json::json!({ "label": "Downloads", "path": home_path.join("Downloads").to_string_lossy().to_string() }),
+        serde_json::json!({ "label": "AgentDeck", "path": home_path.join("agentdeck").to_string_lossy().to_string() }),
     ];
 
     Json(serde_json::json!({

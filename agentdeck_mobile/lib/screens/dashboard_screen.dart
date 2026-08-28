@@ -40,11 +40,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadData();
+    WorkstationManager().addListener(_onWorkstationChanged);
     _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) => _loadData(silent: true));
+  }
+
+  void _onWorkstationChanged() {
+    if (mounted) {
+      _loadData();
+    }
   }
 
   @override
   void dispose() {
+    WorkstationManager().removeListener(_onWorkstationChanged);
     _refreshTimer?.cancel();
     super.dispose();
   }
@@ -247,8 +255,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             // Host Telemetry Card
             TerminalCard(
-              title: 'MAC WORKSTATION TELEMETRY',
-              trailing: const StatusBadge(status: 'ONLINE'),
+              title: '${(WorkstationManager().currentWorkstation?.os ?? "HOST").toUpperCase()} WORKSTATION TELEMETRY',
+              trailing: StatusBadge(status: _deviceInfo != null ? 'ONLINE' : 'CONNECTING'),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

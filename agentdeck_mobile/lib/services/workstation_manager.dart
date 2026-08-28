@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
@@ -50,7 +51,7 @@ class Workstation {
   }
 }
 
-class WorkstationManager {
+class WorkstationManager extends ChangeNotifier {
   static final WorkstationManager _instance = WorkstationManager._internal();
   factory WorkstationManager() => _instance;
   WorkstationManager._internal();
@@ -115,6 +116,7 @@ class WorkstationManager {
       if (active != null) {
         await ApiService().updateConfig(url: active.endpoint, token: active.authToken);
       }
+      notifyListeners();
     } catch (_) {}
   }
 
@@ -125,11 +127,13 @@ class WorkstationManager {
     if (active != null) {
       await ApiService().updateConfig(url: active.endpoint, token: active.authToken);
     }
+    notifyListeners();
   }
 
   Future<void> addWorkstation(Workstation ws) async {
     _workstations.add(ws);
     await _persist();
+    notifyListeners();
   }
 
   Future<void> removeWorkstation(String id) async {
@@ -138,6 +142,7 @@ class WorkstationManager {
       _workstations[0] = _workstations[0].copyWith(isCurrent: true);
     }
     await _persist();
+    notifyListeners();
   }
 
   Future<bool> pingWorkstation(String endpoint) async {
