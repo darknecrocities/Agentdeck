@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AnsiParser {
-  // Matches both standard \x1b[...] and raw bracketed [...m] escape sequences
+  // Matches valid ANSI escape sequences strictly (requiring \x1b or bracketed numbers + m)
   static final RegExp _ansiRegex = RegExp(
-    r'(?:\x1b|\u001b)?(?:'
-    r'\[\??([0-9;]*)([a-zA-Z])' // CSI sequences: e.g. \x1b[0;32m or [1;37m or \x1b[?25h
-    r'|\][^\x07\x1b]*(?:\x07|\x1b\\|\n|$)' // OSC sequences
-    r'|\([AB012]' // Character sets
-    r'|[=>NOM78]' // Keypad/cursor modes
-    r')',
+    r'\x1b(?:'
+    r'\[\??([0-9;]*)([a-zA-Z])' // \x1b[0;32m, \x1b[?25h
+    r'|\][^\x07\x1b]*(?:\x07|\x1b\\|\n|$)' // \x1b]... OSC
+    r'|\([AB012]' // \x1b(B
+    r'|[=>NOM78]' // Keypad/cursor modes with \x1b prefix
+    r')'
+    r'|(?<!\w)\[([0-9]+(?:;[0-9]+)*)m', // bracketed SGR without \x1b, e.g. [0m or [1;37m
   );
 
   static String sanitizeRawText(String text) {
@@ -41,7 +42,7 @@ class AnsiParser {
 
     var result = cleanLines.join('\n');
 
-    // Remove any remaining control characters (preserving tab \x09, newline \x0A, and escape \x1B)
+    // Remove any non-printable control characters (preserving tab \x09, newline \x0A, and escape \x1B)
     result = result.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1A\x1C-\x1F]'), '');
     return result;
   }
@@ -78,8 +79,8 @@ class AnsiParser {
         }
       }
 
-      final codesStr = match.group(1);
-      final command = match.group(2);
+      final codesStr = match.group(1) ?? match.group(3);
+      final command = match.group(2) ?? 'm';
 
       // Only 'm' is Select Graphic Rendition (SGR)
       if (command == 'm' && codesStr != null) {
@@ -127,7 +128,7 @@ class AnsiParser {
                 // Inverse off
                 break;
 
-              // Pure Black & White Monochrome Palette (No Blue, No Green)
+              // Pure Black & White Monochrome SGR Palette
               case 30:
                 currentColor = const Color(0xFF525252); // Muted Dark
                 break;
@@ -153,7 +154,6 @@ class AnsiParser {
                 currentColor = const Color(0xFFFFFFFF); // Pure White
                 break;
               case 38:
-                // 256 colors or RGB -> Grayscale
                 if (i + 2 < codes.length && codes[i + 1] == 5) {
                   currentColor = _getMonochrome256Color(codes[i + 2]);
                   i += 2;
@@ -170,7 +170,7 @@ class AnsiParser {
                 currentColor = const Color(0xFFFFFFFF);
                 break;
 
-              // Bright foreground colors (Pure Monochrome)
+              // Bright foreground colors
               case 90:
                 currentColor = const Color(0xFF737373); // Neutral Slate
                 break;
