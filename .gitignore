@@ -68,3 +68,6 @@ agentdeck_mobile/windows/flutter/ephemeral/
 *.iml
 .vscode/
 .history/
+
+Users/
+
