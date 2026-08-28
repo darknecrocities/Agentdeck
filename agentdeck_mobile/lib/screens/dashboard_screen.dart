@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/terminal_widgets.dart';
 import 'session_screen.dart';
+import 'terminal_screen.dart';
 import 'token_monitor_screen.dart';
 import 'account_switcher_screen.dart';
 
@@ -274,6 +275,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _buildQuickPromptChip('🧪 Run & Fix Tests', 'Run all tests, analyze any failure, and fix them automatically.', 'antigravity'),
                       _buildQuickPromptChip('📦 Git Commit & Push', 'Commit all changes with a descriptive message and push.', 'antigravity'),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: TerminalColors.pureWhite,
+                      side: const BorderSide(color: TerminalColors.pureWhite, width: 1.2),
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      minimumSize: const Size(double.infinity, 38),
+                    ),
+                    icon: const Icon(Icons.terminal, size: 16),
+                    label: Text(
+                      '⚡ OPEN ANTIGRAVITY IN LIVE TERMINAL',
+                      style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TerminalScreen(initialCommand: 'agy'),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
