@@ -82,6 +82,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/ws/events", get(handlers::ws::ws_events_handler))
         .route("/ws/sessions/:id", get(handlers::ws::ws_session_handler))
         .route("/ws/terminal/:id", get(handlers::ws::ws_terminal_handler))
+        .layer(axum::extract::DefaultBodyLimit::max(500 * 1024 * 1024))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
