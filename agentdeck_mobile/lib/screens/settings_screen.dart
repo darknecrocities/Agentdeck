@@ -231,26 +231,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(color: TerminalColors.cardBorder, height: 20),
 
-                // EasyLens Male Voice Profiles
-                Text(
-                  'VOICE PERSONA (MALE AI ONLY - EASYLENS CALIBRATED)',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: TerminalColors.zinc,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildVoiceProfilePill('Echo (Deep Male)', '0.44x • Deep Pitch 0.50'),
-                    _buildVoiceProfilePill('Max (Bold Male)', '0.48x • Bold Pitch 0.55'),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
                 // Speaking Speed Slider
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -284,20 +264,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Voice Tone (Pitch)',
+                      'Voice Tone (Deep Male)',
                       style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      '${VoiceService().speechPitch.toStringAsFixed(2)} (${VoiceService().speechPitch < 0.85 ? "Deep Male" : "Neutral"})',
+                      '${VoiceService().speechPitch.toStringAsFixed(2)} (${VoiceService().speechPitch < 0.65 ? "Deep Male" : "Neutral"})',
                       style: GoogleFonts.jetBrainsMono(fontSize: 10.5, color: const Color(0xFF51CF66), fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
                 Slider(
-                  value: VoiceService().speechPitch.clamp(0.65, 1.10),
-                  min: 0.65,
-                  max: 1.10,
-                  divisions: 9,
+                  value: VoiceService().speechPitch.clamp(0.40, 1.00),
+                  min: 0.40,
+                  max: 1.00,
+                  divisions: 6,
                   activeColor: const Color(0xFF51CF66),
                   inactiveColor: const Color(0xFF222222),
                   onChanged: (val) {
@@ -318,9 +298,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                         icon: const Icon(Icons.volume_up, size: 16),
-                        label: Text('TEST MALE VOICE', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                        label: Text('TEST VOICE', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.bold)),
                         onPressed: () async {
-                          const testMsg = 'AgentDeck male voice synthesizer calibrated. Operating at natural speaking pace.';
+                          const testMsg = 'AgentDeck male voice synthesizer online and calibrated.';
                           await VoiceService().speak(testMsg);
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -366,61 +346,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 20),
         ],
-      ),
-    );
-  }
-
-  Widget _buildVoiceProfilePill(String name, String sub) {
-    final isSelected = VoiceService().selectedVoicePersona == name;
-    return InkWell(
-      onTap: () async {
-        await VoiceService().setProfile(name);
-        setState(() {});
-      },
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF143318) : Colors.black,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF51CF66) : TerminalColors.cardBorder,
-            width: isSelected ? 1.5 : 1.0,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                  size: 13,
-                  color: isSelected ? const Color(0xFF51CF66) : TerminalColors.zinc,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  name,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.bold,
-                    color: isSelected ? TerminalColors.pureWhite : TerminalColors.zinc,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              sub,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 8.5,
-                color: isSelected ? const Color(0xFF51CF66) : TerminalColors.textMuted,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
