@@ -57,7 +57,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted && !silent) {
         setState(() => _loading = false);
       }
@@ -68,7 +68,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     if (_loading && _deviceInfo == null) {
       return const Center(
-        child: CircularProgressIndicator(color: TerminalColors.neonGreen),
+        child: CircularProgressIndicator(color: TerminalColors.pureWhite),
       );
     }
 
@@ -78,280 +78,307 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final memPercent = ((memUsed / memTotal) * 100).round();
     final diskFree = (_deviceInfo?['disk_free_gb'] as num?)?.toStringAsFixed(1) ?? '0';
     final host = _deviceInfo?['hostname'] ?? 'MacBook Air';
-    final tsStatus = _deviceInfo?['tailscale_status'] ?? 'offline';
-    final tsIp = _deviceInfo?['tailscale_ip'] ?? '100.x.x.x';
+    final tsIp = _deviceInfo?['tailscale_ip'] ?? '100.114.182.27';
 
-    return RefreshIndicator(
-      color: TerminalColors.neonGreen,
-      backgroundColor: TerminalColors.surface,
-      onRefresh: _loadData,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Pending Approvals Banner
-          if (_approvals.isNotEmpty) ...[
-            InkWell(
-              onTap: () => widget.onNavigate(4), // Navigate to Approvals
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: TerminalColors.neonAmber.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: TerminalColors.neonAmber, width: 1.5),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, color: TerminalColors.neonAmber, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'APPROVAL REQUIRED (${_approvals.length} PENDING)',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontWeight: FontWeight.bold,
-                              color: TerminalColors.neonAmber,
-                              fontSize: 13,
-                            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const AgentDeckLogoHeader(size: 26),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: TerminalColors.pureWhite, size: 20),
+            onPressed: () => widget.onNavigate(6),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        color: TerminalColors.pureWhite,
+        backgroundColor: TerminalColors.surface,
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Approvals Alert Banner
+            if (_approvals.isNotEmpty) ...[
+              InkWell(
+                onTap: () => widget.onNavigate(5),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.black, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'SECURITY APPROVAL REQUIRED (${_approvals.length} PENDING)',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                            fontSize: 11,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Agent requested dangerous action execution',
-                            style: GoogleFonts.jetBrainsMono(
-                              color: TerminalColors.textSecondary,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.chevron_right, color: TerminalColors.neonAmber),
-                  ],
+                      const Icon(Icons.arrow_forward, color: Colors.black, size: 16),
+                    ],
+                  ),
                 ),
+              ),
+            ],
+
+            // Host Telemetry Card
+            TerminalCard(
+              title: 'MAC WORKSTATION TELEMETRY',
+              trailing: const StatusBadge(status: 'ONLINE'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        host.toUpperCase(),
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: TerminalColors.pureWhite,
+                        ),
+                      ),
+                      Text(
+                        'TS: $tsIp',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          color: TerminalColors.silver,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _buildMetricRow('CPU LOAD', cpu),
+                  const SizedBox(height: 10),
+                  _buildMetricRow(
+                    'MEMORY',
+                    memPercent,
+                    subtitle: '${(memUsed / 1024).toStringAsFixed(1)}G / ${(memTotal / 1024).toStringAsFixed(1)}G',
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('DISK AVAILABLE', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc)),
+                      Text('$diskFree GB FREE', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Antigravity Quick Command & Prompt Bar
+            TerminalCard(
+              title: 'ANTIGRAVITY CLI PROMPT CENTER',
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  border: Border.all(color: TerminalColors.cardBorderLight),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Text('FIRST-CLASS', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: TerminalColors.pureWhite)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'QUICK PROMPT DISPATCHER',
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _buildQuickPromptChip('🔍 Analyze Architecture', 'Analyze this codebase architecture and create an implementation plan.', 'antigravity'),
+                      _buildQuickPromptChip('⚡ Implement Feature', 'Proceed with the implementation and wire up all services.', 'antigravity'),
+                      _buildQuickPromptChip('🧪 Run & Fix Tests', 'Run all tests, analyze any failure, and fix them automatically.', 'antigravity'),
+                      _buildQuickPromptChip('📦 Git Commit & Push', 'Commit all changes with a descriptive message and push.', 'antigravity'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Active Sessions
+            TerminalCard(
+              title: 'ACTIVE SESSIONS',
+              trailing: Text(
+                '${_sessions.length} ACTIVE',
+                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
+              ),
+              child: _sessions.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Text(
+                          'No agent processes running.\nLaunch an Antigravity prompt above.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textMuted),
+                        ),
+                      ),
+                    )
+                  : Column(
+                      children: _sessions.map((s) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: TerminalColors.cardBorder),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          (s['agent'] ?? 'agent').toString().toUpperCase(),
+                                          style: GoogleFonts.jetBrainsMono(
+                                            fontWeight: FontWeight.w900,
+                                            color: TerminalColors.pureWhite,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        StatusBadge(status: s['status'] ?? 'running'),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      s['last_task'] ?? 'Processing...',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        color: TerminalColors.zinc,
+                                        fontSize: 11,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.arrow_forward_ios, size: 13, color: TerminalColors.pureWhite),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => SessionScreen(
+                                        sessionId: s['id'],
+                                        agentName: s['agent'],
+                                        projectId: s['project_id'],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+            ),
+            const SizedBox(height: 14),
+
+            // AI Agents Fleet
+            TerminalCard(
+              title: 'SUPPORTED AI AGENTS',
+              child: Column(
+                children: _agents.map((ag) {
+                  final isInst = ag['installed'] == true;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.terminal, size: 15, color: TerminalColors.pureWhite),
+                            const SizedBox(width: 8),
+                            Text(
+                              ag['display_name'] ?? ag['id'],
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isInst ? TerminalColors.pureWhite : TerminalColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        StatusBadge(status: isInst ? 'ONLINE' : 'OFFLINE'),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
 
-          // Machine & Tailscale Telemetry Card
-          TerminalCard(
-            title: 'HOST TELEMETRY',
-            trailing: const StatusBadge(status: 'ONLINE'),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      host,
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: TerminalColors.textPrimary,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Icon(Icons.shield_outlined, size: 14, color: TerminalColors.electricCyan),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Tailscale: $tsStatus ($tsIp)',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            color: TerminalColors.electricCyan,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _buildMetricRow('CPU LOAD', cpu),
-                const SizedBox(height: 10),
-                _buildMetricRow('MEMORY', memPercent, subtitle: '${(memUsed / 1024).toStringAsFixed(1)} GB / ${(memTotal / 1024).toStringAsFixed(1)} GB'),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('DISK AVAILABLE', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textSecondary)),
-                    Text('$diskFree GB FREE', style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: TerminalColors.textPrimary)),
-                  ],
-                ),
-              ],
+  Widget _buildQuickPromptChip(String label, String prompt, String agent) {
+    return InkWell(
+      onTap: () async {
+        if (_projects.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Please register a workspace first in Workspaces tab', style: GoogleFonts.jetBrainsMono())),
+          );
+          return;
+        }
+        final proj = _projects.first;
+        final res = await _api.startSession(
+          projectId: proj['id'],
+          agent: agent,
+          prompt: prompt,
+        );
+        if (mounted && res['id'] != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SessionScreen(
+                sessionId: res['id'],
+                agentName: agent,
+                projectId: proj['id'],
+              ),
             ),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: TerminalColors.cardBorderLight),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: TerminalColors.pureWhite,
           ),
-          const SizedBox(height: 16),
-
-          // Active Sessions / Quick Action
-          TerminalCard(
-            title: 'ACTIVE SESSIONS',
-            trailing: Text(
-              '${_sessions.length} TOTAL',
-              style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textSecondary),
-            ),
-            child: _sessions.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'No agent sessions currently active.\nStart one from Projects or Agents.',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.jetBrainsMono(fontSize: 12, color: TerminalColors.textMuted),
-                      ),
-                    ),
-                  )
-                : Column(
-                    children: _sessions.map((s) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: TerminalColors.background,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: TerminalColors.cardBorder),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  (s['agent'] ?? 'agent').toString().toUpperCase(),
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontWeight: FontWeight.bold,
-                                    color: TerminalColors.neonGreen,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  s['last_task'] ?? 'Executing task...',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    color: TerminalColors.textSecondary,
-                                    fontSize: 11,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.arrow_forward_ios, size: 14, color: TerminalColors.neonGreen),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SessionScreen(
-                                      sessionId: s['id'],
-                                      agentName: s['agent'],
-                                      projectId: s['project_id'],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-          ),
-          const SizedBox(height: 16),
-
-          // Agents Fleet
-          TerminalCard(
-            title: 'AI AGENTS FLEET',
-            child: Column(
-              children: _agents.map((ag) {
-                final isInst = ag['installed'] == true;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.smart_toy_outlined,
-                            size: 16,
-                            color: isInst ? TerminalColors.neonGreen : TerminalColors.textMuted,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            ag['display_name'] ?? ag['id'],
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isInst ? TerminalColors.textPrimary : TerminalColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                      StatusBadge(status: isInst ? 'ONLINE' : 'OFFLINE'),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Projects Quick List
-          TerminalCard(
-            title: 'PROJECT WORKSPACES',
-            child: _projects.isEmpty
-                ? Text('No projects registered yet.', style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted))
-                : Column(
-                    children: _projects.map((p) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  p['name'] ?? 'Project',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontWeight: FontWeight.bold,
-                                    color: TerminalColors.textPrimary,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                Text(
-                                  p['path'] ?? '',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 11,
-                                    color: TerminalColors.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: TerminalColors.electricCyan.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                p['default_agent'] ?? 'antigravity',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
-                                  color: TerminalColors.electricCyan,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -363,9 +390,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textSecondary)),
+            Text(label, style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc)),
             if (subtitle != null)
-              Text(subtitle, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textMuted)),
+              Text(subtitle, style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.textMuted)),
           ],
         ),
         const SizedBox(height: 4),

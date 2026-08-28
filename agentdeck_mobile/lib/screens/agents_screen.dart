@@ -44,7 +44,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
         title: const Text('AI AGENTS DIRECTORY'),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: TerminalColors.neonGreen))
+          ? const Center(child: CircularProgressIndicator(color: TerminalColors.pureWhite))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _agents.length,
@@ -57,7 +57,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                   margin: const EdgeInsets.only(bottom: 12),
                   child: TerminalCard(
                     title: a['display_name'] ?? a['id'],
-                    trailing: StatusBadge(status: installed ? 'INSTALLED' : 'NOT FOUND'),
+                    trailing: StatusBadge(status: installed ? 'INSTALLED' : 'NOT DETECTED'),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -65,12 +65,12 @@ class _AgentsScreenState extends State<AgentsScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Adapter ID: ${a['id']}',
-                              style: GoogleFonts.jetBrainsMono(fontSize: 12, color: TerminalColors.textMuted),
+                              'Adapter: ${a['id']}',
+                              style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.zinc),
                             ),
                             Text(
                               'v${a['version'] ?? 'N/A'}',
-                              style: GoogleFonts.jetBrainsMono(fontSize: 12, color: TerminalColors.neonGreen),
+                              style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -78,7 +78,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                           const SizedBox(height: 4),
                           Text(
                             a['binary_path'],
-                            style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textMuted),
+                            style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.textMuted),
                           ),
                         ],
                         const SizedBox(height: 12),
@@ -87,7 +87,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: TerminalColors.electricCyan,
+                            color: TerminalColors.zinc,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -116,10 +116,10 @@ class _AgentsScreenState extends State<AgentsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: active ? TerminalColors.neonGreen.withOpacity(0.12) : TerminalColors.surfaceHover,
-        borderRadius: BorderRadius.circular(4),
+        color: active ? TerminalColors.surfaceElevated : Colors.black,
+        borderRadius: BorderRadius.circular(3),
         border: Border.all(
-          color: active ? TerminalColors.neonGreen.withOpacity(0.4) : TerminalColors.cardBorder,
+          color: active ? TerminalColors.cardBorderLight : TerminalColors.cardBorder,
         ),
       ),
       child: Text(
@@ -127,7 +127,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
         style: GoogleFonts.jetBrainsMono(
           fontSize: 9,
           fontWeight: FontWeight.w600,
-          color: active ? TerminalColors.neonGreen : TerminalColors.textMuted,
+          color: active ? TerminalColors.pureWhite : TerminalColors.textMuted,
         ),
       ),
     );

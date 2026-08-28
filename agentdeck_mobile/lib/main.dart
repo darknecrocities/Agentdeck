@@ -71,7 +71,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex > 4 ? 0 : _currentIndex,
           onTap: (idx) => _setIndex(idx),
-          selectedItemColor: TerminalColors.neonGreen,
+          selectedItemColor: TerminalColors.pureWhite,
           unselectedItemColor: TerminalColors.textMuted,
           backgroundColor: TerminalColors.surface,
           type: BottomNavigationBarType.fixed,
@@ -80,27 +80,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard, color: TerminalColors.neonGreen),
+              activeIcon: Icon(Icons.dashboard, color: TerminalColors.pureWhite),
               label: 'DASH',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.folder_outlined),
-              activeIcon: Icon(Icons.folder, color: TerminalColors.neonGreen),
+              activeIcon: Icon(Icons.folder, color: TerminalColors.pureWhite),
               label: 'WORKSPACES',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.smart_toy_outlined),
-              activeIcon: Icon(Icons.smart_toy, color: TerminalColors.neonGreen),
+              activeIcon: Icon(Icons.smart_toy, color: TerminalColors.pureWhite),
               label: 'AGENTS',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.history_outlined),
-              activeIcon: Icon(Icons.history, color: TerminalColors.neonGreen),
+              activeIcon: Icon(Icons.history, color: TerminalColors.pureWhite),
               label: 'TIMELINE',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.terminal_outlined),
-              activeIcon: Icon(Icons.terminal, color: TerminalColors.neonGreen),
+              activeIcon: Icon(Icons.terminal, color: TerminalColors.pureWhite),
               label: 'TERMINAL',
             ),
           ],

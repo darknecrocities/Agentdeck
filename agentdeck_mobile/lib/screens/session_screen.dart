@@ -123,12 +123,12 @@ class _SessionScreenState extends State<SessionScreen> {
     });
   }
 
-  Future<void> _sendPrompt() async {
-    final prompt = _promptController.text.trim();
+  Future<void> _sendPrompt([String? customPrompt]) async {
+    final prompt = (customPrompt ?? _promptController.text).trim();
     if (prompt.isEmpty) return;
 
     setState(() => _sending = true);
-    _promptController.clear();
+    if (customPrompt == null) _promptController.clear();
 
     try {
       await _api.sendPrompt(widget.sessionId, prompt);
@@ -143,6 +143,14 @@ class _SessionScreenState extends State<SessionScreen> {
     }
   }
 
+  Future<void> _continueAgent() async {
+    await _api.continueSession(widget.sessionId);
+    setState(() => _status = 'running');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Agent conversation resumed with agy --continue')),
+    );
+  }
+
   Future<void> _stopAgent() async {
     await _api.stopSession(widget.sessionId);
     setState(() => _status = 'stopped');
@@ -154,15 +162,20 @@ class _SessionScreenState extends State<SessionScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Text('${widget.agentName.toUpperCase()} SESSION'),
+            Text('${widget.agentName.toUpperCase()} CONTROLLER'),
             const SizedBox(width: 8),
             StatusBadge(status: _status),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.stop_circle_outlined, color: TerminalColors.neonRed),
-            tooltip: 'Stop Agent Process',
+            icon: const Icon(Icons.play_arrow_outlined, color: TerminalColors.pureWhite),
+            tooltip: 'Resume with --continue',
+            onPressed: _continueAgent,
+          ),
+          IconButton(
+            icon: const Icon(Icons.stop_outlined, color: TerminalColors.pureWhite),
+            tooltip: 'Stop Agent',
             onPressed: _stopAgent,
           ),
         ],
@@ -185,26 +198,26 @@ class _SessionScreenState extends State<SessionScreen> {
                     Text(
                       'CURRENT TASK',
                       style: GoogleFonts.jetBrainsMono(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: TerminalColors.neonGreen,
+                        color: TerminalColors.zinc,
                       ),
                     ),
                     Text(
-                      'ID: ${widget.sessionId.substring(0, 8)}',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textMuted),
+                      'SESSION: ${widget.sessionId.substring(0, 8)}',
+                      style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.textMuted),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _currentTask,
-                  style: GoogleFonts.jetBrainsMono(fontSize: 13, color: TerminalColors.textPrimary),
+                  style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w600, color: TerminalColors.pureWhite),
                 ),
                 const SizedBox(height: 8),
                 AsciiProgressBar(percent: _progress),
                 if (_modifiedFiles.isNotEmpty) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
@@ -212,13 +225,13 @@ class _SessionScreenState extends State<SessionScreen> {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: TerminalColors.neonGreen.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: TerminalColors.neonGreen.withOpacity(0.4)),
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(color: TerminalColors.cardBorderLight),
                         ),
                         child: Text(
                           '~ $f',
-                          style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.neonGreen),
+                          style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.pureWhite),
                         ),
                       );
                     }).toList(),
@@ -233,9 +246,9 @@ class _SessionScreenState extends State<SessionScreen> {
             child: _events.isEmpty
                 ? Center(
                     child: Text(
-                      'Waiting for agent events...\nDaemon is connected.',
+                      'Awaiting agent outputs & tool calls...\nConnection is live.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted),
+                      style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 12),
                     ),
                   )
                 : ListView.builder(
@@ -247,6 +260,23 @@ class _SessionScreenState extends State<SessionScreen> {
                       return _buildEventTile(item);
                     },
                   ),
+          ),
+
+          // Quick Action Prompt Injection Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            color: TerminalColors.surfaceElevated,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildQuickActionBtn('▶ Proceed', () => _sendPrompt('Proceed with the implementation.')),
+                  _buildQuickActionBtn('🧪 Run Tests', () => _sendPrompt('Run all tests and report results.')),
+                  _buildQuickActionBtn('🔧 Fix Errors', () => _sendPrompt('Analyze and fix all error outputs.')),
+                  _buildQuickActionBtn('📦 Commit & Push', () => _sendPrompt('Commit the changes and push.')),
+                ],
+              ),
+            ),
           ),
 
           // Bottom Prompt Input Box
@@ -261,20 +291,20 @@ class _SessionScreenState extends State<SessionScreen> {
                 Expanded(
                   child: TextField(
                     controller: _promptController,
-                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary, fontSize: 13),
+                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
                     decoration: InputDecoration(
                       hintText: 'Send prompt or instruction to agent...',
-                      hintStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 13),
+                      hintStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 12),
                       filled: true,
-                      fillColor: TerminalColors.background,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      fillColor: Colors.black,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(4),
                         borderSide: const BorderSide(color: TerminalColors.cardBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: const BorderSide(color: TerminalColors.neonGreen),
+                        borderRadius: BorderRadius.circular(4),
+                        borderSide: const BorderSide(color: TerminalColors.pureWhite),
                       ),
                     ),
                     onSubmitted: (_) => _sendPrompt(),
@@ -284,17 +314,39 @@ class _SessionScreenState extends State<SessionScreen> {
                 IconButton(
                   icon: _sending
                       ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.neonGreen),
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.pureWhite),
                         )
-                      : const Icon(Icons.send_rounded, color: TerminalColors.neonGreen),
-                  onPressed: _sending ? null : _sendPrompt,
+                      : const Icon(Icons.arrow_upward_rounded, color: TerminalColors.pureWhite),
+                  onPressed: _sending ? null : () => _sendPrompt(),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionBtn(String label, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(3),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: TerminalColors.cardBorderLight),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite),
+          ),
+        ),
       ),
     );
   }
@@ -305,7 +357,6 @@ class _SessionScreenState extends State<SessionScreen> {
     final data = payload['data'] ?? payload;
 
     IconData icon;
-    Color iconColor;
     String title;
     String subtitle = '';
 
@@ -313,73 +364,64 @@ class _SessionScreenState extends State<SessionScreen> {
       case 'ThinkingStarted':
       case 'ThinkingUpdate':
         icon = Icons.psychology_outlined;
-        iconColor = TerminalColors.neonPurple;
-        title = 'Planning / Reasoning';
+        title = 'Planning & Inspection';
         subtitle = data['stage'] ?? 'Analyzing context...';
         break;
       case 'ToolStarted':
-        icon = Icons.build_circle_outlined;
-        iconColor = TerminalColors.electricCyan;
+        icon = Icons.build_outlined;
         title = 'Tool: ${data['tool'] ?? 'unknown'}';
         subtitle = data['input'] ?? '';
         break;
       case 'ToolFinished':
         icon = Icons.check_circle_outline;
-        iconColor = TerminalColors.neonGreen;
         title = 'Tool Completed: ${data['tool'] ?? ''}';
         subtitle = data['summary'] ?? (data['success'] == true ? 'Success' : 'Failed');
         break;
       case 'FileCreated':
         icon = Icons.note_add_outlined;
-        iconColor = TerminalColors.neonGreen;
         title = 'File Created';
         subtitle = data['path'] ?? '';
         break;
       case 'FileModified':
-        icon = Icons.edit_note_rounded;
-        iconColor = TerminalColors.neonAmber;
+        icon = Icons.edit_note_outlined;
         title = 'File Modified';
         subtitle = data['path'] ?? '';
         break;
       case 'CommandStarted':
-        icon = Icons.terminal_rounded;
-        iconColor = TerminalColors.electricCyan;
+        icon = Icons.terminal_outlined;
         title = 'Command Started';
         subtitle = data['command'] ?? '';
         break;
       case 'CommandFinished':
         final code = data['exit_code'] ?? 0;
-        icon = code == 0 ? Icons.check_circle : Icons.cancel_outlined;
-        iconColor = code == 0 ? TerminalColors.neonGreen : TerminalColors.neonRed;
+        icon = code == 0 ? Icons.check : Icons.close;
         title = 'Command Finished (exit $code)';
         subtitle = data['output_snippet'] ?? data['command'] ?? '';
         break;
       case 'AgentMessage':
         icon = Icons.chat_bubble_outline;
-        iconColor = TerminalColors.neonGreen;
-        title = 'Agent Message';
+        title = 'Agent Output';
         subtitle = data['content'] ?? '';
         break;
       default:
         icon = Icons.info_outline;
-        iconColor = TerminalColors.textSecondary;
         title = type;
         subtitle = data.toString();
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: TerminalColors.surface,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: TerminalColors.cardBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: iconColor),
-          const SizedBox(width: 10),
+          Icon(icon, size: 16, color: TerminalColors.pureWhite),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -387,18 +429,18 @@ class _SessionScreenState extends State<SessionScreen> {
                 Text(
                   title,
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: iconColor,
+                    color: TerminalColors.pureWhite,
                   ),
                 ),
                 if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: GoogleFonts.jetBrainsMono(
-                      fontSize: 12,
-                      color: TerminalColors.textPrimary,
+                      fontSize: 11,
+                      color: TerminalColors.zinc,
                     ),
                   ),
                 ],
