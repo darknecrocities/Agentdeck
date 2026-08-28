@@ -411,6 +411,24 @@ class ApiService {
     return null;
   }
 
+  // Antigravity Host IDE Live Chat Logs & Stream
+  Future<Map<String, dynamic>> getAntigravityLiveChat({String? conversationId, int? limit}) async {
+    try {
+      final query = <String, String>{};
+      if (conversationId != null && conversationId.isNotEmpty) {
+        query['id'] = conversationId;
+      }
+      if (limit != null) {
+        query['limit'] = limit.toString();
+      }
+      final data = await _get('/api/system/antigravity/live-chat', query: query.isNotEmpty ? query : null);
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+    } catch (_) {}
+    return {'success': false, 'messages': []};
+  }
+
   // WebSockets
   WebSocketChannel connectEventsStream({int afterEventId = 0}) {
     final wsScheme = baseUrl.startsWith('https') ? 'wss' : 'ws';

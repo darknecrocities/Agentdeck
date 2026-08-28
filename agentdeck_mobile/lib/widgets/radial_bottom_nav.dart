@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/terminal_theme.dart';
@@ -33,12 +34,12 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
     super.initState();
     _radialCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 320),
+      duration: const Duration(milliseconds: 300),
     );
     _expandAnim = CurvedAnimation(
       parent: _radialCtrl,
-      curve: Curves.easeOutBack,
-      reverseCurve: Curves.easeInBack,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
     );
   }
 
@@ -83,7 +84,6 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
       builder: (context, child) {
         final progress = _expandAnim.value;
         final currentDistance = distance * progress;
-        // Radial offset from bottom right corner
         final dx = -cos(rad) * currentDistance;
         final dy = -sin(rad) * currentDistance;
 
@@ -106,12 +106,12 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                       height: 48,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF141414),
+                        color: const Color(0xFF0B111E),
                         border: Border.all(color: color, width: 1.8),
                         boxShadow: [
                           BoxShadow(
-                            color: color.withValues(alpha: 0.35),
-                            blurRadius: 14,
+                            color: color.withValues(alpha: 0.40),
+                            blurRadius: 16,
                             spreadRadius: 2,
                           ),
                         ],
@@ -120,11 +120,11 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.85),
+                        color: const Color(0xFF090D16).withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: color.withValues(alpha: 0.5)),
+                        border: Border.all(color: color.withValues(alpha: 0.6), width: 0.8),
                       ),
                       child: Text(
                         label,
@@ -148,33 +148,49 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+
     return Stack(
+      clipBehavior: Clip.none,
       alignment: Alignment.bottomRight,
       children: [
-        // Backdrop overlay to close on outside tap
+        // Frosted Glass Blur Backdrop Overlay (Blurred not pitch black)
         if (_isOpen)
-          GestureDetector(
-            onTap: _closeRadial,
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.65),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            width: screenSize.width,
+            height: screenSize.height,
+            child: GestureDetector(
+              onTap: _closeRadial,
+              behavior: HitTestBehavior.opaque,
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.45),
+                  ),
+                ),
+              ),
             ),
           ),
 
-        // Pop-Up Half-Circular Radial Arc Items (Bottom-Right Fan)
+        // Pop-Up Arc Items (Evenly spaced without label collision)
         if (_isOpen)
           Positioned(
-            right: 24,
-            bottom: 84,
+            right: 28,
+            bottom: 86,
             child: SizedBox(
-              width: 230,
-              height: 230,
+              width: 280,
+              height: 280,
               child: Stack(
+                clipBehavior: Clip.none,
                 alignment: Alignment.bottomRight,
                 children: [
-                  // 1. Voice Prompter (Top) - 90 deg
+                  // 1. Voice STT (Top) - 90 deg, 190px
                   _buildRadialItem(
                     angleDeg: 90,
-                    distance: 145,
+                    distance: 190,
                     icon: Icons.mic,
                     label: 'VOICE STT',
                     color: TerminalColors.cyberCyan,
@@ -188,10 +204,10 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     },
                   ),
 
-                  // 2. Machine Hub (Screen, Webcam, Apps) - 68 deg
+                  // 2. Machine Remote Control (Screen, Cam, Apps) - 68 deg, 205px
                   _buildRadialItem(
                     angleDeg: 68,
-                    distance: 140,
+                    distance: 205,
                     icon: Icons.settings_remote,
                     label: 'MACHINE',
                     color: const Color(0xFF00E5FF),
@@ -205,20 +221,20 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     },
                   ),
 
-                  // 3. Terminal PTY - 46 deg
+                  // 3. Interactive Terminal PTY - 46 deg, 190px
                   _buildRadialItem(
                     angleDeg: 46,
-                    distance: 135,
+                    distance: 190,
                     icon: Icons.terminal,
                     label: 'TERMINAL',
                     color: const Color(0xFF60A5FA),
                     onTap: () => widget.onTabSelected(4),
                   ),
 
-                  // 4. File Uploader - 24 deg
+                  // 4. File Uploader - 24 deg, 205px
                   _buildRadialItem(
                     angleDeg: 24,
-                    distance: 140,
+                    distance: 205,
                     icon: Icons.cloud_upload_outlined,
                     label: 'UPLOAD',
                     color: const Color(0xFFFF922B),
@@ -230,10 +246,10 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     },
                   ),
 
-                  // 5. Accounts & Google Auth - 0 deg (Far right)
+                  // 5. Google OAuth & Switcher - 0 deg, 190px
                   _buildRadialItem(
                     angleDeg: 0,
-                    distance: 145,
+                    distance: 190,
                     icon: Icons.manage_accounts,
                     label: 'ACCOUNTS',
                     color: const Color(0xFFCC5DE8),
@@ -249,14 +265,14 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
             ),
           ),
 
-        // Redesigned Futuristic Navigation Bar
+        // Redesigned Cyber Navigation Bar
         Container(
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: const Color(0xFF080808),
             border: const Border(
-              top: BorderSide(color: TerminalColors.cardBorder, width: 1.2),
+              top: BorderSide(color: Color(0xFF1E293B), width: 1.2),
             ),
             boxShadow: [
               BoxShadow(
@@ -268,7 +284,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
           ),
           child: Row(
             children: [
-              // 4 Core Tabs on Left & Center
+              // 4 Core Navigation Tabs
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -297,15 +313,15 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                       margin: const EdgeInsets.only(right: 6),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isRotated ? TerminalColors.cyberCyan : const Color(0xFF141414),
+                        color: isRotated ? TerminalColors.cyberCyan : const Color(0xFF0F172A),
                         border: Border.all(
-                          color: isRotated ? TerminalColors.cyberCyan : TerminalColors.cardBorderLight,
+                          color: isRotated ? TerminalColors.cyberCyan : const Color(0xFF334155),
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: (isRotated ? TerminalColors.cyberCyan : Colors.white).withValues(alpha: 0.25),
-                            blurRadius: 14,
+                            color: (isRotated ? TerminalColors.cyberCyan : const Color(0xFF38BDF8)).withValues(alpha: 0.30),
+                            blurRadius: 16,
                             spreadRadius: 1,
                           ),
                         ],
@@ -346,7 +362,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
             Icon(
               icon,
               size: 20,
-              color: isSelected ? TerminalColors.pureWhite : TerminalColors.textMuted,
+              color: isSelected ? TerminalColors.cyberCyan : TerminalColors.textMuted,
             ),
             const SizedBox(height: 3),
             Text(
@@ -364,7 +380,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                 width: 16,
                 height: 2,
                 decoration: BoxDecoration(
-                  color: TerminalColors.pureWhite,
+                  color: TerminalColors.cyberCyan,
                   borderRadius: BorderRadius.circular(1),
                 ),
               ),

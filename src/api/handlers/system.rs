@@ -614,4 +614,162 @@ pub async fn read_system_file_handler(
     }
 }
 
+#[derive(serde::Deserialize)]
+pub struct AntigravityChatQuery {
+    pub id: Option<String>,
+    pub limit: Option<usize>,
+}
+
+pub async fn antigravity_live_chat_handler(
+    axum::extract::Query(query): axum::extract::Query<AntigravityChatQuery>,
+) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_else(|_| "/Users/arronkianparejas".to_string());
+
+    let brain_dir = std::path::PathBuf::from(&home)
+        .join(".gemini")
+        .join("antigravity-ide")
+        .join("brain");
+
+    if !brain_dir.exists() {
+        return Ok(Json(serde_json::json!({
+            "success": true,
+            "conversation_id": null,
+            "conversations": [],
+            "messages": [],
+            "note": "Antigravity IDE brain directory not found on host."
+        })));
+    }
+
+    let mut conv_dirs = Vec::new();
+    if let Ok(read_dir) = std::fs::read_dir(&brain_dir) {
+        for entry in read_dir.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name != "tempmediaStorage" && !name.starts_with('.') {
+                    let log_file = p.join(".system_generated").join("logs").join("transcript.jsonl");
+                    let modified = if let Ok(meta) = log_file.metadata() {
+                        meta.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                    } else if let Ok(meta) = p.metadata() {
+                        meta.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                    } else {
+                        std::time::SystemTime::UNIX_EPOCH
+                    };
+                    conv_dirs.push((name, log_file, modified));
+                }
+            }
+        }
+    }
+
+    conv_dirs.sort_by(|a, b| b.2.cmp(&a.2));
+
+    let active_id = query.id.clone().unwrap_or_else(|| {
+        conv_dirs.first().map(|(id, _, _)| id.clone()).unwrap_or_default()
+    });
+
+    let target_log = brain_dir
+        .join(&active_id)
+        .join(".system_generated")
+        .join("logs")
+        .join("transcript.jsonl");
+
+    let mut messages = Vec::new();
+    if target_log.exists() {
+        if let Ok(content) = std::fs::read_to_string(&target_log) {
+            let lines: Vec<&str> = content.lines().collect();
+            let limit = query.limit.unwrap_or(80);
+            let start = if lines.len() > limit { lines.len() - limit } else { 0 };
+
+            for line in &lines[start..] {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
+                    let step_type = val["type"].as_str().unwrap_or("");
+                    let source = val["source"].as_str().unwrap_or("");
+                    let content_str = val["content"].as_str().unwrap_or("");
+                    let thinking_str = val["thinking"].as_str().unwrap_or("");
+                    let tool_calls = val["tool_calls"].clone();
+                    let created_at = val["created_at"].as_str().unwrap_or("");
+
+                    if step_type == "USER_INPUT" || source == "USER_EXPLICIT" {
+                        let mut user_msg = content_str.to_string();
+                        if let Some(start_tag) = user_msg.find("<USER_REQUEST>") {
+                            if let Some(end_tag) = user_msg.find("</USER_REQUEST>") {
+                                user_msg = user_msg[start_tag + 14..end_tag].trim().to_string();
+                            }
+                        }
+                        messages.push(serde_json::json!({
+                            "role": "user",
+                            "type": "USER_INPUT",
+                            "content": user_msg,
+                            "timestamp": created_at,
+                            "status": val["status"].as_str().unwrap_or("DONE"),
+                        }));
+                    } else if step_type == "PLANNER_RESPONSE" || source == "MODEL" {
+                        if !thinking_str.is_empty() {
+                            messages.push(serde_json::json!({
+                                "role": "thought",
+                                "type": "THINKING",
+                                "content": thinking_str,
+                                "timestamp": created_at,
+                            }));
+                        }
+                        if !content_str.is_empty() {
+                            messages.push(serde_json::json!({
+                                "role": "agent",
+                                "type": "AGENT_MESSAGE",
+                                "content": content_str,
+                                "timestamp": created_at,
+                            }));
+                        }
+                        if tool_calls.is_array() && !tool_calls.as_array().unwrap().is_empty() {
+                            messages.push(serde_json::json!({
+                                "role": "tool_call",
+                                "type": "TOOL_CALLS",
+                                "tools": tool_calls,
+                                "timestamp": created_at,
+                            }));
+                        }
+                    } else if step_type == "RUN_COMMAND" || step_type == "REPLACE_FILE_CONTENT" || step_type == "WRITE_TO_FILE" {
+                        messages.push(serde_json::json!({
+                            "role": "tool_output",
+                            "type": step_type,
+                            "content": content_str,
+                            "exit_code": val["exit_code"],
+                            "timestamp": created_at,
+                        }));
+                    } else if !content_str.is_empty() && step_type != "CHECKPOINT" && step_type != "KNOWLEDGE_ARTIFACTS" && step_type != "CONVERSATION_HISTORY" {
+                        messages.push(serde_json::json!({
+                            "role": "system",
+                            "type": step_type,
+                            "content": content_str,
+                            "timestamp": created_at,
+                        }));
+                    }
+                }
+            }
+        }
+    }
+
+    let conv_list: Vec<serde_json::Value> = conv_dirs
+        .iter()
+        .take(15)
+        .map(|(id, _, _mod_time)| {
+            serde_json::json!({
+                "id": id,
+                "is_active": id == &active_id,
+            })
+        })
+        .collect();
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "active_conversation_id": active_id,
+        "conversations": conv_list,
+        "total_messages": messages.len(),
+        "messages": messages,
+    })))
+}
+
+
 

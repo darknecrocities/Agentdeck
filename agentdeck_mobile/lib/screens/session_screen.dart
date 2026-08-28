@@ -9,6 +9,7 @@ import '../theme/terminal_theme.dart';
 import '../widgets/terminal_widgets.dart';
 import '../widgets/voice_prompt_modal.dart';
 import '../widgets/file_viewer_modal.dart';
+import '../widgets/live_ide_chat_modal.dart';
 
 class SessionScreen extends StatefulWidget {
   final String sessionId;
@@ -177,6 +178,18 @@ class _SessionScreenState extends State<SessionScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.forum_outlined, color: TerminalColors.cyberCyan),
+            tooltip: 'Live IDE Chatlog',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const LiveIdeChatModal(),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.play_arrow_outlined, color: TerminalColors.cyberCyan),
             tooltip: 'Resume with --continue',
