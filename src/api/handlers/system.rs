@@ -624,6 +624,30 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
     ))
 }
 
+pub async fn stop_camera_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = tokio::process::Command::new("pkill")
+            .args(["-9", "-f", "ffmpeg"])
+            .output()
+            .await;
+        let _ = std::fs::remove_file("/tmp/agentdeck_cam_live.jpg");
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let _ = tokio::process::Command::new("taskkill")
+            .args(["/F", "/IM", "ffmpeg.exe"])
+            .output()
+            .await;
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Webcam background stream terminated and camera hardware released."
+    })))
+}
+
 #[derive(serde::Deserialize)]
 pub struct SystemFileQuery {
     pub path: String,

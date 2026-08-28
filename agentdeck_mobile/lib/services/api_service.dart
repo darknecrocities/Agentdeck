@@ -426,6 +426,15 @@ class ApiService {
     return null;
   }
 
+  Future<bool> stopCamera() async {
+    try {
+      final data = await _post('/api/system/camera/stop', {});
+      return data is Map && data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>?> readSystemFile(String path) async {
     try {
       final data = await _get('/api/system/file', query: {'path': path});

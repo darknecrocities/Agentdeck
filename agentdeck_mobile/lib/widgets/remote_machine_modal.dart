@@ -69,6 +69,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   void dispose() {
     _stopScreenStream();
     _stopCamStream();
+    _api.stopCamera();
     _tabCtrl.removeListener(_onTabChanged);
     _tabCtrl.dispose();
     super.dispose();
@@ -135,6 +136,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   void _stopCamStream() {
     _camStreamTimer?.cancel();
     _camStreamTimer = null;
+    _api.stopCamera();
     if (mounted && _isStreamingCam) {
       setState(() => _isStreamingCam = false);
     }

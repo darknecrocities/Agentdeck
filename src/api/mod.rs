@@ -41,6 +41,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/system/launch-app", post(handlers::system::launch_app_handler))
         .route("/api/system/screenshot", get(handlers::system::take_screenshot_handler))
         .route("/api/system/camera", get(handlers::system::take_camera_snapshot_handler))
+        .route("/api/system/camera/stop", post(handlers::system::stop_camera_handler))
         .route("/api/system/file", get(handlers::system::read_system_file_handler))
         .route("/api/system/antigravity/live-chat", get(handlers::system::antigravity_live_chat_handler))
         .route("/api/files/upload", post(handlers::system::upload_file_handler))
