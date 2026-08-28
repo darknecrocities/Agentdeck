@@ -1,4 +1,7 @@
-use crate::models::{AgentEventPayload, AgentSession, AgentStatus, ApprovalRequest, EventRecord, Project, RiskLevel};
+use crate::models::{
+    AgentEventPayload, AgentSession, AgentStatus, ApprovalRequest, AuthProfile, EventRecord, Project,
+    RiskLevel, TokenUsageRecord,
+};
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 use std::sync::{Arc, Mutex};
@@ -89,6 +92,29 @@ impl Database {
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS auth_profiles (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                account_name TEXT NOT NULL,
+                token_masked TEXT NOT NULL,
+                token_value TEXT NOT NULL,
+                is_active INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS token_usage (
+                id TEXT PRIMARY KEY,
+                agent TEXT NOT NULL,
+                model TEXT NOT NULL,
+                session_id TEXT,
+                input_tokens INTEGER NOT NULL,
+                output_tokens INTEGER NOT NULL,
+                thinking_tokens INTEGER NOT NULL,
+                total_tokens INTEGER NOT NULL,
+                timestamp TEXT NOT NULL
             );
             ",
         )?;
@@ -418,5 +444,189 @@ impl Database {
             params![status, now, id],
         )?;
         Ok(affected > 0)
+    }
+
+    // Auth Profiles
+    pub fn insert_auth_profile(&self, profile: &AuthProfile) -> anyhow::Result<()> {
+        let conn = self.conn.lock().unwrap();
+        if profile.is_active {
+            conn.execute(
+                "UPDATE auth_profiles SET is_active = 0 WHERE agent_id = ?1",
+                params![profile.agent_id],
+            )?;
+        }
+        conn.execute(
+            "INSERT INTO auth_profiles (id, agent_id, account_name, token_masked, token_value, is_active, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                profile.id,
+                profile.agent_id,
+                profile.account_name,
+                profile.token_masked,
+                profile.token_value,
+                if profile.is_active { 1 } else { 0 },
+                profile.created_at.to_rfc3339(),
+                profile.updated_at.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_auth_profiles(&self, agent_id: Option<&str>) -> anyhow::Result<Vec<AuthProfile>> {
+        let conn = self.conn.lock().unwrap();
+        if let Some(agent) = agent_id {
+            let mut s = conn.prepare("SELECT id, agent_id, account_name, token_masked, token_value, is_active, created_at, updated_at FROM auth_profiles WHERE agent_id = ?1 ORDER BY created_at DESC")?;
+            let rows = s.query_map(params![agent], |row| {
+                let created_str: String = row.get(6)?;
+                let updated_str: String = row.get(7)?;
+                let is_active_int: i32 = row.get(5)?;
+                Ok(AuthProfile {
+                    id: row.get(0)?,
+                    agent_id: row.get(1)?,
+                    account_name: row.get(2)?,
+                    token_masked: row.get(3)?,
+                    token_value: row.get(4)?,
+                    is_active: is_active_int == 1,
+                    created_at: DateTime::parse_from_rfc3339(&created_str).map(|d| d.with_timezone(&Utc)).unwrap_or_else(|_| Utc::now()),
+                    updated_at: DateTime::parse_from_rfc3339(&updated_str).map(|d| d.with_timezone(&Utc)).unwrap_or_else(|_| Utc::now()),
+                })
+            })?;
+            let mut list = Vec::new();
+            for r in rows { list.push(r?); }
+            return Ok(list);
+        } else {
+            let mut s = conn.prepare("SELECT id, agent_id, account_name, token_masked, token_value, is_active, created_at, updated_at FROM auth_profiles ORDER BY agent_id ASC, is_active DESC")?;
+            let rows = s.query_map([], |row| {
+                let created_str: String = row.get(6)?;
+                let updated_str: String = row.get(7)?;
+                let is_active_int: i32 = row.get(5)?;
+                Ok(AuthProfile {
+                    id: row.get(0)?,
+                    agent_id: row.get(1)?,
+                    account_name: row.get(2)?,
+                    token_masked: row.get(3)?,
+                    token_value: row.get(4)?,
+                    is_active: is_active_int == 1,
+                    created_at: DateTime::parse_from_rfc3339(&created_str).map(|d| d.with_timezone(&Utc)).unwrap_or_else(|_| Utc::now()),
+                    updated_at: DateTime::parse_from_rfc3339(&updated_str).map(|d| d.with_timezone(&Utc)).unwrap_or_else(|_| Utc::now()),
+                })
+            })?;
+            let mut list = Vec::new();
+            for r in rows { list.push(r?); }
+            return Ok(list);
+        };
+    }
+
+    pub fn set_active_auth_profile(&self, id: &str) -> anyhow::Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        let agent_id: Option<String> = conn
+            .query_row("SELECT agent_id FROM auth_profiles WHERE id = ?1", params![id], |r| r.get(0))
+            .ok();
+
+        if let Some(agent) = agent_id {
+            conn.execute("UPDATE auth_profiles SET is_active = 0 WHERE agent_id = ?1", params![agent])?;
+            let affected = conn.execute("UPDATE auth_profiles SET is_active = 1, updated_at = ?1 WHERE id = ?2", params![Utc::now().to_rfc3339(), id])?;
+            Ok(affected > 0)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn delete_auth_profile(&self, id: &str) -> anyhow::Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute("DELETE FROM auth_profiles WHERE id = ?1", params![id])?;
+        Ok(affected > 0)
+    }
+
+    pub fn get_active_auth_profile(&self, agent_id: &str) -> anyhow::Result<Option<AuthProfile>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, agent_id, account_name, token_masked, token_value, is_active, created_at, updated_at FROM auth_profiles WHERE agent_id = ?1 AND is_active = 1 LIMIT 1")?;
+        let profile = stmt.query_row(params![agent_id], |row| {
+            let created_str: String = row.get(6)?;
+            let updated_str: String = row.get(7)?;
+            Ok(AuthProfile {
+                id: row.get(0)?,
+                agent_id: row.get(1)?,
+                account_name: row.get(2)?,
+                token_masked: row.get(3)?,
+                token_value: row.get(4)?,
+                is_active: true,
+                created_at: DateTime::parse_from_rfc3339(&created_str).map(|d| d.with_timezone(&Utc)).unwrap_or_else(|_| Utc::now()),
+                updated_at: DateTime::parse_from_rfc3339(&updated_str).map(|d| d.with_timezone(&Utc)).unwrap_or_else(|_| Utc::now()),
+            })
+        }).ok();
+        Ok(profile)
+    }
+
+    // Token Usage
+    pub fn record_token_usage(&self, record: &TokenUsageRecord) -> anyhow::Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO token_usage (id, agent, model, session_id, input_tokens, output_tokens, thinking_tokens, total_tokens, timestamp)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                record.id,
+                record.agent,
+                record.model,
+                record.session_id,
+                record.input_tokens as i64,
+                record.output_tokens as i64,
+                record.thinking_tokens as i64,
+                record.total_tokens as i64,
+                record.timestamp.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_total_tokens_all_time(&self) -> anyhow::Result<u64> {
+        let conn = self.conn.lock().unwrap();
+        let total: i64 = conn.query_row("SELECT COALESCE(SUM(total_tokens), 0) FROM token_usage", [], |r| r.get(0)).unwrap_or(0);
+        Ok(total as u64)
+    }
+
+    pub fn get_tokens_today(&self, agent: Option<&str>) -> anyhow::Result<u64> {
+        let conn = self.conn.lock().unwrap();
+        let today_start = Utc::now().date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc().to_rfc3339();
+        let total: i64 = if let Some(a) = agent {
+            conn.query_row(
+                "SELECT COALESCE(SUM(total_tokens), 0) FROM token_usage WHERE agent = ?1 AND timestamp >= ?2",
+                params![a, today_start],
+                |r| r.get(0),
+            ).unwrap_or(0)
+        } else {
+            conn.query_row(
+                "SELECT COALESCE(SUM(total_tokens), 0) FROM token_usage WHERE timestamp >= ?1",
+                params![today_start],
+                |r| r.get(0),
+            ).unwrap_or(0)
+        };
+        Ok(total as u64)
+    }
+
+    pub fn list_recent_token_usage(&self, limit: usize) -> anyhow::Result<Vec<TokenUsageRecord>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, agent, model, session_id, input_tokens, output_tokens, thinking_tokens, total_tokens, timestamp FROM token_usage ORDER BY timestamp DESC LIMIT ?1")?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            let ts: String = row.get(8)?;
+            let inp: i64 = row.get(4)?;
+            let out: i64 = row.get(5)?;
+            let thk: i64 = row.get(6)?;
+            let tot: i64 = row.get(7)?;
+            Ok(TokenUsageRecord {
+                id: row.get(0)?,
+                agent: row.get(1)?,
+                model: row.get(2)?,
+                session_id: row.get(3)?,
+                input_tokens: inp as u64,
+                output_tokens: out as u64,
+                thinking_tokens: thk as u64,
+                total_tokens: tot as u64,
+                timestamp: DateTime::parse_from_rfc3339(&ts).map(|d| d.with_timezone(&Utc)).unwrap_or_else(|_| Utc::now()),
+            })
+        })?;
+        let mut list = Vec::new();
+        for r in rows { list.push(r?); }
+        Ok(list)
     }
 }

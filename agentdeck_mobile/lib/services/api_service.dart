@@ -240,6 +240,50 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  // Auth Profiles & Account Switching
+  Future<List<dynamic>> getAuthProfiles({String? agent}) async {
+    final uri = Uri.parse('$baseUrl/api/auth/profiles').replace(
+      queryParameters: agent != null ? {'agent': agent} : null,
+    );
+    final res = await http.get(uri, headers: _headers);
+    return jsonDecode(res.body);
+  }
+
+  Future<Map<String, dynamic>> createAuthProfile({
+    required String agentId,
+    required String accountName,
+    required String tokenValue,
+    bool setActive = true,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/auth/profiles'),
+      headers: _headers,
+      body: jsonEncode({
+        'agent_id': agentId,
+        'account_name': accountName,
+        'token_value': tokenValue,
+        'set_active': setActive,
+      }),
+    );
+    return jsonDecode(res.body);
+  }
+
+  Future<bool> activateAuthProfile(String id) async {
+    final res = await http.post(Uri.parse('$baseUrl/api/auth/profiles/$id/activate'), headers: _headers);
+    return res.statusCode == 200;
+  }
+
+  Future<bool> deleteAuthProfile(String id) async {
+    final res = await http.delete(Uri.parse('$baseUrl/api/auth/profiles/$id'), headers: _headers);
+    return res.statusCode == 200;
+  }
+
+  // Token Monitoring & Model Quotas
+  Future<Map<String, dynamic>> getTokenSummary() async {
+    final res = await http.get(Uri.parse('$baseUrl/api/tokens/summary'), headers: _headers);
+    return jsonDecode(res.body);
+  }
+
   // WebSockets
   WebSocketChannel connectEventsStream({int afterEventId = 0}) {
     final wsScheme = baseUrl.startsWith('https') ? 'wss' : 'ws';
