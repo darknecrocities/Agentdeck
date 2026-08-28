@@ -308,11 +308,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'TS: $tsIp',
+                      CensoredEndpointBadge(
+                        prefix: 'TS: ',
+                        text: tsIp,
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 10,
-                          color: TerminalColors.cyberCyan,
+                          color: TerminalColors.silver,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

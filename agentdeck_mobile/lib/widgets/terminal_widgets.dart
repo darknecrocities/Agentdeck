@@ -321,3 +321,73 @@ class AsciiProgressBar extends StatelessWidget {
     );
   }
 }
+
+class CensoredEndpointBadge extends StatefulWidget {
+  final String text;
+  final String prefix;
+  final TextStyle? style;
+  final bool initiallyHidden;
+
+  const CensoredEndpointBadge({
+    super.key,
+    required this.text,
+    this.prefix = '',
+    this.style,
+    this.initiallyHidden = true,
+  });
+
+  @override
+  State<CensoredEndpointBadge> createState() => _CensoredEndpointBadgeState();
+}
+
+class _CensoredEndpointBadgeState extends State<CensoredEndpointBadge> {
+  late bool _hidden;
+
+  @override
+  void initState() {
+    super.initState();
+    _hidden = widget.initiallyHidden;
+  }
+
+  String _censorText(String raw) {
+    if (raw.isEmpty) return raw;
+    // Censor IP address e.g. 127.0.0.1 -> 100.•••.•••.27 or http://127.0.0.1:8765 -> http://100.•••.•••.27:8765
+    return raw.replaceAllMapped(
+      RegExp(r'(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})'),
+      (match) => '${match[1]}.•••.•••.${match[4]}',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayText = _hidden ? _censorText(widget.text) : widget.text;
+    final defaultStyle = GoogleFonts.jetBrainsMono(
+      fontSize: 10,
+      color: TerminalColors.zinc,
+      fontWeight: FontWeight.w600,
+    );
+
+    return InkWell(
+      onTap: () => setState(() => _hidden = !_hidden),
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${widget.prefix}$displayText',
+              style: widget.style ?? defaultStyle,
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              _hidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              size: 13,
+              color: _hidden ? TerminalColors.zinc : TerminalColors.pureWhite,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

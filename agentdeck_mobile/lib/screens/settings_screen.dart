@@ -19,6 +19,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _tokenCtrl;
   String _testStatus = '';
   bool _testing = false;
+  bool _obscureUrl = true;
+  bool _obscureToken = true;
 
   @override
   void initState() {
@@ -89,6 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 6),
                 TextField(
                   controller: _urlCtrl,
+                  obscureText: _obscureUrl,
                   style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'http://127.0.0.1:8765 or http://127.0.0.1:8765',
@@ -97,6 +100,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.pureWhite)),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureUrl ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: _obscureUrl ? TerminalColors.zinc : TerminalColors.pureWhite,
+                        size: 18,
+                      ),
+                      onPressed: () => setState(() => _obscureUrl = !_obscureUrl),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -111,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 6),
                 TextField(
                   controller: _tokenCtrl,
-                  obscureText: true,
+                  obscureText: _obscureToken,
                   style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Optional bearer token',
@@ -120,6 +131,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.pureWhite)),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureToken ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: _obscureToken ? TerminalColors.zinc : TerminalColors.pureWhite,
+                        size: 18,
+                      ),
+                      onPressed: () => setState(() => _obscureToken = !_obscureToken),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/workstation_manager.dart';
 import '../theme/terminal_theme.dart';
+import '../widgets/terminal_widgets.dart';
 
 class WorkstationSwitcherScreen extends StatefulWidget {
   const WorkstationSwitcherScreen({super.key});
@@ -40,6 +41,7 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
     final endpointCtrl = TextEditingController(text: 'http://127.0.0.1:8765');
     String selectedOs = 'Windows';
     String? pingStatus;
+    bool obscureEndpoint = true;
 
     showModalBottomSheet(
       context: context,
@@ -157,6 +159,7 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
 
                   TextField(
                     controller: endpointCtrl,
+                    obscureText: obscureEndpoint,
                     style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
                     decoration: InputDecoration(
                       labelText: 'TAILSCALE ENDPOINT (HOST:PORT)',
@@ -165,6 +168,14 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                       filled: true,
                       fillColor: Colors.black,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureEndpoint ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: obscureEndpoint ? TerminalColors.zinc : TerminalColors.pureWhite,
+                          size: 18,
+                        ),
+                        onPressed: () => setModalState(() => obscureEndpoint = !obscureEndpoint),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -394,9 +405,19 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    '${ws.os.toUpperCase()} • ${ws.endpoint}',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textMuted),
+                  Row(
+                    children: [
+                      Text(
+                        '${ws.os.toUpperCase()} • ',
+                        style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textMuted),
+                      ),
+                      Flexible(
+                        child: CensoredEndpointBadge(
+                          text: ws.endpoint,
+                          style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.textMuted),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Row(
