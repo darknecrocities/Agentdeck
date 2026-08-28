@@ -1,6 +1,6 @@
 {
-    "name": "agentdeck_mobile",
-    "short_name": "agentdeck_mobile",
+    "name": "AgentDeck",
+    "short_name": "AgentDeck",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.agentdeck" "\0"
-            VALUE "FileDescription", "agentdeck_mobile" "\0"
+            VALUE "FileDescription", "AgentDeck" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "agentdeck_mobile" "\0"
+            VALUE "InternalName", "AgentDeck" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.agentdeck. All rights reserved." "\0"
-            VALUE "OriginalFilename", "agentdeck_mobile.exe" "\0"
-            VALUE "ProductName", "agentdeck_mobile" "\0"
+            VALUE "OriginalFilename", "AgentDeck.exe" "\0"
+            VALUE "ProductName", "AgentDeck" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

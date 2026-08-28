@@ -41,7 +41,7 @@ class AgentDeckApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AgentDeck Control Plane',
+      title: 'AgentDeck',
       debugShowCheckedModeBanner: false,
       theme: TerminalTheme.darkTheme,
       home: const MainNavigationScreen(),
