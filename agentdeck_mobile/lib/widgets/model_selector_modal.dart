@@ -111,7 +111,7 @@ class _ModelSelectorModalState extends State<ModelSelectorModal> {
   @override
   void initState() {
     super.initState();
-    _selectedModel = widget.currentModel.isNotEmpty ? widget.currentModel : 'gemini-2.5-pro';
+    _selectedModel = widget.currentModel.isNotEmpty ? widget.currentModel : 'gemini-3.7-flash';
     _selectedEffort = widget.currentEffort.isNotEmpty ? widget.currentEffort : 'high';
   }
 
