@@ -22,7 +22,7 @@ class AgentDeckLogoHeader extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(color: TerminalColors.cardBorderLight, width: 1),
           ),
           clipBehavior: Clip.antiAlias,
@@ -38,14 +38,18 @@ class AgentDeckLogoHeader extends StatelessWidget {
           ),
         ),
         if (showText) ...[
-          const SizedBox(width: 10),
-          Text(
-            'AGENTDECK',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.5,
-              color: TerminalColors.pureWhite,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'AGENTDECK',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                color: TerminalColors.pureWhite,
+                letterSpacing: 0.8,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

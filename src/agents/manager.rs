@@ -1,6 +1,5 @@
 use super::antigravity::AntigravityAgent;
 use super::claude_code::ClaudeCodeAdapter;
-use super::gemini_cli::GeminiCLIAdapter;
 use super::ollama::OllamaAdapter;
 use super::r#trait::AgentAdapter;
 use crate::config::Config;
@@ -25,10 +24,6 @@ impl AgentManager {
         adapters.insert(
             "claude".to_string(),
             Arc::new(ClaudeCodeAdapter::new(Some(config.agents.claude.binary.clone()))),
-        );
-        adapters.insert(
-            "gemini".to_string(),
-            Arc::new(GeminiCLIAdapter::new(Some(config.agents.gemini.binary.clone()))),
         );
         adapters.insert(
             "ollama".to_string(),
