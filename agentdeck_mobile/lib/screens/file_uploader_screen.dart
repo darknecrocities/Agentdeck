@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -79,25 +81,41 @@ class _FileUploaderScreenState extends State<FileUploaderScreen> {
     int successCount = 0;
 
     for (var file in _selectedFiles) {
-      if (file.bytes != null) {
-        try {
+      try {
+        setState(() {
+          _uploadStatus = 'Reading ${file.name}...';
+        });
+
+        Uint8List? fileBytes = file.bytes;
+        if (fileBytes == null && file.path != null) {
+          final ioFile = File(file.path!);
+          if (await ioFile.exists()) {
+            fileBytes = await ioFile.readAsBytes();
+          }
+        }
+
+        if (fileBytes != null) {
           setState(() {
-            _uploadStatus = 'Uploading ${file.name}...';
+            _uploadStatus = 'Uploading ${file.name} (${(fileBytes!.length / 1024).toStringAsFixed(1)} KB)...';
           });
 
           final res = await _api.uploadFile(
             destinationPath: _destinationPath,
             filename: file.name,
-            bytes: file.bytes!,
+            bytes: fileBytes,
           );
 
           if (res['success'] == true) {
             successCount++;
             _uploadedFiles.add(file.name);
+          } else {
+            debugPrint('Upload failed response for ${file.name}: $res');
           }
-        } catch (e) {
-          debugPrint('Upload failed for ${file.name}: $e');
+        } else {
+          debugPrint('Unable to read bytes for ${file.name}, path is ${file.path}');
         }
+      } catch (e) {
+        debugPrint('Upload exception for ${file.name}: $e');
       }
     }
 
