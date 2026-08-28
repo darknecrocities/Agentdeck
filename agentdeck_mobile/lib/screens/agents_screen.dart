@@ -69,9 +69,19 @@ class _AgentsScreenState extends State<AgentsScreen> {
                               'Adapter: ${a['id']}',
                               style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.zinc),
                             ),
-                            Text(
-                              'v${a['version'] ?? 'N/A'}',
-                              style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite, fontWeight: FontWeight.bold),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${a['version'] ?? 'N/A'}',
+                                textAlign: TextAlign.end,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 11,
+                                  color: TerminalColors.pureWhite,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -79,6 +89,8 @@ class _AgentsScreenState extends State<AgentsScreen> {
                           const SizedBox(height: 4),
                           Text(
                             a['binary_path'],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.textMuted),
                           ),
                         ],
