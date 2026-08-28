@@ -111,50 +111,59 @@ class _TimelineScreenState extends State<TimelineScreen> {
       }
     }
 
-    String emoji = '⚡';
+    IconData icon = Icons.bolt;
+    Color iconColor = TerminalColors.pureWhite;
     String title = type;
     String detail = '';
 
     switch (type) {
       case 'ThinkingStarted':
       case 'ThinkingUpdate':
-        emoji = '🧠';
+        icon = Icons.psychology;
+        iconColor = const Color(0xFFDA77F2);
         title = 'Agent Planning';
         detail = data['stage'] ?? '';
         break;
       case 'FileCreated':
-        emoji = '📄';
+        icon = Icons.note_add;
+        iconColor = const Color(0xFF51CF66);
         title = 'File Created';
         detail = data['path'] ?? '';
         break;
       case 'FileModified':
-        emoji = '✏️';
+        icon = Icons.edit_document;
+        iconColor = const Color(0xFFFCC419);
         title = 'File Modified';
         detail = data['path'] ?? '';
         break;
       case 'CommandStarted':
-        emoji = '⚙️';
+        icon = Icons.terminal;
+        iconColor = const Color(0xFF339AF0);
         title = 'Command Started';
         detail = data['command'] ?? '';
         break;
       case 'CommandFinished':
         final code = data['exit_code'] ?? 0;
-        emoji = code == 0 ? '✅' : '❌';
+        icon = code == 0 ? Icons.check_circle : Icons.error_outline;
+        iconColor = code == 0 ? const Color(0xFF51CF66) : const Color(0xFFFF6B6B);
         title = 'Command Finished';
         detail = '${data['command'] ?? ''} -> Exit $code';
         break;
       case 'AgentMessage':
-        emoji = '💬';
+        icon = Icons.chat_bubble_outline;
+        iconColor = TerminalColors.pureWhite;
         title = 'Agent Message';
         detail = data['content'] ?? '';
         break;
       case 'SessionStarted':
-        emoji = '🚀';
+        icon = Icons.play_arrow_rounded;
+        iconColor = const Color(0xFF20C997);
         title = 'Session Started';
         detail = 'Agent: ${data['agent'] ?? ''}';
         break;
       default:
-        emoji = '📌';
+        icon = Icons.push_pin_outlined;
+        iconColor = TerminalColors.zinc;
         detail = data.toString();
     }
 
@@ -169,7 +178,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
+          Icon(icon, color: iconColor, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

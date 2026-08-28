@@ -325,10 +325,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      _buildQuickPromptChip('🔍 Analyze Architecture', 'Analyze this codebase architecture and create an implementation plan.', 'antigravity'),
-                      _buildQuickPromptChip('⚡ Implement Feature', 'Proceed with the implementation and wire up all services.', 'antigravity'),
-                      _buildQuickPromptChip('🧪 Run & Fix Tests', 'Run all tests, analyze any failure, and fix them automatically.', 'antigravity'),
-                      _buildQuickPromptChip('📦 Git Commit & Push', 'Commit all changes with a descriptive message and push.', 'antigravity'),
+                      _buildQuickPromptChip(Icons.search, 'Analyze Architecture', 'Analyze this codebase architecture and create an implementation plan.', 'antigravity'),
+                      _buildQuickPromptChip(Icons.code, 'Implement Feature', 'Proceed with the implementation and wire up all services.', 'antigravity'),
+                      _buildQuickPromptChip(Icons.bug_report, 'Run & Fix Tests', 'Run all tests, analyze any failure, and fix them automatically.', 'antigravity'),
+                      _buildQuickPromptChip(Icons.cloud_upload, 'Git Commit & Push', 'Commit all changes with a descriptive message and push.', 'antigravity'),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -341,7 +341,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     icon: const Icon(Icons.terminal, size: 16),
                     label: Text(
-                      '⚡ OPEN ANTIGRAVITY IN LIVE TERMINAL',
+                      'OPEN ANTIGRAVITY IN LIVE TERMINAL',
                       style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
                     ),
                     onPressed: () {
@@ -483,16 +483,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickPromptChip(String label, String prompt, String agent) {
+  Widget _buildQuickPromptChip(IconData icon, String label, String prompt, String agent) {
     return InkWell(
       onTap: () async {
-        if (_projects.isEmpty) {
+        final proj = _projects.isNotEmpty ? _projects.first : null;
+        if (proj == null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please register a workspace first in Workspaces tab', style: GoogleFonts.jetBrainsMono())),
+            const SnackBar(content: Text('No workspace project attached.')),
           );
           return;
         }
-        final proj = _projects.first;
         final res = await _api.startSession(
           projectId: proj['id'],
           agent: agent,
@@ -521,13 +521,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
           borderRadius: BorderRadius.circular(4),
           border: Border.all(color: TerminalColors.cardBorderLight),
         ),
-        child: Text(
-          label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: TerminalColors.pureWhite,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: TerminalColors.pureWhite),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: TerminalColors.pureWhite,
+              ),
+            ),
+          ],
         ),
       ),
     );
