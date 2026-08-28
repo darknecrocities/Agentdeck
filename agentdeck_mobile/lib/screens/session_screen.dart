@@ -245,10 +245,21 @@ class _SessionScreenState extends State<SessionScreen> {
           Expanded(
             child: _events.isEmpty
                 ? Center(
-                    child: Text(
-                      'Awaiting agent outputs & tool calls...\nConnection is live.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/images/agentdeck_thinking.png',
+                          height: 120,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Awaiting agent reasoning & outputs...\nConnection is live.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 12),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(

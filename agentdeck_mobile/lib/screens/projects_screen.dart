@@ -501,10 +501,32 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           ? const Center(child: CircularProgressIndicator(color: TerminalColors.pureWhite))
           : _projects.isEmpty
               ? Center(
-                  child: Text(
-                    'No registered project workspaces.\nTap + to add one.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/agentdeck_pointing.png',
+                        height: 130,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No registered project workspaces.\nTap + to scaffold or attach a repository.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 12),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: TerminalColors.pureWhite,
+                          side: const BorderSide(color: TerminalColors.cardBorderLight),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        ),
+                        icon: const Icon(Icons.add, size: 16),
+                        label: Text('ADD WORKSPACE', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold)),
+                        onPressed: _showAddProjectDialog,
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(

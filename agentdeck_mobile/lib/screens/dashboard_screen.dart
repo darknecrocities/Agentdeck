@@ -442,19 +442,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
 
-                  Text(
-                    'QUICK PROMPT DISPATCHER',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _buildQuickPromptChip(Icons.search, 'Analyze Architecture', 'Analyze this codebase architecture and create an implementation plan.', 'antigravity'),
-                      _buildQuickPromptChip(Icons.code, 'Implement Feature', 'Proceed with the implementation and wire up all services.', 'antigravity'),
-                      _buildQuickPromptChip(Icons.bug_report, 'Run & Fix Tests', 'Run all tests, analyze any failure, and fix them automatically.', 'antigravity'),
-                      _buildQuickPromptChip(Icons.cloud_upload, 'Git Commit & Push', 'Commit all changes with a descriptive message and push.', 'antigravity'),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'QUICK PROMPT DISPATCHER',
+                              style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                _buildQuickPromptChip(Icons.search, 'Analyze Architecture', 'Analyze this codebase architecture and create an implementation plan.', 'antigravity'),
+                                _buildQuickPromptChip(Icons.code, 'Implement Feature', 'Proceed with the implementation and wire up all services.', 'antigravity'),
+                                _buildQuickPromptChip(Icons.bug_report, 'Run & Fix Tests', 'Run all tests, analyze any failure, and fix them automatically.', 'antigravity'),
+                                _buildQuickPromptChip(Icons.cloud_upload, 'Git Commit & Push', 'Commit all changes with a descriptive message and push.', 'antigravity'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Image.asset(
+                        'assets/images/agentdeck_pointing.png',
+                        height: 72,
+                        fit: BoxFit.contain,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -719,6 +737,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   Row(
                     children: [
+                      Image.asset(
+                        'assets/images/agentdeck_thinking.png',
+                        height: 28,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         'DETAILS',
                         style: GoogleFonts.jetBrainsMono(
