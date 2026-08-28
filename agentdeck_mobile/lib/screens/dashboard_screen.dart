@@ -31,7 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _loading = true;
   Timer? _refreshTimer;
 
-  String _selectedModel = 'gemini-2.5-pro';
+  String _selectedModel = 'gemini-3.7-flash';
   String _selectedEffort = 'high';
 
   @override
@@ -169,7 +169,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           Text(
-                            'Gemini 2.5 Pro (Thinking) • Resets at 00:00 UTC',
+                            'Gemini 3.7 Flash (High Effort) • Live Weekly Limit: 25%',
                             style: GoogleFonts.jetBrainsMono(
                               color: TerminalColors.zinc,
                               fontSize: 10,
