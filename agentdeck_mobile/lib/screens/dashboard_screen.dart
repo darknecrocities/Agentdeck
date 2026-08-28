@@ -33,12 +33,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _selectedModel = 'gemini-3.7-flash';
   String _selectedEffort = 'high';
+  Map<String, dynamic>? _tokenSummary;
 
   @override
   void initState() {
     super.initState();
     _loadData();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 4), (_) => _loadData(silent: true));
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) => _loadData(silent: true));
   }
 
   @override
@@ -55,6 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final proj = await _api.getProjects();
       final app = await _api.getApprovals();
       final sess = await _api.getSessions();
+      final tok = await _api.getTokenSummary();
 
       if (mounted) {
         setState(() {
@@ -63,6 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _projects = proj;
           _approvals = app;
           _sessions = sess;
+          _tokenSummary = tok;
           _loading = false;
         });
       }
@@ -138,51 +141,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Token & Quota Quick Pill
-            InkWell(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const TokenMonitorScreen()),
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                margin: const EdgeInsets.only(bottom: 14),
-                decoration: BoxDecoration(
-                  color: TerminalColors.surface,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: TerminalColors.cardBorderLight),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.speed, color: TerminalColors.pureWhite, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ANTIGRAVITY QUOTA: ACTIVE & READY',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontWeight: FontWeight.bold,
-                              color: TerminalColors.pureWhite,
-                              fontSize: 11,
-                            ),
-                          ),
-                          Text(
-                            'Gemini 3.7 Flash (High Effort) • Live Weekly Limit: 25%',
-                            style: GoogleFonts.jetBrainsMono(
-                              color: TerminalColors.zinc,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: TerminalColors.zinc, size: 16),
-                  ],
-                ),
-              ),
-            ),
+            // Live Antigravity Model Usage Card
+            _buildLiveAntigravityQuotaCard(),
             // Approvals Alert Banner
             if (_approvals.isNotEmpty) ...[
               InkWell(
@@ -567,6 +527,259 @@ class _DashboardScreenState extends State<DashboardScreen> {
             fontSize: 10,
             fontWeight: FontWeight.w600,
             color: TerminalColors.pureWhite,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLiveAntigravityQuotaCard() {
+    final gemini = _tokenSummary?['gemini_quota'] as Map<String, dynamic>?;
+    final claudeGpt = _tokenSummary?['claude_gpt_quota'] as Map<String, dynamic>?;
+
+    final geminiWeekly = (gemini?['weekly_limit_remaining'] as num?)?.toInt() ?? 25;
+    final gemini5h = (gemini?['five_hour_limit_remaining'] as num?)?.toInt() ?? 54;
+    final claudeWeekly = (claudeGpt?['weekly_limit_remaining'] as num?)?.toInt() ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D0D),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: TerminalColors.cardBorderLight),
+      ),
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TokenMonitorScreen()),
+        ),
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF51CF66),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'ANTIGRAVITY LIVE MODEL USAGE',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontWeight: FontWeight.w900,
+                          color: TerminalColors.pureWhite,
+                          fontSize: 11,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        'DETAILS',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: TerminalColors.zinc,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.chevron_right, color: TerminalColors.zinc, size: 14),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Two Column Cards
+              Row(
+                children: [
+                  // 1. Gemini Models
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: TerminalColors.surface,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: TerminalColors.cardBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Gemini Models',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                              color: TerminalColors.pureWhite,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Weekly Limit',
+                                    style: GoogleFonts.jetBrainsMono(fontSize: 9, color: TerminalColors.zinc),
+                                  ),
+                                  Text(
+                                    '$geminiWeekly% left',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF51CF66),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  value: geminiWeekly / 100.0,
+                                  strokeWidth: 2.5,
+                                  backgroundColor: const Color(0xFF222222),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF51CF66)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '5-Hour Limit',
+                                    style: GoogleFonts.jetBrainsMono(fontSize: 9, color: TerminalColors.zinc),
+                                  ),
+                                  Text(
+                                    '$gemini5h% left',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF51CF66),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  value: gemini5h / 100.0,
+                                  strokeWidth: 2.5,
+                                  backgroundColor: const Color(0xFF222222),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF51CF66)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // 2. Claude & GPT Models
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: TerminalColors.surface,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: TerminalColors.cardBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Claude / GPT',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                  color: TerminalColors.pureWhite,
+                                ),
+                              ),
+                              const Icon(Icons.warning_amber_rounded, color: Color(0xFFFFD43B), size: 14),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Weekly Limit',
+                                    style: GoogleFonts.jetBrainsMono(fontSize: 9, color: TerminalColors.zinc),
+                                  ),
+                                  Text(
+                                    '$claudeWeekly% left',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFFFF8787),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  value: claudeWeekly / 100.0,
+                                  strokeWidth: 2.5,
+                                  backgroundColor: const Color(0xFF222222),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF555555)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF221111),
+                              borderRadius: BorderRadius.circular(3),
+                              border: Border.all(color: const Color(0xFF552222)),
+                            ),
+                            child: Text(
+                              'LIMIT REACHED',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFFF8787),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

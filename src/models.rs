@@ -274,9 +274,22 @@ pub struct ModelQuotaStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelTierQuota {
+    pub weekly_limit_remaining: u32,
+    pub weekly_reset_text: String,
+    pub weekly_reset_seconds: i64,
+    pub five_hour_limit_remaining: u32,
+    pub five_hour_reset_text: String,
+    pub five_hour_reset_seconds: i64,
+    pub is_available: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenSummaryResponse {
     pub total_tokens_all_time: u64,
     pub total_tokens_today: u64,
+    pub gemini_quota: ModelTierQuota,
+    pub claude_gpt_quota: ModelTierQuota,
     pub models_quota: Vec<ModelQuotaStatus>,
     pub recent_usage: Vec<TokenUsageRecord>,
 }
