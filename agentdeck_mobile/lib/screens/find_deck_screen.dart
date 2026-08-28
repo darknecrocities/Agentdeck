@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/workstation_manager.dart';
 import '../theme/terminal_theme.dart';
@@ -30,22 +31,23 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
   bool _isPlayingSound = false;
   String? _soundStatus;
 
-  // Real Dynamic Location State (Updated dynamically on init)
-  bool _locatingGps = false;
-  double _phoneLat = 15.1149;
-  double _phoneLon = 120.5980;
-  String _userCity = 'Detecting Location...';
-  String _userRegion = 'GPS';
+  // Real Persistent Coordinates (Default: Metro Manila Main Tech Hub)
+  double _phoneLat = 14.59951;
+  double _phoneLon = 120.98422;
+  String _locationName = 'Main Workstation Base';
 
   // Synced fleet coordinates & telemetry
   final Map<String, Map<String, dynamic>> _deviceLocations = {};
 
   // Interactive Map Viewport (Pan & Zoom)
-  double _mapCenterLat = 15.1149;
-  double _mapCenterLon = 120.5980;
-  double _mapZoom = 17.0; // Street level
+  double _mapCenterLat = 14.59951;
+  double _mapCenterLon = 120.98422;
+  double _mapZoom = 17.5; // High-detail street level
   Offset _dragStart = Offset.zero;
-  double _zoomStart = 17.0;
+  double _zoomStart = 17.5;
+
+  // Pinpoint Placement Mode (Tap Map to Move Pin)
+  bool _isPinpointMode = false;
 
   // Real OSRM Routing State
   bool _fetchingRoute = false;
@@ -53,6 +55,8 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
   double _routeDistanceMeters = 0.0;
   double _routeDurationSec = 0.0;
   String _nextTurnInstruction = '';
+
+  static const String _prefsKey = 'agentdeck_fixed_deck_coords_v2';
 
   @override
   void initState() {
@@ -70,7 +74,7 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
     _wsMgr.addListener(_onWorkstationsChanged);
     _selectedDeviceId = _wsMgr.currentWorkstation?.id ?? 'mac-main';
 
-    _initDynamicLocationAndFleet();
+    _loadSavedRealCoordinates();
   }
 
   void _onWorkstationsChanged() {
@@ -85,56 +89,73 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
     super.dispose();
   }
 
-  // --- Dynamic Real-time GPS Location Initialization ---
-  Future<void> _initDynamicLocationAndFleet() async {
-    setState(() => _locatingGps = true);
-
+  // --- Persistent Real Coordinates Management ---
+  Future<void> _loadSavedRealCoordinates() async {
     try {
-      final res = await http.get(Uri.parse('http://ip-api.com/json')).timeout(const Duration(seconds: 4));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        if (data['status'] == 'success') {
-          final lat = (data['lat'] as num).toDouble();
-          final lon = (data['lon'] as num).toDouble();
-          final city = data['city'] as String? ?? 'Local';
-          final region = data['regionName'] as String? ?? 'Network';
+      final prefs = await SharedPreferences.getInstance();
+      final data = prefs.getString(_prefsKey);
+      if (data != null && data.isNotEmpty) {
+        final Map<String, dynamic> map = jsonDecode(data);
+        _phoneLat = (map['phoneLat'] as num?)?.toDouble() ?? 14.59951;
+        _phoneLon = (map['phoneLon'] as num?)?.toDouble() ?? 120.98422;
+        _locationName = map['locationName'] as String? ?? 'Main Workstation Base';
 
-          _phoneLat = lat;
-          _phoneLon = lon;
-          _userCity = city;
-          _userRegion = region;
+        final devices = map['devices'] as Map<String, dynamic>?;
+        if (devices != null) {
+          devices.forEach((k, v) {
+            if (v is Map<String, dynamic>) {
+              _deviceLocations[k] = Map<String, dynamic>.from(v);
+            }
+          });
         }
       }
     } catch (_) {}
 
-    // Populate localized dynamic coordinates relative to real GPS position
-    _deviceLocations['mac-main'] = {
-      'lat': _phoneLat + 0.00010,
-      'lon': _phoneLon + 0.00008,
-      'distanceMeters': 1.4,
-      'locationDesc': '$_userCity • Primary Desk',
-      'signal': 99,
-      'latencyMs': 12,
-      'battery': 88,
-    };
+    // Initialize defaults if not present
+    if (!_deviceLocations.containsKey('mac-main')) {
+      _deviceLocations['mac-main'] = {
+        'lat': _phoneLat + 0.00008,
+        'lon': _phoneLon + 0.00006,
+        'distanceMeters': 1.2,
+        'locationDesc': 'Primary MacBook Desk',
+        'signal': 99,
+        'latencyMs': 12,
+        'battery': 88,
+      };
+    }
 
-    _deviceLocations['win-darknecrocities'] = {
-      'lat': _phoneLat + 0.00035,
-      'lon': _phoneLon + 0.00030,
-      'distanceMeters': 4.2,
-      'locationDesc': '$_userCity • Rig Station',
-      'signal': 94,
-      'latencyMs': 16,
-      'battery': 100,
-    };
+    if (!_deviceLocations.containsKey('win-darknecrocities')) {
+      _deviceLocations['win-darknecrocities'] = {
+        'lat': _phoneLat + 0.00028,
+        'lon': _phoneLon + 0.00024,
+        'distanceMeters': 3.8,
+        'locationDesc': 'Adjacent Rig Station',
+        'signal': 94,
+        'latencyMs': 16,
+        'battery': 100,
+      };
+    }
 
     _mapCenterLat = _phoneLat;
     _mapCenterLon = _phoneLon;
 
     if (mounted) {
-      setState(() => _locatingGps = false);
+      setState(() {});
       _fetchOsrmRouteForSelected();
     }
+  }
+
+  Future<void> _saveRealCoordinates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final map = {
+        'phoneLat': _phoneLat,
+        'phoneLon': _phoneLon,
+        'locationName': _locationName,
+        'devices': _deviceLocations,
+      };
+      await prefs.setString(_prefsKey, jsonEncode(map));
+    } catch (_) {}
   }
 
   // --- Real-time OSRM Turn-by-Turn Routing Engine ---
@@ -149,12 +170,12 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
 
     final telemetry = _deviceLocations[selectedWs.id] ??
         {
-          'lat': _phoneLat + 0.00020,
-          'lon': _phoneLon + 0.00020,
+          'lat': _phoneLat + 0.00015,
+          'lon': _phoneLon + 0.00015,
         };
 
-    final targetLat = telemetry['lat'] as double? ?? (_phoneLat + 0.00020);
-    final targetLon = telemetry['lon'] as double? ?? (_phoneLon + 0.00020);
+    final targetLat = telemetry['lat'] as double? ?? (_phoneLat + 0.00015);
+    final targetLon = telemetry['lon'] as double? ?? (_phoneLon + 0.00015);
 
     setState(() => _fetchingRoute = true);
 
@@ -181,7 +202,7 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
           final distance = (primaryRoute['distance'] as num?)?.toDouble() ?? 0.0;
           final duration = (primaryRoute['duration'] as num?)?.toDouble() ?? 0.0;
 
-          String nextStep = 'Head towards target deck';
+          String nextStep = 'Direct proximity line';
           final legs = primaryRoute['legs'] as List<dynamic>?;
           if (legs != null && legs.isNotEmpty) {
             final steps = legs.first['steps'] as List<dynamic>?;
@@ -207,7 +228,7 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
       }
     } catch (_) {}
 
-    // Direct line fallback
+    // Fallback straight vector
     if (mounted) {
       setState(() {
         _routePoints = [
@@ -216,7 +237,7 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
         ];
         _routeDistanceMeters = _calculateHaversineDistance(_phoneLat, _phoneLon, targetLat, targetLon);
         _routeDurationSec = _routeDistanceMeters / 1.4;
-        _nextTurnInstruction = 'Direct Proximity Vector';
+        _nextTurnInstruction = 'Direct Proximity Line';
         _fetchingRoute = false;
       });
     }
@@ -265,6 +286,179 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
         });
       }
     }
+  }
+
+  // --- Location Coordinate Editor Dialog ---
+  void _showCoordinateEditorDialog() {
+    final latCtrl = TextEditingController(text: _phoneLat.toStringAsFixed(5));
+    final lonCtrl = TextEditingController(text: _phoneLon.toStringAsFixed(5));
+    final nameCtrl = TextEditingController(text: _locationName);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: EdgeInsets.only(
+            top: 16,
+            left: 16,
+            right: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          decoration: const BoxDecoration(
+            color: Color(0xFF0C0C0C),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            border: Border(top: BorderSide(color: Color(0xFF404040), width: 1.5)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.edit_location_alt_rounded, color: TerminalColors.pureWhite, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'SET REAL GPS LOCATION',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: TerminalColors.pureWhite,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: TerminalColors.zinc, size: 18),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Enter exact GPS coordinates or tap presets to pin your workstations accurately on the map.',
+                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
+              ),
+              const SizedBox(height: 14),
+
+              // Location Name
+              TextField(
+                controller: nameCtrl,
+                style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+                decoration: InputDecoration(
+                  labelText: 'LOCATION NAME',
+                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 10),
+                  filled: true,
+                  fillColor: Colors.black,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF333333))),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: latCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+                      decoration: InputDecoration(
+                        labelText: 'LATITUDE',
+                        labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 10),
+                        filled: true,
+                        fillColor: Colors.black,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF333333))),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: lonCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+                      decoration: InputDecoration(
+                        labelText: 'LONGITUDE',
+                        labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 10),
+                        filled: true,
+                        fillColor: Colors.black,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF333333))),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Action Buttons: Save or Enable Tap-to-Place Mode
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: TerminalColors.pureWhite,
+                        side: const BorderSide(color: Color(0xFF404040)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      icon: const Icon(Icons.touch_app_rounded, size: 16),
+                      label: Text('TAP MAP TO PIN', style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold)),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        setState(() => _isPinpointMode = true);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: const Color(0xFF1F1F1F),
+                            content: Text('🎯 Tap anywhere on the map to place your target pin!', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: Colors.white)),
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: TerminalColors.pureWhite,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      icon: const Icon(Icons.check_rounded, size: 16),
+                      label: Text('SAVE LOCATION', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.w900)),
+                      onPressed: () {
+                        final lat = double.tryParse(latCtrl.text.trim()) ?? _phoneLat;
+                        final lon = double.tryParse(lonCtrl.text.trim()) ?? _phoneLon;
+
+                        setState(() {
+                          _phoneLat = lat;
+                          _phoneLon = lon;
+                          _locationName = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : 'Real Base';
+                          _mapCenterLat = lat;
+                          _mapCenterLon = lon;
+
+                          _deviceLocations['mac-main']?['lat'] = lat + 0.00008;
+                          _deviceLocations['mac-main']?['lon'] = lon + 0.00006;
+                          _deviceLocations['win-darknecrocities']?['lat'] = lat + 0.00028;
+                          _deviceLocations['win-darknecrocities']?['lon'] = lon + 0.00024;
+                        });
+
+                        _saveRealCoordinates();
+                        _fetchOsrmRouteForSelected();
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   // --- Dynamic Map Math & Web Mercator ---
@@ -331,7 +525,7 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
           'lat': _phoneLat + 0.00015,
           'lon': _phoneLon + 0.00015,
           'distanceMeters': 3.8,
-          'locationDesc': '$_userCity • Local Network',
+          'locationDesc': 'Local Network',
           'signal': 95,
           'latencyMs': 14,
           'battery': 90,
@@ -374,7 +568,7 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                '$_userCity, $_userRegion • OSM + OSRM',
+                '$_locationName • REAL GPS',
                 style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -382,6 +576,13 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
           ],
         ),
         actions: [
+          // Edit Real Location Button
+          IconButton(
+            icon: const Icon(Icons.edit_location_alt_rounded, color: TerminalColors.pureWhite),
+            tooltip: 'Set Real GPS Location & Pin',
+            onPressed: _showCoordinateEditorDialog,
+          ),
+          // Map Style Mode Switcher Button
           IconButton(
             icon: Icon(
               _currentMapMode == MapMode.darkMatter ? Icons.layers_rounded : Icons.radar_rounded,
@@ -395,41 +596,35 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
             },
           ),
           IconButton(
-            icon: _locatingGps
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.pureWhite),
-                  )
-                : const Icon(Icons.refresh_rounded),
-            tooltip: 'Sync Real GPS Location',
-            onPressed: _initDynamicLocationAndFleet,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh Route',
+            onPressed: _fetchOsrmRouteForSelected,
           ),
         ],
       ),
       body: Stack(
         children: [
-          // 1. Dynamic Interactive Slippy Map Canvas (Pan, Pinch Zoom, Double-Tap)
+          // 1. Dynamic Interactive Slippy Map Canvas (Pan, Pinch Zoom, Tap-to-Place Pin)
           Positioned.fill(
             child: _buildInteractiveMap(workstations, selectedWs),
           ),
 
-          // 2. Top Navigation & Live OSRM HUD Bar
+          // 2. Top Navigation & Live OSRM HUD Bar (or Pinpoint Mode Banner)
           Positioned(
             top: 12,
             left: 14,
             right: 14,
-            child: _buildNavigationHud(),
+            child: _isPinpointMode ? _buildPinpointBanner() : _buildNavigationHud(),
           ),
 
-          // 3. Floating Interactive Map Controls (Zoom In/Out, Center GPS, Fit Route)
+          // 3. Floating Interactive Map Controls
           Positioned(
             right: 14,
             top: 80,
             child: _buildFloatingMapControls(),
           ),
 
-          // 4. Bottom Device Telemetry Card (Guaranteed Zero-Overflow)
+          // 4. Bottom Device Telemetry Card (Zero-Overflow Protected)
           Positioned(
             left: 0,
             right: 0,
@@ -441,7 +636,47 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
     );
   }
 
-  // --- Floating Map Controls (+ / - / Center GPS / Fit Route) ---
+  // --- Pinpoint Mode Floating Banner ---
+  Widget _buildPinpointBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: TerminalColors.pureWhite,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.3),
+            blurRadius: 14,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.touch_app_rounded, color: Colors.black, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'TAP ANYWHERE ON MAP TO SET REAL PIN',
+                style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.black),
+              ),
+            ],
+          ),
+          GestureDetector(
+            onTap: () => setState(() => _isPinpointMode = false),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black),
+              child: const Icon(Icons.close, color: Colors.white, size: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Floating Map Controls ---
   Widget _buildFloatingMapControls() {
     return Container(
       padding: const EdgeInsets.all(4),
@@ -459,6 +694,15 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Edit GPS Location Pin
+          IconButton(
+            icon: const Icon(Icons.edit_location_alt_rounded, color: TerminalColors.pureWhite, size: 18),
+            tooltip: 'Set Exact Coordinates',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            onPressed: _showCoordinateEditorDialog,
+          ),
+          const Divider(height: 1, color: Color(0xFF282828)),
           // Zoom In
           IconButton(
             icon: const Icon(Icons.add, color: TerminalColors.pureWhite, size: 18),
@@ -484,7 +728,7 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
           // Center on Phone GPS
           IconButton(
             icon: const Icon(Icons.my_location_rounded, color: TerminalColors.pureWhite, size: 17),
-            tooltip: 'Center on My Phone',
+            tooltip: 'Center on My Location',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             onPressed: _centerOnPhone,
@@ -600,6 +844,41 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
         final centerPixel = latLonToPixel(_mapCenterLat, _mapCenterLon, _mapZoom);
 
         return GestureDetector(
+          onTapDown: (details) {
+            if (_isPinpointMode) {
+              final tapOffset = details.localPosition;
+              final tapDx = tapOffset.dx - screenCenter.dx;
+              final tapDy = tapOffset.dy - screenCenter.dy;
+
+              final tappedPixel = Point<double>(centerPixel.x + tapDx, centerPixel.y + tapDy);
+              final tappedLatLon = pixelToLatLon(tappedPixel.x, tappedPixel.y, _mapZoom);
+
+              setState(() {
+                _phoneLat = tappedLatLon.x;
+                _phoneLon = tappedLatLon.y;
+                _isPinpointMode = false;
+
+                _deviceLocations['mac-main']?['lat'] = _phoneLat + 0.00008;
+                _deviceLocations['mac-main']?['lon'] = _phoneLon + 0.00006;
+                _deviceLocations['win-darknecrocities']?['lat'] = _phoneLat + 0.00028;
+                _deviceLocations['win-darknecrocities']?['lon'] = _phoneLon + 0.00024;
+              });
+
+              _saveRealCoordinates();
+              _fetchOsrmRouteForSelected();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: const Color(0xFF171717),
+                  content: Text(
+                    '📍 Real Pin updated to ${_phoneLat.toStringAsFixed(5)}°N, ${_phoneLon.toStringAsFixed(5)}°E',
+                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 11),
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
           onScaleStart: (details) {
             _dragStart = details.focalPoint;
             _zoomStart = _mapZoom;
@@ -684,7 +963,6 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
     final latRad = _mapCenterLat * pi / 180.0;
     final centerTileY = ((1.0 - (log(tan(latRad) + 1.0 / cos(latRad)) / pi)) / 2.0 * pow(2.0, zoomInt)).floor();
 
-    // Invert OpenStreetMap tiles to create pure high-contrast Dark Mode with full street clarity
     const darkColorMatrix = ColorFilter.matrix([
       -0.85, 0.0, 0.0, 0.0, 230.0, // Red
       0.0, -0.85, 0.0, 0.0, 230.0, // Green
@@ -704,7 +982,6 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
                   final tileY = centerTileY + dy;
                   final tileUrl = 'https://tile.openstreetmap.org/$zoomInt/$tileX/$tileY.png';
 
-                  // Pixel offset for tile origin at zoomInt
                   final tilePixelOrigin = Point<double>(tileX * 256.0, tileY * 256.0);
                   final currentCenterPx = latLonToPixel(_mapCenterLat, _mapCenterLon, zoomInt.toDouble());
 
@@ -782,7 +1059,7 @@ class _FindDeckScreenState extends State<FindDeckScreen> with TickerProviderStat
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Outer Pulsing Glow Marker
+            // Glowing Pin Icon Marker
             AnimatedBuilder(
               animation: _pulseCtrl,
               builder: (context, child) {
