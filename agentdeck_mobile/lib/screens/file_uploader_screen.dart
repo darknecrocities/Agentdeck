@@ -29,13 +29,31 @@ class _FileUploaderScreenState extends State<FileUploaderScreen> {
     super.initState();
     _destinationPath = widget.initialDestination ?? '';
     _loadDefaultDestination();
+    WorkstationManager().addListener(_onWorkstationChanged);
+  }
+
+  void _onWorkstationChanged() {
+    if (mounted) {
+      _loadDefaultDestination();
+    }
+  }
+
+  @override
+  void dispose() {
+    WorkstationManager().removeListener(_onWorkstationChanged);
+    super.dispose();
   }
 
   Future<void> _loadDefaultDestination() async {
+    final activeWs = WorkstationManager().currentWorkstation;
+    final isWin = activeWs?.os == 'Windows';
+    final fallback = isWin ? 'C:\\projects' : '/Users/arronkianparejas';
+
     if (widget.initialDestination == null || _destinationPath.isEmpty) {
+      setState(() => _destinationPath = fallback);
       try {
         final res = await _api.browseDirectories();
-        if (res['current_path'] != null && mounted) {
+        if (res['current_path'] != null && mounted && res['current_path'].toString().isNotEmpty) {
           setState(() {
             _destinationPath = res['current_path'];
           });
