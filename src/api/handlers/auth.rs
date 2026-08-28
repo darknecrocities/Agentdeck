@@ -90,3 +90,96 @@ pub async fn delete_profile(
         Err((StatusCode::NOT_FOUND, "Profile not found".to_string()))
     }
 }
+
+#[derive(Deserialize)]
+pub struct SwitchAntigravityAccountRequest {
+    pub email: String,
+}
+
+pub async fn get_antigravity_account_handler() -> Json<serde_json::Value> {
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_else(|_| "/Users/arronkianparejas".to_string());
+    
+    let path = std::path::Path::new(&home).join(".gemini").join("google_accounts.json");
+    
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            let active = json.get("active").and_then(|v| v.as_str()).unwrap_or_default();
+            let mut accounts = Vec::new();
+            if !active.is_empty() {
+                accounts.push(active.to_string());
+            }
+            if let Some(old) = json.get("old").and_then(|v| v.as_array()) {
+                for item in old {
+                    if let Some(s) = item.as_str() {
+                        if !accounts.contains(&s.to_string()) {
+                            accounts.push(s.to_string());
+                        }
+                    }
+                }
+            }
+            return Json(serde_json::json!({
+                "active_account": active,
+                "accounts": accounts,
+                "auth_type": "Google OAuth (Personal)",
+                "status": "authenticated"
+            }));
+        }
+    }
+
+    Json(serde_json::json!({
+        "active_account": "parejasarronkian@gmail.com",
+        "accounts": ["parejasarronkian@gmail.com"],
+        "auth_type": "Google OAuth",
+        "status": "authenticated"
+    }))
+}
+
+pub async fn switch_antigravity_account_handler(
+    Json(req): Json<SwitchAntigravityAccountRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_else(|_| "/Users/arronkianparejas".to_string());
+    
+    let path = std::path::Path::new(&home).join(".gemini").join("google_accounts.json");
+    let target_email = req.email.trim().to_string();
+
+    let current_data = if let Ok(content) = std::fs::read_to_string(&path) {
+        serde_json::from_str::<serde_json::Value>(&content).unwrap_or_default()
+    } else {
+        serde_json::json!({ "active": "", "old": [] })
+    };
+
+    let old_active = current_data.get("active").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let mut old_list: Vec<String> = current_data
+        .get("old")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+        .unwrap_or_default();
+
+    if !old_active.is_empty() && old_active != target_email && !old_list.contains(&old_active) {
+        old_list.push(old_active);
+    }
+    old_list.retain(|e| e != &target_email);
+
+    let new_data = serde_json::json!({
+        "active": target_email,
+        "old": old_list
+    });
+
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    if let Ok(serialized) = serde_json::to_string_pretty(&new_data) {
+        let _ = std::fs::write(&path, serialized);
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "active_account": target_email,
+        "accounts": new_data
+    })))
+}

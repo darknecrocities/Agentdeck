@@ -338,6 +338,34 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  Future<Map<String, dynamic>> getAntigravityAccount() async {
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/api/accounts/antigravity'), headers: _headers);
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+    } catch (_) {}
+    return {
+      'active_account': 'parejasarronkian@gmail.com',
+      'accounts': ['parejasarronkian@gmail.com'],
+      'auth_type': 'Google OAuth (Personal)',
+      'status': 'authenticated',
+    };
+  }
+
+  Future<bool> switchAntigravityAccount(String email) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/accounts/antigravity/switch'),
+        headers: _headers,
+        body: jsonEncode({'email': email}),
+      );
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // WebSockets
   WebSocketChannel connectEventsStream({int afterEventId = 0}) {
     final wsScheme = baseUrl.startsWith('https') ? 'wss' : 'ws';

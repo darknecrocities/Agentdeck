@@ -34,10 +34,21 @@ class _TerminalScreenState extends State<TerminalScreen> {
   void initState() {
     super.initState();
     _initTerminal();
+    WorkstationManager().addListener(_onWorkstationChanged);
+  }
+
+  void _onWorkstationChanged() {
+    if (mounted) {
+      _wsChannel?.sink.close();
+      _wsChannel = null;
+      _output = '';
+      _initTerminal();
+    }
   }
 
   @override
   void dispose() {
+    WorkstationManager().removeListener(_onWorkstationChanged);
     _wsChannel?.sink.close();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();

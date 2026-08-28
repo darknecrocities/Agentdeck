@@ -79,27 +79,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     } catch (_) {
-      if (mounted && !silent) {
-        setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _deviceInfo = null;
+          _agents = [];
+          _projects = [];
+          _approvals = [];
+          _sessions = [];
+          _tokenSummary = null;
+          _loading = false;
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading && _deviceInfo == null) {
+    if (_loading && _deviceInfo == null && _projects.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: TerminalColors.pureWhite),
       );
     }
+
+    final activeWs = WorkstationManager().currentWorkstation;
+    final defaultHost = activeWs?.name ?? 'Workstation';
+    final defaultTs = activeWs?.endpoint.replaceFirst(RegExp(r'^https?://'), '').split(':').first ?? '100.114.182.27';
+    final host = _deviceInfo?['hostname'] ?? defaultHost;
+    final tsIp = _deviceInfo?['tailscale_ip'] ?? defaultTs;
 
     final cpu = (_deviceInfo?['cpu_usage'] as num?)?.toInt() ?? 0;
     final memUsed = _deviceInfo?['memory_used_mb'] ?? 0;
     final memTotal = _deviceInfo?['memory_total_mb'] ?? 1;
     final memPercent = ((memUsed / memTotal) * 100).round();
     final diskFree = (_deviceInfo?['disk_free_gb'] as num?)?.toStringAsFixed(1) ?? '0';
-    final host = _deviceInfo?['hostname'] ?? 'MacBook Air';
-    final tsIp = _deviceInfo?['tailscale_ip'] ?? '100.114.182.27';
 
     return Scaffold(
       appBar: AppBar(
@@ -286,22 +298,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  _buildMetricRow('CPU LOAD', cpu),
-                  const SizedBox(height: 10),
-                  _buildMetricRow(
-                    'MEMORY',
-                    memPercent,
-                    subtitle: '${(memUsed / 1024).toStringAsFixed(1)}G / ${(memTotal / 1024).toStringAsFixed(1)}G',
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('DISK AVAILABLE', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc)),
-                      Text('$diskFree GB FREE', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite)),
-                    ],
-                  ),
+                  if (_deviceInfo != null) ...[
+                    const SizedBox(height: 14),
+                    _buildMetricRow('CPU LOAD', cpu),
+                    const SizedBox(height: 10),
+                    _buildMetricRow(
+                      'MEMORY',
+                      memPercent,
+                      subtitle: '${(memUsed / 1024).toStringAsFixed(1)}G / ${(memTotal / 1024).toStringAsFixed(1)}G',
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('DISK AVAILABLE', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc)),
+                        Text('$diskFree GB FREE', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite)),
+                      ],
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF181818),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: TerminalColors.cardBorderLight),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.info_outline, size: 14, color: Color(0xFFFFD43B)),
+                              const SizedBox(width: 6),
+                              Text(
+                                'DAEMON NOT RUNNING ON ${activeWs?.os.toUpperCase() ?? "THIS NODE"}',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFFFFD43B),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Start the daemon on this machine:\n> cargo run --bin agentdeckd',
+                            style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

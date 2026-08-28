@@ -6,6 +6,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../services/api_service.dart';
 import '../theme/terminal_theme.dart';
 
+import '../services/workstation_manager.dart';
+
 class TimelineScreen extends StatefulWidget {
   const TimelineScreen({super.key});
 
@@ -25,10 +27,23 @@ class _TimelineScreenState extends State<TimelineScreen> {
     super.initState();
     _loadEvents();
     _connectWebSocket();
+    WorkstationManager().addListener(_onWorkstationChanged);
+  }
+
+  void _onWorkstationChanged() {
+    if (mounted) {
+      _channel?.sink.close();
+      _channel = null;
+      _events.clear();
+      _lastEventId = 0;
+      _loadEvents();
+      _connectWebSocket();
+    }
   }
 
   @override
   void dispose() {
+    WorkstationManager().removeListener(_onWorkstationChanged);
     _channel?.sink.close();
     super.dispose();
   }

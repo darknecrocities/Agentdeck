@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/terminal_widgets.dart';
+import '../services/workstation_manager.dart';
 import 'terminal_screen.dart';
 
 class AgentsScreen extends StatefulWidget {
@@ -21,6 +22,19 @@ class _AgentsScreenState extends State<AgentsScreen> {
   void initState() {
     super.initState();
     _loadAgents();
+    WorkstationManager().addListener(_onWorkstationChanged);
+  }
+
+  void _onWorkstationChanged() {
+    if (mounted) {
+      _loadAgents();
+    }
+  }
+
+  @override
+  void dispose() {
+    WorkstationManager().removeListener(_onWorkstationChanged);
+    super.dispose();
   }
 
   Future<void> _loadAgents() async {
@@ -34,7 +48,12 @@ class _AgentsScreenState extends State<AgentsScreen> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _agents = [];
+          _loading = false;
+        });
+      }
     }
   }
 
