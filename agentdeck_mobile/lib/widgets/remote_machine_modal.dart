@@ -29,6 +29,8 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   int _screenFrameCount = 0;
   Timer? _screenStreamTimer;
   int _screenIntervalMs = 250; // ~4 FPS live desktop stream
+  final TransformationController _screenTransformCtrl = TransformationController();
+  double _screenZoomLevel = 1.0;
 
   // Webcam Stream State
   bool _isStreamingCam = false;
@@ -38,6 +40,8 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   int _camFrameCount = 0;
   Timer? _camStreamTimer;
   int _camIntervalMs = 150; // ~7 FPS smooth live webcam stream
+  final TransformationController _camTransformCtrl = TransformationController();
+  double _camZoomLevel = 1.0;
 
   // Launch App State
   bool _launching = false;
@@ -48,6 +52,51 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
     super.initState();
     _tabCtrl = TabController(length: 3, vsync: this);
     _tabCtrl.addListener(_onTabChanged);
+
+    _screenTransformCtrl.addListener(() {
+      final scale = _screenTransformCtrl.value.getMaxScaleOnAxis();
+      if ((scale - _screenZoomLevel).abs() > 0.05) {
+        setState(() => _screenZoomLevel = scale);
+      }
+    });
+
+    _camTransformCtrl.addListener(() {
+      final scale = _camTransformCtrl.value.getMaxScaleOnAxis();
+      if ((scale - _camZoomLevel).abs() > 0.05) {
+        setState(() => _camZoomLevel = scale);
+      }
+    });
+  }
+
+  void _zoomInScreen() {
+    final currentScale = _screenTransformCtrl.value.getMaxScaleOnAxis();
+    final newScale = (currentScale * 1.4).clamp(1.0, 10.0);
+    _screenTransformCtrl.value = Matrix4.diagonal3Values(newScale, newScale, 1.0);
+    setState(() => _screenZoomLevel = newScale);
+  }
+
+  void _zoomOutScreen() {
+    final currentScale = _screenTransformCtrl.value.getMaxScaleOnAxis();
+    final newScale = (currentScale / 1.4).clamp(1.0, 10.0);
+    _screenTransformCtrl.value = Matrix4.diagonal3Values(newScale, newScale, 1.0);
+    setState(() => _screenZoomLevel = newScale);
+  }
+
+  void _resetScreenZoom() {
+    _screenTransformCtrl.value = Matrix4.identity();
+    setState(() => _screenZoomLevel = 1.0);
+  }
+
+  void _handleScreenDoubleTap(TapDownDetails details) {
+    if (_screenZoomLevel > 1.2) {
+      _resetScreenZoom();
+    } else {
+      final pos = details.localPosition;
+      final matrix = Matrix4.translationValues(-pos.dx * 1.5, -pos.dy * 1.5, 0.0)
+        ..multiply(Matrix4.diagonal3Values(2.5, 2.5, 1.0));
+      _screenTransformCtrl.value = matrix;
+      setState(() => _screenZoomLevel = 2.5);
+    }
   }
 
   void _onTabChanged() {
@@ -70,6 +119,8 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
     _stopScreenStream();
     _stopCamStream();
     _api.stopCamera();
+    _screenTransformCtrl.dispose();
+    _camTransformCtrl.dispose();
     _tabCtrl.removeListener(_onTabChanged);
     _tabCtrl.dispose();
     super.dispose();
@@ -607,18 +658,28 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                     borderRadius: BorderRadius.circular(8),
                     child: Stack(
                       children: [
+                        // Interactive Pinch-to-Zoom & Pan Canvas with Double-tap Zoom
                         Positioned.fill(
-                          child: InteractiveViewer(
-                            minScale: 0.5,
-                            maxScale: 6.0,
-                            child: Image.memory(
-                              _screenBytes!,
-                              fit: BoxFit.contain,
-                              gaplessPlayback: true,
+                          child: GestureDetector(
+                            onDoubleTapDown: _handleScreenDoubleTap,
+                            child: InteractiveViewer(
+                              transformationController: _screenTransformCtrl,
+                              minScale: 1.0,
+                              maxScale: 10.0,
+                              boundaryMargin: const EdgeInsets.all(300),
+                              clipBehavior: Clip.none,
+                              child: Center(
+                                child: Image.memory(
+                                  _screenBytes!,
+                                  fit: BoxFit.contain,
+                                  gaplessPlayback: true,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        // Live Stream Overlay Badge
+
+                        // Top-Left: Live Stream Overlay Badge
                         Positioned(
                           top: 8,
                           left: 8,
@@ -653,6 +714,108 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                             ),
                           ),
                         ),
+
+                        // Top-Right: Zoom Multiplier Badge
+                        if (_screenZoomLevel > 1.05)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '${_screenZoomLevel.toStringAsFixed(1)}x ZOOM',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        // Bottom-Right: Floating Zoom HUD Controls (+ / - / Reset)
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFF444444)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.8),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Zoom Out
+                                IconButton(
+                                  icon: const Icon(Icons.remove_rounded, color: TerminalColors.pureWhite, size: 16),
+                                  tooltip: 'Zoom Out',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                  onPressed: _zoomOutScreen,
+                                ),
+                                Container(
+                                  height: 14,
+                                  width: 1,
+                                  color: const Color(0xFF333333),
+                                ),
+                                // Zoom In
+                                IconButton(
+                                  icon: const Icon(Icons.add_rounded, color: TerminalColors.pureWhite, size: 16),
+                                  tooltip: 'Zoom In',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                  onPressed: _zoomInScreen,
+                                ),
+                                if (_screenZoomLevel > 1.05) ...[
+                                  Container(
+                                    height: 14,
+                                    width: 1,
+                                    color: const Color(0xFF333333),
+                                  ),
+                                  // Reset Zoom
+                                  IconButton(
+                                    icon: const Icon(Icons.restart_alt_rounded, color: TerminalColors.pureWhite, size: 16),
+                                    tooltip: 'Reset Zoom (1.0x)',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                    onPressed: _resetScreenZoom,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Bottom-Left: Double-tap Gesture Hint (Fades out when zoomed)
+                        if (_screenZoomLevel <= 1.05)
+                          Positioned(
+                            bottom: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFF333333)),
+                              ),
+                              child: Text(
+                                'Double-tap or pinch to zoom',
+                                style: GoogleFonts.jetBrainsMono(fontSize: 8, color: TerminalColors.zinc),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   )
