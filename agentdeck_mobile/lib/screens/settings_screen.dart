@@ -272,8 +272,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         icon: const Icon(Icons.volume_up, size: 16),
                         label: Text('TEST TTS VOICE', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.bold)),
-                        onPressed: () {
-                          VoiceService().speak('AgentDeck speech synthesizer is online and calibrated. Voice prompts will execute seamlessly on your workstation.');
+                        onPressed: () async {
+                          const testMsg = 'AgentDeck speech synthesizer is online and calibrated.';
+                          await VoiceService().speak(testMsg);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  VoiceService().isPluginAvailable.value
+                                      ? '🔊 Speaking: "$testMsg"'
+                                      : '⚠️ Native audio plugin requires restarting "flutter run" (press "q" then "flutter run") to link Android bindings.',
+                                  style: GoogleFonts.jetBrainsMono(fontSize: 11),
+                                ),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
                         },
                       ),
                     ),
