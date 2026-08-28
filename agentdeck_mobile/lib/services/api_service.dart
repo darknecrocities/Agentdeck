@@ -194,6 +194,8 @@ class ApiService {
     required String agent,
     required String prompt,
     String? conversationId,
+    String? model,
+    String? effort,
   }) async {
     final res = await http.post(
       Uri.parse('$baseUrl/api/sessions'),
@@ -203,6 +205,8 @@ class ApiService {
         'agent': agent,
         'prompt': prompt,
         'conversation_id': conversationId,
+        'model': model,
+        'effort': effort,
       }),
     );
     return jsonDecode(res.body);
@@ -303,6 +307,34 @@ class ApiService {
   // Token Monitoring & Model Quotas
   Future<Map<String, dynamic>> getTokenSummary() async {
     final res = await http.get(Uri.parse('$baseUrl/api/tokens/summary'), headers: _headers);
+    return jsonDecode(res.body);
+  }
+
+  // Remote File & Media Upload
+  Future<Map<String, dynamic>> uploadFile({
+    required String destinationPath,
+    required String filename,
+    required List<int> bytes,
+  }) async {
+    final base64Content = base64Encode(bytes);
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/files/upload'),
+      headers: _headers,
+      body: jsonEncode({
+        'destination_path': destinationPath,
+        'filename': filename,
+        'content_base64': base64Content,
+      }),
+    );
+    return jsonDecode(res.body);
+  }
+
+  Future<Map<String, dynamic>> createDirectory(String path) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/system/mkdir'),
+      headers: _headers,
+      body: jsonEncode({'path': path}),
+    );
     return jsonDecode(res.body);
   }
 

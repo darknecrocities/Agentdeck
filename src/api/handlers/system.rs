@@ -150,3 +150,75 @@ pub async fn browse_directories_handler(
     }))
 }
 
+#[derive(serde::Deserialize)]
+pub struct FileUploadRequest {
+    pub destination_path: String,
+    pub filename: String,
+    pub content_base64: String,
+}
+
+pub async fn upload_file_handler(
+    Json(payload): Json<FileUploadRequest>,
+) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    use base64::Engine;
+    use std::path::PathBuf;
+
+    let dest_dir = PathBuf::from(&payload.destination_path);
+    if !dest_dir.exists() {
+        if let Err(e) = std::fs::create_dir_all(&dest_dir) {
+            return Err((
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Failed to create destination directory: {}", e) })),
+            ));
+        }
+    }
+
+    let target_file = dest_dir.join(&payload.filename);
+    let bytes = match base64::engine::general_purpose::STANDARD.decode(payload.content_base64.trim()) {
+        Ok(b) => b,
+        Err(e) => {
+            return Err((
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": format!("Invalid base64 payload: {}", e) })),
+            ));
+        }
+    };
+
+    if let Err(e) = std::fs::write(&target_file, &bytes) {
+        return Err((
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("Failed to write file to disk: {}", e) })),
+        ));
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "path": target_file.to_string_lossy(),
+        "filename": payload.filename,
+        "bytes_written": bytes.len(),
+    })))
+}
+
+#[derive(serde::Deserialize)]
+pub struct CreateDirRequest {
+    pub path: String,
+}
+
+pub async fn create_directory_handler(
+    Json(payload): Json<CreateDirRequest>,
+) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    let p = std::path::PathBuf::from(&payload.path);
+    if let Err(e) = std::fs::create_dir_all(&p) {
+        return Err((
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("Failed to create directory: {}", e) })),
+        ));
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "path": payload.path,
+    })))
+}
+
+

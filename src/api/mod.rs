@@ -36,6 +36,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/device", get(handlers::system::device_info_handler))
         .route("/api/diagnostics", get(handlers::system::diagnostics_handler))
         .route("/api/system/browse", get(handlers::system::browse_directories_handler))
+        .route("/api/system/mkdir", post(handlers::system::create_directory_handler))
+        .route("/api/files/upload", post(handlers::system::upload_file_handler))
         // Projects
         .route("/api/projects", get(handlers::projects::list_projects).post(handlers::projects::create_project))
         .route("/api/projects/scaffold", post(handlers::projects::scaffold_project))

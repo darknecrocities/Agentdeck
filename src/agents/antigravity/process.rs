@@ -21,6 +21,8 @@ impl AntigravityProcess {
         workspace: &str,
         prompt: &str,
         conversation_id: Option<&str>,
+        model: Option<&str>,
+        effort: Option<&str>,
         session: AgentSession,
         event_bus: EventBus,
     ) -> anyhow::Result<Self> {
@@ -33,6 +35,18 @@ impl AntigravityProcess {
         if let Some(conv_id) = conversation_id {
             cmd.arg("--conversation").arg(conv_id);
             cmd.arg("--continue");
+        }
+
+        if let Some(m) = model {
+            if !m.is_empty() {
+                cmd.arg("--model").arg(m);
+            }
+        }
+
+        if let Some(eff) = effort {
+            if !eff.is_empty() {
+                cmd.arg("--effort").arg(eff);
+            }
         }
 
         if !prompt.is_empty() {

@@ -113,6 +113,8 @@ impl AgentAdapter for AntigravityAgent {
             &request.workspace_path,
             &request.prompt,
             request.conversation_id.as_deref(),
+            request.model.as_deref(),
+            request.effort.as_deref(),
             state.session.clone(),
             event_bus,
         )
