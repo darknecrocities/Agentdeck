@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/workstation_manager.dart';
 import '../theme/terminal_theme.dart';
@@ -15,6 +16,7 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
   Map<String, bool> _pingResults = {};
   bool _testingPings = false;
   bool _showGuide = false;
+  String _guideSelectedOs = 'Windows';
 
   @override
   void initState() {
@@ -514,29 +516,96 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildStepRow(
-                    '1',
-                    'Join Tailscale Network',
-                    'Install Tailscale on your Mac, Windows, Linux, and Phone. Sign in to the same account so all devices join your private mesh.',
+                  // OS Tab Selector
+                  Row(
+                    children: [
+                      _buildOsTabPill('Windows', Icons.desktop_windows),
+                      const SizedBox(width: 8),
+                      _buildOsTabPill('macOS', Icons.laptop_mac),
+                      const SizedBox(width: 8),
+                      _buildOsTabPill('Linux', Icons.developer_board),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  _buildStepRow(
-                    '2',
-                    'Find Your Machine IP',
-                    'Run "tailscale ip -4" on your target computer (e.g. 100.114.182.27 on Mac, 100.94.58.13 on Windows).',
-                  ),
-                  const SizedBox(height: 10),
-                  _buildStepRow(
-                    '3',
-                    'Start AgentDeck Daemon',
-                    'Run "cargo run --bin agentdeckd" on your computer. It will automatically bind to port 8765 across Tailscale.',
-                  ),
-                  const SizedBox(height: 10),
-                  _buildStepRow(
-                    '4',
-                    'Configure in .env or Mobile App',
-                    'Define AGENTDECK_WINDOWS_ENDPOINT or AGENTDECK_MAC_ENDPOINT in .env, or tap "+" above to add any custom machine URL.',
-                  ),
+                  const SizedBox(height: 16),
+
+                  if (_guideSelectedOs == 'Windows') ...[
+                    _buildStepRow(
+                      '1',
+                      'Install Tailscale & Rust on Windows',
+                      'Install Tailscale and the Rust toolchain in 1 command using Windows Package Manager (winget):',
+                      code: 'winget install Tailscale.Tailscale\nwinget install Rustlang.Rustup',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStepRow(
+                      '2',
+                      'Allow Port 8765 in Windows Firewall',
+                      'Run this in PowerShell as Administrator so your phone can reach port 8765:',
+                      code: 'New-NetFirewallRule -DisplayName "AgentDeck Daemon" -Direction Inbound -LocalPort 8765 -Protocol TCP -Action Allow',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStepRow(
+                      '3',
+                      'Clone & Start AgentDeck Daemon',
+                      'Open PowerShell in your user directory and run:',
+                      code: 'cd \$env:USERPROFILE\ngit clone https://github.com/darknecrocities/Agentdeck.git\ncd Agentdeck\ncargo run --bin agentdeckd',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStepRow(
+                      '4',
+                      'Get Your Windows Tailscale IP',
+                      'Find your private 100.x.y.z IP address to paste into AgentDeck:',
+                      code: 'tailscale ip -4',
+                    ),
+                  ] else if (_guideSelectedOs == 'macOS') ...[
+                    _buildStepRow(
+                      '1',
+                      'Install Tailscale on Mac',
+                      'Install Tailscale from the Mac App Store or via Homebrew, and log in with your account:',
+                      code: 'brew install --cask tailscale',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStepRow(
+                      '2',
+                      'Clone & Start AgentDeck Daemon',
+                      'Open Terminal and launch the daemon (listening on http://0.0.0.0:8765):',
+                      code: 'cd ~\ngit clone https://github.com/darknecrocities/Agentdeck.git\ncd Agentdeck\ncargo run --bin agentdeckd',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStepRow(
+                      '3',
+                      'Get Your Mac Tailscale IP',
+                      'Find your private 100.x.y.z IP address:',
+                      code: 'tailscale ip -4',
+                    ),
+                  ] else ...[
+                    _buildStepRow(
+                      '1',
+                      'Install Tailscale on Linux',
+                      'Install and connect Tailscale on Ubuntu, Debian, Arch, or Fedora:',
+                      code: 'curl -fsSL https://tailscale.com/install.sh | sh\nsudo tailscale up',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStepRow(
+                      '2',
+                      'Allow Port 8765 in Firewall',
+                      'Allow inbound TCP traffic on port 8765:',
+                      code: 'sudo ufw allow 8765/tcp',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStepRow(
+                      '3',
+                      'Clone & Start AgentDeck Daemon',
+                      'Clone and run the daemon binary in release mode:',
+                      code: 'cd ~\ngit clone https://github.com/darknecrocities/Agentdeck.git\ncd Agentdeck\ncargo run --release --bin agentdeckd',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStepRow(
+                      '4',
+                      'Get Your Linux Tailscale IP',
+                      'Find your private 100.x.y.z IP address:',
+                      code: 'tailscale ip -4',
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -546,7 +615,37 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
     );
   }
 
-  Widget _buildStepRow(String number, String title, String body) {
+  Widget _buildOsTabPill(String osName, IconData icon) {
+    final isSelected = _guideSelectedOs == osName;
+    return InkWell(
+      onTap: () => setState(() => _guideSelectedOs = osName),
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? TerminalColors.pureWhite : Colors.black,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: isSelected ? TerminalColors.pureWhite : TerminalColors.cardBorder),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: isSelected ? Colors.black : TerminalColors.pureWhite),
+            const SizedBox(width: 6),
+            Text(
+              osName,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.black : TerminalColors.pureWhite,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepRow(String number, String title, String body, {String? code}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -591,6 +690,58 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                   height: 1.3,
                 ),
               ),
+              if (code != null) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: TerminalColors.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          code,
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 9.5,
+                            color: const Color(0xFF51CF66),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: code));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Command copied to clipboard!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E1E1E),
+                            borderRadius: BorderRadius.circular(3),
+                            border: Border.all(color: TerminalColors.cardBorderLight),
+                          ),
+                          child: Text(
+                            'COPY',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.bold,
+                              color: TerminalColors.pureWhite,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
