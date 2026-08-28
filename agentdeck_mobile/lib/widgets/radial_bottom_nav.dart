@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/terminal_theme.dart';
 import '../screens/file_uploader_screen.dart';
 import '../screens/account_switcher_screen.dart';
-import '../screens/find_deck_screen.dart';
 import 'voice_prompt_modal.dart';
 import 'remote_machine_modal.dart';
 
@@ -244,7 +243,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
               },
             ),
 
-            // Index 4: Vibe Agent
+            // Index 4: Vibe Agent (Top-most)
             _buildVerticalActionItem(
               index: 4,
               icon: Icons.record_voice_over_rounded,
@@ -256,20 +255,6 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   builder: (_) => const VoicePromptModal(),
-                );
-              },
-            ),
-
-            // Index 5: Find Deck (Top-most)
-            _buildVerticalActionItem(
-              index: 5,
-              icon: Icons.explore_rounded,
-              label: 'FIND DECK',
-              color: TerminalColors.pureWhite,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FindDeckScreen()),
                 );
               },
             ),

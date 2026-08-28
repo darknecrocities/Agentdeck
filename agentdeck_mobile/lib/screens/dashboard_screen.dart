@@ -10,7 +10,6 @@ import 'token_monitor_screen.dart';
 import 'account_switcher_screen.dart';
 import 'workstation_switcher_screen.dart';
 import 'file_uploader_screen.dart';
-import 'find_deck_screen.dart';
 import '../services/workstation_manager.dart';
 import '../widgets/model_selector_modal.dart';
 import '../widgets/voice_prompt_modal.dart';
@@ -180,9 +179,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               side: const BorderSide(color: TerminalColors.cardBorderLight),
             ),
             onSelected: (val) {
-              if (val == 'find_deck') {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const FindDeckScreen()));
-              } else if (val == 'upload') {
+              if (val == 'upload') {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const FileUploaderScreen()));
               } else if (val == 'tokens') {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const TokenMonitorScreen()));
@@ -193,16 +190,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }
             },
             itemBuilder: (ctx) => [
-              PopupMenuItem(
-                value: 'find_deck',
-                child: Row(
-                  children: [
-                    const Icon(Icons.explore_rounded, size: 16, color: TerminalColors.pureWhite),
-                    const SizedBox(width: 10),
-                    Text('Find Deck (GPS & Radar)', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
               PopupMenuItem(
                 value: 'upload',
                 child: Row(
