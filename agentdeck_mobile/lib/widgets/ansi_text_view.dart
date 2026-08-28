@@ -15,13 +15,36 @@ class AnsiParser {
   static String sanitizeRawText(String text) {
     if (text.isEmpty) return '';
 
-    // Remove standalone bracketed paste or DEC artifacts if any raw fragments remain
-    var s = text;
-    // Replace \r\n with \n
-    s = s.replaceAll('\r\n', '\n');
-    // For standalone carriage returns (like animated spinners), collapse to newline or space
-    s = s.replaceAll('\r', '\n');
-    return s;
+    // Handle carriage return overwrites per line
+    final lines = text.replaceAll('\r\n', '\n').split('\n');
+    final cleanLines = <String>[];
+
+    for (var line in lines) {
+      if (line.contains('\r')) {
+        // Split by \r and pick the last non-empty segment (overwritten line)
+        final segments = line.split('\r');
+        String effective = '';
+        for (int i = segments.length - 1; i >= 0; i--) {
+          final seg = segments[i].trim();
+          if (seg.isNotEmpty) {
+            effective = segments[i];
+            break;
+          }
+        }
+        if (effective.isEmpty && segments.isNotEmpty) {
+          effective = segments.last;
+        }
+        cleanLines.add(effective);
+      } else {
+        cleanLines.add(line);
+      }
+    }
+
+    var result = cleanLines.join('\n');
+
+    // Remove any remaining stray control characters except tab and newline
+    result = result.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F]'), '');
+    return result;
   }
 
   static List<TextSpan> parse(String text, {double fontSize = 11.5}) {
