@@ -33,11 +33,16 @@ impl AntigravityAgent {
         }
 
         // Standard paths
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/Users/arronkianparejas".to_string());
+        let local_bin_agy = format!("{home}/.local/bin/agy");
+        let gemini_bin_agy = format!("{home}/.gemini/antigravity/bin/agy");
+
         let candidates = vec![
             "agy",
-            "/usr/local/bin/agy",
+            &local_bin_agy,
             "/opt/homebrew/bin/agy",
-            "/Users/arronkianparejas/.gemini/antigravity/bin/agy",
+            "/usr/local/bin/agy",
+            &gemini_bin_agy,
         ];
 
         for c in candidates {

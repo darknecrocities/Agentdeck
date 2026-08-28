@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/terminal_widgets.dart';
+import 'terminal_screen.dart';
 
 class AgentsScreen extends StatefulWidget {
   const AgentsScreen({super.key});
@@ -102,6 +103,38 @@ class _AgentsScreenState extends State<AgentsScreen> {
                             _buildCapChip('FILE WATCHING', caps['file_watching'] == true),
                             _buildCapChip('APPROVALS', caps['approvals'] == true),
                           ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Run in Terminal Action
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: TerminalColors.pureWhite,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                            minimumSize: const Size(double.infinity, 38),
+                          ),
+                          icon: const Icon(Icons.terminal, size: 16),
+                          label: Text(
+                            '⚡ LAUNCH ${a['id'].toString().toUpperCase()} IN TERMINAL',
+                            style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
+                          ),
+                          onPressed: () {
+                            final agentId = a['id'] ?? 'agy';
+                            final cmd = agentId == 'antigravity'
+                                ? 'agy'
+                                : agentId == 'claude'
+                                    ? 'claude --help'
+                                    : agentId == 'gemini'
+                                        ? 'gemini --help'
+                                        : 'ollama list';
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TerminalScreen(initialCommand: cmd),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
