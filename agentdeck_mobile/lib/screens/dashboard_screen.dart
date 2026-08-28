@@ -460,10 +460,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'QUICK PROMPT DISPATCHER',
-                                  style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
+                                Flexible(
+                                  child: Text(
+                                    'QUICK DISPATCHER',
+                                    style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
+                                const SizedBox(width: 4),
                                 InkWell(
                                   onTap: () {
                                     showModalBottomSheet(
@@ -478,20 +483,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   },
                                   borderRadius: BorderRadius.circular(4),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF143318),
                                       borderRadius: BorderRadius.circular(3),
                                       border: Border.all(color: const Color(0xFF51CF66)),
                                     ),
                                     child: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.mic, size: 11, color: Color(0xFF51CF66)),
-                                        const SizedBox(width: 3),
+                                        const Icon(Icons.mic, size: 10, color: Color(0xFF51CF66)),
+                                        const SizedBox(width: 2),
                                         Text(
-                                          'VOICE STT',
+                                          'VOICE',
                                           style: GoogleFonts.jetBrainsMono(
-                                            fontSize: 8.5,
+                                            fontSize: 8,
                                             fontWeight: FontWeight.w900,
                                             color: const Color(0xFF51CF66),
                                           ),
@@ -504,40 +510,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 8),
                             Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
+                              spacing: 5,
+                              runSpacing: 5,
                               children: [
-                                _buildQuickPromptChip(Icons.search, 'Analyze Architecture', 'Analyze this codebase architecture and create an implementation plan.', 'antigravity'),
-                                _buildQuickPromptChip(Icons.code, 'Implement Feature', 'Proceed with the implementation and wire up all services.', 'antigravity'),
-                                _buildQuickPromptChip(Icons.bug_report, 'Run & Fix Tests', 'Run all tests, analyze any failure, and fix them automatically.', 'antigravity'),
-                                _buildQuickPromptChip(Icons.cloud_upload, 'Git Commit & Push', 'Commit all changes with a descriptive message and push.', 'antigravity'),
+                                _buildQuickPromptChip(Icons.search, 'Analyze Arch', 'Analyze this codebase architecture and create an implementation plan.', 'antigravity'),
+                                _buildQuickPromptChip(Icons.code, 'Implement', 'Proceed with the implementation and wire up all services.', 'antigravity'),
+                                _buildQuickPromptChip(Icons.bug_report, 'Fix Tests', 'Run all tests, analyze any failure, and fix them automatically.', 'antigravity'),
+                                _buildQuickPromptChip(Icons.cloud_upload, 'Git Push', 'Commit all changes with a descriptive message and push.', 'antigravity'),
                               ],
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       // Bigger Mascot with Luminous Ambient Aura
                       Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF51CF66).withValues(alpha: 0.28),
-                              blurRadius: 28,
-                              spreadRadius: 4,
-                            ),
-                            BoxShadow(
-                              color: Colors.white.withValues(alpha: 0.12),
-                              blurRadius: 16,
-                              spreadRadius: 1,
+                              color: const Color(0xFF51CF66).withValues(alpha: 0.25),
+                              blurRadius: 20,
+                              spreadRadius: 2,
                             ),
                           ],
                         ),
                         child: Image.asset(
                           'assets/images/agentdeck_pointing.png',
-                          height: 110,
+                          height: 92,
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -813,32 +814,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF51CF66),
-                          shape: BoxShape.circle,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF51CF66),
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'ANTIGRAVITY LIVE MODEL USAGE',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontWeight: FontWeight.w900,
-                          color: TerminalColors.pureWhite,
-                          fontSize: 11,
-                          letterSpacing: 0.8,
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'ANTIGRAVITY LIVE USAGE',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontWeight: FontWeight.w900,
+                              color: TerminalColors.pureWhite,
+                              fontSize: 10.5,
+                              letterSpacing: 0.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 6),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: const Color(0xFF141414),
@@ -846,27 +854,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           boxShadow: [
                             BoxShadow(
                               color: const Color(0xFF51CF66).withValues(alpha: 0.35),
-                              blurRadius: 16,
-                              spreadRadius: 2,
+                              blurRadius: 12,
+                              spreadRadius: 1,
                             ),
                           ],
                         ),
                         child: Image.asset(
                           'assets/images/agentdeck_thinking.png',
-                          height: 42,
+                          height: 32,
                           fit: BoxFit.contain,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 5),
                       Text(
                         'DETAILS',
                         style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9.5,
+                          fontSize: 9,
                           fontWeight: FontWeight.bold,
                           color: TerminalColors.pureWhite,
                         ),
                       ),
-                      const SizedBox(width: 2),
                       const Icon(Icons.chevron_right, color: TerminalColors.pureWhite, size: 14),
                     ],
                   ),
