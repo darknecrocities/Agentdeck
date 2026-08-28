@@ -76,6 +76,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/auth/profiles", get(handlers::auth::list_profiles).post(handlers::auth::create_profile))
         .route("/api/auth/profiles/:id/activate", post(handlers::auth::activate_profile))
         .route("/api/auth/profiles/:id", delete(handlers::auth::delete_profile))
+        .route("/api/accounts/antigravity", get(handlers::auth::get_antigravity_account_handler))
+        .route("/api/accounts/antigravity/switch", post(handlers::auth::switch_antigravity_account_handler))
         // Token Quota & Monitoring
         .route("/api/tokens/summary", get(handlers::tokens::get_token_summary))
         .route("/api/tokens/record", post(handlers::tokens::record_token_usage))

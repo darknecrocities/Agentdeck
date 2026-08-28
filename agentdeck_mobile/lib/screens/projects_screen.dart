@@ -8,6 +8,8 @@ import 'session_screen.dart';
 import 'files_diff_screen.dart';
 import 'git_github_screen.dart';
 
+import '../services/workstation_manager.dart';
+
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
 
@@ -24,6 +26,19 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   void initState() {
     super.initState();
     _loadProjects();
+    WorkstationManager().addListener(_onWorkstationChanged);
+  }
+
+  void _onWorkstationChanged() {
+    if (mounted) {
+      _loadProjects();
+    }
+  }
+
+  @override
+  void dispose() {
+    WorkstationManager().removeListener(_onWorkstationChanged);
+    super.dispose();
   }
 
   Future<void> _loadProjects() async {
@@ -37,15 +52,24 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _projects = [];
+          _loading = false;
+        });
+      }
     }
   }
 
   void _showAddProjectDialog() {
     int mode = 0; // 0 = Scaffold New App, 1 = Attach Existing
+    final isWin = WorkstationManager().currentWorkstation?.os == 'Windows';
+    final defaultParent = isWin ? 'C:\\projects' : '/Users/arronkianparejas';
+    final defaultPath = isWin ? 'C:\\projects\\my_app' : '/path/to/your/projects';
+
     final nameCtrl = TextEditingController(text: 'my_new_app');
-    final parentCtrl = TextEditingController(text: '/Users/arronkianparejas');
-    final pathCtrl = TextEditingController(text: '/path/to/your/projects');
+    final parentCtrl = TextEditingController(text: defaultParent);
+    final pathCtrl = TextEditingController(text: defaultPath);
     final promptCtrl = TextEditingController(text: 'Analyze requirements, build the project structure, and implement core features.');
     String template = 'flutter';
     String defaultAgent = 'antigravity';
