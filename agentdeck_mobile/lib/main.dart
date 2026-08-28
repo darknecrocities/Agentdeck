@@ -84,13 +84,25 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: RadialBottomNav(
-        currentIndex: _currentIndex,
-        onTabSelected: _setIndex,
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 64),
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _screens,
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: RadialBottomNav(
+              currentIndex: _currentIndex,
+              onTabSelected: _setIndex,
+            ),
+          ),
+        ],
       ),
     );
   }
