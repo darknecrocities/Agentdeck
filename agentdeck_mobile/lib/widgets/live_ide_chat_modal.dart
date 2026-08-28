@@ -111,9 +111,10 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF090D16),
+      backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        side: BorderSide(color: Color(0xFF262626)),
       ),
       builder: (ctx) {
         return Container(
@@ -127,7 +128,7 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                 style: GoogleFonts.jetBrainsMono(
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
-                  color: TerminalColors.cyberCyan,
+                  color: TerminalColors.pureWhite,
                 ),
               ),
               const SizedBox(height: 12),
@@ -147,12 +148,12 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                         convId,
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 11,
-                          color: isActive ? TerminalColors.cyberCyan : TerminalColors.pureWhite,
+                          color: isActive ? TerminalColors.pureWhite : TerminalColors.zinc,
                           fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
                       trailing: isActive
-                          ? const Icon(Icons.check_circle, color: TerminalColors.cyberCyan, size: 16)
+                          ? const Icon(Icons.check_circle, color: TerminalColors.pureWhite, size: 16)
                           : null,
                       onTap: () {
                         Navigator.pop(ctx);
@@ -177,12 +178,12 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.92,
       decoration: const BoxDecoration(
-        color: Color(0xFF070B12),
+        color: Colors.black,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border(top: BorderSide(color: TerminalColors.cyberCyan, width: 1.5)),
+        border: Border(top: BorderSide(color: Color(0xFF404040), width: 1.5)),
         boxShadow: [
           BoxShadow(
-            color: Color(0x3338BDF8),
+            color: Colors.black,
             blurRadius: 32,
             spreadRadius: 2,
           ),
@@ -194,8 +195,8 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: const BoxDecoration(
-              color: Color(0xFF0A101C),
-              border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+              color: Color(0xFF0C0C0C),
+              border: Border(bottom: BorderSide(color: Color(0xFF262626))),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -205,11 +206,11 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F2338),
+                        color: const Color(0xFF171717),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: TerminalColors.cyberCyan),
+                        border: Border.all(color: const Color(0xFF404040)),
                       ),
-                      child: const Icon(Icons.forum_outlined, color: TerminalColors.cyberCyan, size: 16),
+                      child: const Icon(Icons.forum_outlined, color: TerminalColors.pureWhite, size: 16),
                     ),
                     const SizedBox(width: 10),
                     Column(
@@ -230,10 +231,10 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                             children: [
                               Text(
                                 'Host: ${activeWs?.name ?? "Workstation"} | ID: ${_activeConvId != null && _activeConvId!.length > 8 ? _activeConvId!.substring(0, 8) : _activeConvId ?? "Live"}',
-                                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.cyberCyan),
+                                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
                               ),
                               const SizedBox(width: 4),
-                              const Icon(Icons.arrow_drop_down, color: TerminalColors.cyberCyan, size: 14),
+                              const Icon(Icons.arrow_drop_down, color: TerminalColors.zinc, size: 14),
                             ],
                           ),
                         ),
@@ -251,9 +252,9 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
-                          color: _autoRefresh ? const Color(0xFF0F2338) : Colors.black,
+                          color: _autoRefresh ? const Color(0xFF171717) : Colors.black,
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: _autoRefresh ? TerminalColors.cyberCyan : const Color(0xFF334155)),
+                          border: Border.all(color: _autoRefresh ? TerminalColors.pureWhite : const Color(0xFF333333)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -263,7 +264,7 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                               height: 6,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: _autoRefresh ? TerminalColors.cyberCyan : Colors.grey,
+                                color: _autoRefresh ? TerminalColors.pureWhite : Colors.grey,
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -272,7 +273,7 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 8.5,
                                 fontWeight: FontWeight.bold,
-                                color: _autoRefresh ? TerminalColors.cyberCyan : Colors.grey,
+                                color: _autoRefresh ? TerminalColors.pureWhite : Colors.grey,
                               ),
                             ),
                           ],
@@ -298,7 +299,7 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
           // Messages List View
           Expanded(
             child: _loading && _messages.isEmpty
-                ? const Center(child: CircularProgressIndicator(color: TerminalColors.cyberCyan))
+                ? const Center(child: CircularProgressIndicator(color: TerminalColors.pureWhite))
                 : _messages.isEmpty
                     ? Center(
                         child: Text(
@@ -322,13 +323,13 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: const BoxDecoration(
-              color: Color(0xFF090D16),
-              border: Border(top: BorderSide(color: Color(0xFF1E293B))),
+              color: Color(0xFF0C0C0C),
+              border: Border(top: BorderSide(color: Color(0xFF262626))),
             ),
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.mic, color: TerminalColors.cyberCyan, size: 20),
+                  icon: const Icon(Icons.mic, color: TerminalColors.pureWhite, size: 20),
                   onPressed: () {
                     showModalBottomSheet(
                       context: context,
@@ -350,11 +351,11 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: const BorderSide(color: Color(0xFF1E293B)),
+                        borderSide: const BorderSide(color: Color(0xFF262626)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: const BorderSide(color: TerminalColors.cyberCyan),
+                        borderSide: const BorderSide(color: TerminalColors.pureWhite),
                       ),
                     ),
                     onSubmitted: (_) => _sendPrompt(),
@@ -363,8 +364,8 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                 const SizedBox(width: 6),
                 IconButton(
                   icon: _sending
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.cyberCyan))
-                      : const Icon(Icons.send_rounded, color: TerminalColors.cyberCyan, size: 20),
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.pureWhite))
+                      : const Icon(Icons.send_rounded, color: TerminalColors.pureWhite, size: 20),
                   onPressed: _sending ? null : _sendPrompt,
                 ),
               ],
@@ -387,9 +388,9 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
         margin: const EdgeInsets.only(bottom: 12, left: 24),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: TerminalColors.cyberCyan.withValues(alpha: 0.5)),
+          border: Border.all(color: const Color(0xFF404040)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,11 +400,11 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.person, size: 12, color: TerminalColors.cyberCyan),
+                    const Icon(Icons.person, size: 12, color: TerminalColors.pureWhite),
                     const SizedBox(width: 4),
                     Text(
                       'USER PROMPT',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.w900, color: TerminalColors.cyberCyan),
+                      style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.w900, color: TerminalColors.pureWhite),
                     ),
                   ],
                 ),
@@ -427,27 +428,27 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
         margin: const EdgeInsets.only(bottom: 10, right: 24),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF0B111E),
+          color: const Color(0xFF0C0C0C),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFF1E293B)),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: ExpansionTile(
           tilePadding: EdgeInsets.zero,
           childrenPadding: const EdgeInsets.only(top: 6),
           title: Row(
             children: [
-              const Icon(Icons.psychology, size: 13, color: Color(0xFF60A5FA)),
+              const Icon(Icons.psychology, size: 13, color: TerminalColors.pureWhite),
               const SizedBox(width: 6),
               Text(
                 'AGENT THINKING PROCESS',
-                style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.bold, color: const Color(0xFF60A5FA)),
+                style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite),
               ),
             ],
           ),
           children: [
             SelectableText(
               content,
-              style: GoogleFonts.jetBrainsMono(color: const Color(0xFF94A3B8), fontSize: 10, height: 1.25),
+              style: GoogleFonts.jetBrainsMono(color: const Color(0xFFB0B0B0), fontSize: 10, height: 1.25),
             ),
           ],
         ),
@@ -459,18 +460,18 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
         decoration: BoxDecoration(
           color: Colors.black,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFF334155)),
+          border: Border.all(color: const Color(0xFF333333)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.build_circle_outlined, size: 12, color: Color(0xFFFBBF24)),
+                const Icon(Icons.build_circle_outlined, size: 12, color: TerminalColors.pureWhite),
                 const SizedBox(width: 5),
                 Text(
                   'TOOL EXECUTION (${tools.length} CALLS)',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.bold, color: const Color(0xFFFBBF24)),
+                  style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite),
                 ),
               ],
             ),
@@ -483,8 +484,9 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
+                    color: const Color(0xFF141414),
                     borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: const Color(0xFF262626)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -505,21 +507,21 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
         margin: const EdgeInsets.only(bottom: 8, right: 20),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF06090E),
+          color: const Color(0xFF080808),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFF1E293B)),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'OUTPUT [$type]',
-              style: GoogleFonts.jetBrainsMono(fontSize: 9, fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
+              style: GoogleFonts.jetBrainsMono(fontSize: 9, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
             ),
             const SizedBox(height: 4),
             SelectableText(
               content.length > 500 ? '${content.substring(0, 500)}... (truncated)' : content,
-              style: GoogleFonts.jetBrainsMono(fontSize: 9.5, color: const Color(0xFFCBD5E1)),
+              style: GoogleFonts.jetBrainsMono(fontSize: 9.5, color: const Color(0xFFE0E0E0)),
             ),
           ],
         ),
@@ -530,9 +532,9 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
         margin: const EdgeInsets.only(bottom: 12, right: 24),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF090E17),
+          color: const Color(0xFF0C0C0C),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF1E293B)),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

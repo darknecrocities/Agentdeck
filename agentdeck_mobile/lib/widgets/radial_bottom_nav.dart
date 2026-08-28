@@ -106,13 +106,13 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                       height: 48,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF0B111E),
-                        border: Border.all(color: color, width: 1.8),
+                        color: Colors.black,
+                        border: Border.all(color: color, width: 1.5),
                         boxShadow: [
                           BoxShadow(
-                            color: color.withValues(alpha: 0.40),
+                            color: Colors.white.withValues(alpha: 0.20),
                             blurRadius: 16,
-                            spreadRadius: 2,
+                            spreadRadius: 1,
                           ),
                         ],
                       ),
@@ -122,9 +122,9 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF090D16).withValues(alpha: 0.95),
+                        color: Colors.black,
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: color.withValues(alpha: 0.6), width: 0.8),
+                        border: Border.all(color: const Color(0xFF404040), width: 0.8),
                       ),
                       child: Text(
                         label,
@@ -154,7 +154,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
       clipBehavior: Clip.none,
       alignment: Alignment.bottomRight,
       children: [
-        // Frosted Glass Blur Backdrop Overlay (Blurred not pitch black)
+        // Frosted Glass Blur Backdrop Overlay
         if (_isOpen)
           Positioned(
             bottom: 0,
@@ -168,14 +168,14 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                   child: Container(
-                    color: Colors.black.withValues(alpha: 0.45),
+                    color: Colors.black.withValues(alpha: 0.55),
                   ),
                 ),
               ),
             ),
           ),
 
-        // Pop-Up Arc Items (Evenly spaced without label collision)
+        // Pop-Up Arc Items (Pure Black & White Monochrome)
         if (_isOpen)
           Positioned(
             right: 28,
@@ -193,7 +193,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     distance: 190,
                     icon: Icons.mic,
                     label: 'VOICE STT',
-                    color: TerminalColors.cyberCyan,
+                    color: TerminalColors.pureWhite,
                     onTap: () {
                       showModalBottomSheet(
                         context: context,
@@ -210,7 +210,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     distance: 205,
                     icon: Icons.settings_remote,
                     label: 'MACHINE',
-                    color: const Color(0xFF00E5FF),
+                    color: TerminalColors.pureWhite,
                     onTap: () {
                       showModalBottomSheet(
                         context: context,
@@ -227,7 +227,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     distance: 190,
                     icon: Icons.terminal,
                     label: 'TERMINAL',
-                    color: const Color(0xFF60A5FA),
+                    color: TerminalColors.silver,
                     onTap: () => widget.onTabSelected(4),
                   ),
 
@@ -237,7 +237,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     distance: 205,
                     icon: Icons.cloud_upload_outlined,
                     label: 'UPLOAD',
-                    color: const Color(0xFFFF922B),
+                    color: TerminalColors.silver,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -252,7 +252,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     distance: 190,
                     icon: Icons.manage_accounts,
                     label: 'ACCOUNTS',
-                    color: const Color(0xFFCC5DE8),
+                    color: TerminalColors.zinc,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -265,14 +265,14 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
             ),
           ),
 
-        // Redesigned Cyber Navigation Bar
+        // Pure Monochrome Bottom Navigation Bar
         Container(
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF080808),
+            color: Colors.black,
             border: const Border(
-              top: BorderSide(color: Color(0xFF1E293B), width: 1.2),
+              top: BorderSide(color: Color(0xFF262626), width: 1.2),
             ),
             boxShadow: [
               BoxShadow(
@@ -313,21 +313,21 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                       margin: const EdgeInsets.only(right: 6),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isRotated ? TerminalColors.cyberCyan : const Color(0xFF0F172A),
+                        color: isRotated ? TerminalColors.pureWhite : const Color(0xFF141414),
                         border: Border.all(
-                          color: isRotated ? TerminalColors.cyberCyan : const Color(0xFF334155),
+                          color: isRotated ? TerminalColors.pureWhite : const Color(0xFF404040),
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: (isRotated ? TerminalColors.cyberCyan : const Color(0xFF38BDF8)).withValues(alpha: 0.30),
+                            color: Colors.white.withValues(alpha: isRotated ? 0.40 : 0.10),
                             blurRadius: 16,
                             spreadRadius: 1,
                           ),
                         ],
                       ),
                       child: Transform.rotate(
-                        angle: _expandAnim.value * (pi / 4), // 45 deg rotation into X
+                        angle: _expandAnim.value * (pi / 4),
                         child: Icon(
                           isRotated ? Icons.close : Icons.apps_rounded,
                           color: isRotated ? Colors.black : TerminalColors.pureWhite,
@@ -362,7 +362,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
             Icon(
               icon,
               size: 20,
-              color: isSelected ? TerminalColors.cyberCyan : TerminalColors.textMuted,
+              color: isSelected ? TerminalColors.pureWhite : TerminalColors.textMuted,
             ),
             const SizedBox(height: 3),
             Text(
@@ -380,7 +380,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                 width: 16,
                 height: 2,
                 decoration: BoxDecoration(
-                  color: TerminalColors.cyberCyan,
+                  color: TerminalColors.pureWhite,
                   borderRadius: BorderRadius.circular(1),
                 ),
               ),

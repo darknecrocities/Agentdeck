@@ -64,12 +64,12 @@ class _FileViewerModalState extends State<FileViewerModal> {
       height: MediaQuery.of(context).size.height * 0.90,
       padding: const EdgeInsets.only(top: 14, left: 14, right: 14, bottom: 20),
       decoration: const BoxDecoration(
-        color: Color(0xFF090D16),
+        color: Colors.black,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border(top: BorderSide(color: TerminalColors.cyberCyan, width: 1.5)),
+        border: Border(top: BorderSide(color: Color(0xFF404040), width: 1.5)),
         boxShadow: [
           BoxShadow(
-            color: Color(0x3338BDF8),
+            color: Colors.black,
             blurRadius: 30,
             spreadRadius: 2,
           ),
@@ -87,11 +87,11 @@ class _FileViewerModalState extends State<FileViewerModal> {
                   Container(
                     padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F2338),
+                      color: const Color(0xFF171717),
                       borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: TerminalColors.cyberCyan),
+                      border: Border.all(color: const Color(0xFF404040)),
                     ),
-                    child: const Icon(Icons.code, color: TerminalColors.cyberCyan, size: 16),
+                    child: const Icon(Icons.code, color: TerminalColors.pureWhite, size: 16),
                   ),
                   const SizedBox(width: 10),
                   Column(
@@ -108,7 +108,7 @@ class _FileViewerModalState extends State<FileViewerModal> {
                       ),
                       Text(
                         activeWs?.name ?? 'Host Machine',
-                        style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.cyberCyan),
+                        style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
                       ),
                     ],
                   ),
@@ -133,11 +133,15 @@ class _FileViewerModalState extends State<FileViewerModal> {
                     hintText: 'Enter absolute file path on remote PC...',
                     hintStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 10),
                     filled: true,
-                    fillColor: Colors.black,
+                    fillColor: const Color(0xFF121212),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(4),
-                      borderSide: const BorderSide(color: Color(0xFF1E293B)),
+                      borderSide: const BorderSide(color: Color(0xFF262626)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(color: TerminalColors.pureWhite),
                     ),
                   ),
                   onSubmitted: _loadFile,
@@ -146,14 +150,13 @@ class _FileViewerModalState extends State<FileViewerModal> {
               const SizedBox(width: 8),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F2338),
-                  foregroundColor: TerminalColors.cyberCyan,
-                  side: const BorderSide(color: TerminalColors.cyberCyan),
+                  backgroundColor: TerminalColors.pureWhite,
+                  foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
                 onPressed: _loading ? null : () => _loadFile(_pathCtrl.text),
                 child: _loading
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.cyberCyan))
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : const Icon(Icons.refresh, size: 16),
               ),
             ],
@@ -165,16 +168,16 @@ class _FileViewerModalState extends State<FileViewerModal> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF0C1322),
+                color: const Color(0xFF141414),
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFF1E293B)),
+                border: Border.all(color: const Color(0xFF262626)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     '$filename (${lines.length} lines, ${_fileData!['size_bytes']} bytes)',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.cyberCyan, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.pureWhite, fontWeight: FontWeight.bold),
                   ),
                   InkWell(
                     onTap: () {
@@ -202,9 +205,9 @@ class _FileViewerModalState extends State<FileViewerModal> {
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.black,
+                color: const Color(0xFF0A0A0A),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFF1E293B)),
+                border: Border.all(color: const Color(0xFF262626)),
               ),
               child: _error != null
                   ? Center(
@@ -213,13 +216,13 @@ class _FileViewerModalState extends State<FileViewerModal> {
                         child: Text(
                           _error!,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.jetBrainsMono(color: const Color(0xFFF87171), fontSize: 11),
+                          style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 11),
                         ),
                       ),
                     )
                   : _fileData == null
                       ? const Center(
-                          child: CircularProgressIndicator(color: TerminalColors.cyberCyan),
+                          child: CircularProgressIndicator(color: TerminalColors.pureWhite),
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -235,7 +238,7 @@ class _FileViewerModalState extends State<FileViewerModal> {
                                     child: Text(
                                       '${index + 1}',
                                       style: GoogleFonts.jetBrainsMono(
-                                        color: const Color(0xFF475569),
+                                        color: const Color(0xFF525252),
                                         fontSize: 10,
                                       ),
                                     ),

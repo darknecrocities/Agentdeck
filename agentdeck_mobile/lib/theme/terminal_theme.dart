@@ -2,47 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class TerminalColors {
-  // Pure Black & White Monochrome Palette
+  // Pure Black & White Monochrome Master Palette
   static const Color background = Color(0xFF000000);
   static const Color surface = Color(0xFF0C0C0C);
   static const Color surfaceHover = Color(0xFF171717);
-  static const Color surfaceElevated = Color(0xFF1F1F1F);
+  static const Color surfaceElevated = Color(0xFF222222);
   
-  // Borders
+  // Monochrome Borders
   static const Color cardBorder = Color(0xFF262626);
   static const Color cardBorderLight = Color(0xFF404040);
   static const Color cardBorderGlow = Color(0xFFFFFFFF);
-  static const Color titaniumBorder = Color(0xFF1E293B);
-  static const Color titaniumBorderGlow = Color(0xFF38BDF8);
+  static const Color titaniumBorder = Color(0xFF2E2E2E);
+  static const Color titaniumBorderGlow = Color(0xFFFFFFFF);
 
-  // Accents (Monochrome High-Contrast & Cyber Ice-Cyan)
+  // Stark Pure White & Monochrome Scales (Zero Blue, Zero Green)
   static const Color pureWhite = Color(0xFFFFFFFF);
-  static const Color silver = Color(0xFFD4D4D4);
+  static const Color silver = Color(0xFFE2E8F0);
   static const Color zinc = Color(0xFFA3A3A3);
-  static const Color textMuted = Color(0xFF525252);
+  static const Color textMuted = Color(0xFF666666);
   static const Color textDark = Color(0xFF171717);
 
-  // Cyber Titanium / Ice-Blue Accent (Zero Green Theme)
-  static const Color cyberCyan = Color(0xFF38BDF8);
-  static const Color electricBlue = Color(0xFF60A5FA);
-  static const Color iceCyanGlow = Color(0xFF00E5FF);
-  static const Color obsidianCard = Color(0xFF0B0F17);
+  // Monochromatic Primary Accents
+  static const Color cyberCyan = Color(0xFFFFFFFF); // Pure White
+  static const Color electricBlue = Color(0xFFE2E8F0); // Titanium Silver
+  static const Color iceCyanGlow = Color(0xFFFFFFFF); // Pure White Glow
+  static const Color obsidianCard = Color(0xFF0C0C0C);
 
   // Status Inverted Pills
   static const Color badgeBg = Color(0xFFFFFFFF);
   static const Color badgeText = Color(0xFF000000);
   static const Color badgeBorder = Color(0xFFE5E5E5);
   
-  // Subtle Warning / Danger Monochrome Accents
-  static const Color warning = Color(0xFFFBBF24);
-  static const Color danger = Color(0xFFF87171);
+  // Monochrome Alerts
+  static const Color warning = Color(0xFFE2E8F0);
+  static const Color danger = Color(0xFFFFFFFF);
 
-  // Legacy mappings for compatibility
-  static const Color neonGreen = Color(0xFF38BDF8);
-  static const Color electricCyan = Color(0xFF38BDF8);
-  static const Color neonAmber = Color(0xFFFBBF24);
-  static const Color neonRed = Color(0xFFF87171);
-  static const Color neonPurple = Color(0xFFA78BFA);
+  // Compatibility Mappings
+  static const Color neonGreen = Color(0xFFFFFFFF);
+  static const Color electricCyan = Color(0xFFFFFFFF);
+  static const Color neonAmber = Color(0xFFE2E8F0);
+  static const Color neonRed = Color(0xFFFFFFFF);
+  static const Color neonPurple = Color(0xFFE2E8F0);
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFFA3A3A3);
 }
@@ -100,19 +100,36 @@ class TerminalTheme {
         elevation: 0,
         centerTitle: false,
         titleTextStyle: GoogleFonts.jetBrainsMono(
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: FontWeight.bold,
           color: TerminalColors.pureWhite,
-          letterSpacing: 1.0,
+          letterSpacing: 0.5,
         ),
-        iconTheme: const IconThemeData(color: TerminalColors.pureWhite),
+        iconTheme: const IconThemeData(
+          color: TerminalColors.pureWhite,
+          size: 20,
+        ),
+        shape: const Border(
+          bottom: BorderSide(
+            color: TerminalColors.cardBorder,
+            width: 1,
+          ),
+        ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: TerminalColors.surface,
-        selectedItemColor: TerminalColors.pureWhite,
-        unselectedItemColor: TerminalColors.textMuted,
-        type: BottomNavigationBarType.fixed,
+      cardTheme: CardThemeData(
+        color: TerminalColors.surface,
         elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+          side: const BorderSide(
+            color: TerminalColors.cardBorder,
+            width: 1,
+          ),
+        ),
+      ),
+      iconTheme: const IconThemeData(
+        color: TerminalColors.pureWhite,
       ),
     );
   }

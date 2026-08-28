@@ -563,21 +563,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF0F2338),
+                                      color: const Color(0xFF171717),
                                       borderRadius: BorderRadius.circular(3),
-                                      border: Border.all(color: TerminalColors.cyberCyan),
+                                      border: Border.all(color: TerminalColors.pureWhite),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.mic, size: 10, color: TerminalColors.cyberCyan),
+                                        const Icon(Icons.mic, size: 10, color: TerminalColors.pureWhite),
                                         const SizedBox(width: 2),
                                         Text(
                                           'VOICE',
                                           style: GoogleFonts.jetBrainsMono(
                                             fontSize: 8,
                                             fontWeight: FontWeight.w900,
-                                            color: TerminalColors.cyberCyan,
+                                            color: TerminalColors.pureWhite,
                                           ),
                                         ),
                                       ],
@@ -601,14 +601,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      // Bigger Mascot with Luminous Ambient Aura (Cyber Cyan / Pure White)
+                      // Bigger Mascot with Luminous Ambient White Halo
                       Container(
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF38BDF8).withValues(alpha: 0.30),
+                              color: Colors.white.withValues(alpha: 0.30),
                               blurRadius: 24,
                               spreadRadius: 2,
                             ),
@@ -633,9 +633,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0F2338),
-                            foregroundColor: TerminalColors.cyberCyan,
-                            side: const BorderSide(color: TerminalColors.cyberCyan, width: 1.2),
+                            backgroundColor: TerminalColors.pureWhite,
+                            foregroundColor: Colors.black,
                             padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                           icon: const Icon(Icons.mic, size: 16),
@@ -661,7 +660,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: TerminalColors.pureWhite,
-                            side: const BorderSide(color: Color(0xFF334155), width: 1.2),
+                            side: const BorderSide(color: Color(0xFF404040), width: 1.2),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                           icon: const Icon(Icons.terminal, size: 16),
@@ -932,11 +931,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF0F172A),
-                          border: Border.all(color: TerminalColors.cyberCyan, width: 1.2),
+                          color: const Color(0xFF141414),
+                          border: Border.all(color: const Color(0xFF404040), width: 1.2),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
+                              color: Colors.white.withValues(alpha: 0.15),
                               blurRadius: 12,
                               spreadRadius: 1,
                             ),
@@ -972,9 +971,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0B0F17),
+                        color: const Color(0xFF0C0C0C),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFF1E293B)),
+                        border: Border.all(color: const Color(0xFF262626)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1003,7 +1002,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     style: GoogleFonts.jetBrainsMono(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.bold,
-                                      color: TerminalColors.cyberCyan,
+                                      color: TerminalColors.pureWhite,
                                     ),
                                   ),
                                 ],
@@ -1014,8 +1013,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: CircularProgressIndicator(
                                   value: geminiWeekly / 100.0,
                                   strokeWidth: 2.5,
-                                  backgroundColor: const Color(0xFF1E293B),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(TerminalColors.cyberCyan),
+                                  backgroundColor: const Color(0xFF262626),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(TerminalColors.pureWhite),
                                 ),
                               ),
                             ],
@@ -1036,7 +1035,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     style: GoogleFonts.jetBrainsMono(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.bold,
-                                      color: TerminalColors.electricBlue,
+                                      color: TerminalColors.silver,
                                     ),
                                   ),
                                 ],
@@ -1047,8 +1046,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: CircularProgressIndicator(
                                   value: gemini5h / 100.0,
                                   strokeWidth: 2.5,
-                                  backgroundColor: const Color(0xFF1E293B),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(TerminalColors.electricBlue),
+                                  backgroundColor: const Color(0xFF262626),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(TerminalColors.silver),
                                 ),
                               ),
                             ],
@@ -1082,7 +1081,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   color: TerminalColors.pureWhite,
                                 ),
                               ),
-                              const Icon(Icons.warning_amber_rounded, color: Color(0xFFFFD43B), size: 14),
+                              const Icon(Icons.warning_amber_rounded, color: TerminalColors.zinc, size: 14),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -1101,7 +1100,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     style: GoogleFonts.jetBrainsMono(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.bold,
-                                      color: const Color(0xFFFF8787),
+                                      color: TerminalColors.zinc,
                                     ),
                                   ),
                                 ],
@@ -1122,16 +1121,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF221111),
+                              color: const Color(0xFF171717),
                               borderRadius: BorderRadius.circular(3),
-                              border: Border.all(color: const Color(0xFF552222)),
+                              border: Border.all(color: const Color(0xFF333333)),
                             ),
                             child: Text(
                               'LIMIT REACHED',
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 8.5,
                                 fontWeight: FontWeight.bold,
-                                color: const Color(0xFFFF8787),
+                                color: TerminalColors.zinc,
                               ),
                             ),
                           ),
@@ -1173,14 +1172,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: const Color(0xFF334155)),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 12, color: TerminalColors.cyberCyan),
+            Icon(icon, size: 12, color: TerminalColors.pureWhite),
             const SizedBox(width: 5),
             Text(
               label,

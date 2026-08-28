@@ -99,33 +99,18 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
     await _voice.stopListening();
     setState(() {
       _isDispatching = true;
-      _statusText = 'Dispatching to Google Antigravity Engine...';
+      _statusText = 'Dispatching to ${widget.agent}...';
     });
 
-    // Provide immediate TTS confirmation
-    _voice.speak('Executing prompt on ${WorkstationManager().currentWorkstation?.name ?? "workstation"}.');
-
     try {
-      String? projId = widget.projectId;
+      var projId = widget.projectId;
       if (projId == null) {
         final projects = await _api.getProjects();
-        if (projects.isNotEmpty) {
-          projId = projects.first['id'];
-        }
-      }
-
-      if (projId == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No workspace project attached. Attach a project first.')),
-          );
-          Navigator.pop(context);
-        }
-        return;
+        projId = projects.isNotEmpty ? projects.first['id'] : 'default-proj';
       }
 
       final res = await _api.startSession(
-        projectId: projId,
+        projectId: projId!,
         agent: widget.agent,
         prompt: prompt,
         model: widget.model,
@@ -168,13 +153,13 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
         right: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D0D0D),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        border: const Border(top: BorderSide(color: Color(0xFF51CF66), width: 1.5)),
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border(top: BorderSide(color: Color(0xFF404040), width: 1.5)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF51CF66).withValues(alpha: 0.15),
+            color: Colors.black,
             blurRadius: 30,
             spreadRadius: 2,
           ),
@@ -194,21 +179,21 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF183018),
+                        color: const Color(0xFF171717),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFF51CF66)),
+                        border: Border.all(color: TerminalColors.pureWhite),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.mic, color: Color(0xFF51CF66), size: 13),
+                          const Icon(Icons.mic, color: TerminalColors.pureWhite, size: 13),
                           const SizedBox(width: 4),
                           Text(
                             'VOICE (STT)',
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w900,
-                              color: const Color(0xFF51CF66),
+                              color: TerminalColors.pureWhite,
                             ),
                           ),
                         ],
@@ -256,14 +241,14 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
                     height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _isListening ? const Color(0xFF143318) : const Color(0xFF1A1A1A),
+                      color: _isListening ? const Color(0xFF222222) : const Color(0xFF141414),
                       border: Border.all(
-                        color: _isListening ? const Color(0xFF51CF66) : TerminalColors.cardBorderLight,
+                        color: _isListening ? TerminalColors.pureWhite : TerminalColors.cardBorderLight,
                         width: _isListening ? 2.5 : 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF51CF66).withValues(alpha: glowOpacity),
+                          color: Colors.white.withValues(alpha: glowOpacity),
                           blurRadius: _isListening ? 28 : 8,
                           spreadRadius: _isListening ? 6 : 1,
                         ),
@@ -271,7 +256,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
                     ),
                     child: Icon(
                       _isListening ? Icons.mic : Icons.mic_none,
-                      color: _isListening ? const Color(0xFF51CF66) : TerminalColors.pureWhite,
+                      color: TerminalColors.pureWhite,
                       size: 34,
                     ),
                   ),
@@ -286,7 +271,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
             _statusText,
             style: GoogleFonts.jetBrainsMono(
               fontSize: 11,
-              color: _isListening ? const Color(0xFF51CF66) : TerminalColors.zinc,
+              color: _isListening ? TerminalColors.pureWhite : TerminalColors.zinc,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -298,10 +283,10 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
             maxLines: 3,
             style: GoogleFonts.jetBrainsMono(fontSize: 12, color: TerminalColors.pureWhite),
             decoration: InputDecoration(
-              hintText: 'Speak or type your prompt (e.g. "Build a camera object detection screen with SQLite offline sync")...',
+              hintText: 'Speak or type your prompt (e.g. "Build an object detection screen with SQLite offline sync")...',
               hintStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 11),
               filled: true,
-              fillColor: Colors.black,
+              fillColor: const Color(0xFF0C0C0C),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
                 borderSide: const BorderSide(color: TerminalColors.cardBorder),

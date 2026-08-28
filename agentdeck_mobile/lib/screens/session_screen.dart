@@ -179,7 +179,7 @@ class _SessionScreenState extends State<SessionScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.forum_outlined, color: TerminalColors.cyberCyan),
+            icon: const Icon(Icons.forum_outlined, color: TerminalColors.pureWhite),
             tooltip: 'Live IDE Chatlog',
             onPressed: () {
               showModalBottomSheet(
@@ -191,12 +191,12 @@ class _SessionScreenState extends State<SessionScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.play_arrow_outlined, color: TerminalColors.cyberCyan),
+            icon: const Icon(Icons.play_arrow_outlined, color: TerminalColors.pureWhite),
             tooltip: 'Resume with --continue',
             onPressed: _continueAgent,
           ),
           IconButton(
-            icon: const Icon(Icons.stop_outlined, color: Color(0xFFF87171)),
+            icon: const Icon(Icons.stop_outlined, color: TerminalColors.zinc),
             tooltip: 'Stop Agent',
             onPressed: _stopAgent,
           ),
@@ -208,8 +208,8 @@ class _SessionScreenState extends State<SessionScreen> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: const BoxDecoration(
-              color: Color(0xFF090D16),
-              border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+              color: Color(0xFF0C0C0C),
+              border: Border(bottom: BorderSide(color: Color(0xFF262626))),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,7 +227,7 @@ class _SessionScreenState extends State<SessionScreen> {
                     ),
                     Text(
                       'SESSION: ${widget.sessionId.length > 8 ? widget.sessionId.substring(0, 8) : widget.sessionId}',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.cyberCyan),
+                      style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.pureWhite),
                     ),
                   ],
                 ),
@@ -258,14 +258,14 @@ class _SessionScreenState extends State<SessionScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
+                            color: const Color(0xFF171717),
                             borderRadius: BorderRadius.circular(3),
-                            border: Border.all(color: TerminalColors.cyberCyan.withValues(alpha: 0.6)),
+                            border: Border.all(color: const Color(0xFF404040)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.code, size: 10, color: TerminalColors.cyberCyan),
+                              const Icon(Icons.code, size: 10, color: TerminalColors.pureWhite),
                               const SizedBox(width: 4),
                               Text(
                                 basename,
@@ -295,7 +295,7 @@ class _SessionScreenState extends State<SessionScreen> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
+                                color: Colors.white.withValues(alpha: 0.15),
                                 blurRadius: 36,
                                 spreadRadius: 6,
                               ),
@@ -330,7 +330,7 @@ class _SessionScreenState extends State<SessionScreen> {
           // Quick Action Prompt Injection Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            color: const Color(0xFF0C1322),
+            color: const Color(0xFF121212),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -348,14 +348,14 @@ class _SessionScreenState extends State<SessionScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
-              color: Color(0xFF090D16),
-              border: Border(top: BorderSide(color: Color(0xFF1E293B))),
+              color: Color(0xFF0A0A0A),
+              border: Border(top: BorderSide(color: Color(0xFF262626))),
             ),
             child: Row(
               children: [
                 // Voice STT Trigger Button
                 IconButton(
-                  icon: const Icon(Icons.mic, color: TerminalColors.cyberCyan),
+                  icon: const Icon(Icons.mic, color: TerminalColors.pureWhite),
                   tooltip: 'Voice Prompt (STT)',
                   onPressed: () {
                     showModalBottomSheet(

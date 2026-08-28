@@ -264,7 +264,7 @@ class _ModelSelectorModalState extends State<ModelSelectorModal> {
                                   ],
                                   if (m.hasQuotaWarning) ...[
                                     const SizedBox(width: 8),
-                                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFFFD43B), size: 16),
+                                    const Icon(Icons.warning_amber_rounded, color: TerminalColors.zinc, size: 16),
                                   ],
                                 ],
                               ),

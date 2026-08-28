@@ -19,16 +19,16 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   final WorkstationManager _wsMgr = WorkstationManager();
 
   late TabController _tabCtrl;
-  Uint8List? _screenBytes;
   bool _loadingScreen = false;
+  Uint8List? _screenBytes;
   String? _screenError;
 
-  Uint8List? _camBytes;
   bool _loadingCam = false;
+  Uint8List? _camBytes;
   String? _camError;
 
-  String _launchStatus = '';
   bool _launching = false;
+  String _launchStatus = '';
 
   @override
   void initState() {
@@ -59,7 +59,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             _screenError = 'Failed to decode image data.';
           }
         } else {
-          _screenError = 'Failed to capture screenshot. Ensure daemon is running with display permissions.';
+          _screenError = 'Failed to capture screenshot. Ensure screen recording permission is granted on workstation.';
         }
       });
     }
@@ -107,8 +107,9 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_launchStatus, style: GoogleFonts.jetBrainsMono(fontSize: 11)),
-          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF171717),
+          content: Text(_launchStatus, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite)),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -119,10 +120,10 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: Colors.black,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: TerminalColors.cyberCyan),
+          side: const BorderSide(color: Color(0xFF404040)),
         ),
         title: Text(
           'LAUNCH CUSTOM APP / COMMAND',
@@ -130,13 +131,20 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
         ),
         content: TextField(
           controller: ctrl,
-          style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+          style: GoogleFonts.jetBrainsMono(fontSize: 12, color: TerminalColors.pureWhite),
           decoration: InputDecoration(
-            hintText: 'e.g. notepad.exe or spotify',
-            hintStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
+            hintText: 'e.g. cursor, neovim, htop, calc...',
+            hintStyle: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.zinc),
             filled: true,
-            fillColor: Colors.black,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+            fillColor: const Color(0xFF141414),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: const BorderSide(color: Color(0xFF262626)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: const BorderSide(color: TerminalColors.pureWhite),
+            ),
           ),
         ),
         actions: [
@@ -145,7 +153,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             child: Text('CANCEL', style: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: TerminalColors.cyberCyan, foregroundColor: Colors.black),
+            style: ElevatedButton.styleFrom(backgroundColor: TerminalColors.pureWhite, foregroundColor: Colors.black),
             onPressed: () {
               final cmd = ctrl.text.trim();
               if (cmd.isNotEmpty) {
@@ -168,12 +176,12 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
       height: MediaQuery.of(context).size.height * 0.85,
       padding: const EdgeInsets.only(top: 14, left: 14, right: 14, bottom: 20),
       decoration: const BoxDecoration(
-        color: Color(0xFF090D16),
+        color: Colors.black,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border(top: BorderSide(color: TerminalColors.cyberCyan, width: 1.5)),
+        border: Border(top: BorderSide(color: Color(0xFF404040), width: 1.5)),
         boxShadow: [
           BoxShadow(
-            color: Color(0x3338BDF8),
+            color: Colors.black,
             blurRadius: 30,
             spreadRadius: 2,
           ),
@@ -191,11 +199,11 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                   Container(
                     padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F2338),
+                      color: const Color(0xFF171717),
                       borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: TerminalColors.cyberCyan),
+                      border: Border.all(color: const Color(0xFF404040)),
                     ),
-                    child: const Icon(Icons.settings_remote, color: TerminalColors.cyberCyan, size: 16),
+                    child: const Icon(Icons.settings_remote, color: TerminalColors.pureWhite, size: 16),
                   ),
                   const SizedBox(width: 10),
                   Column(
@@ -212,7 +220,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                       ),
                       Text(
                         activeWs?.name ?? 'Active Host Computer',
-                        style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.cyberCyan),
+                        style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
                       ),
                     ],
                   ),
@@ -226,21 +234,21 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
           ),
           const SizedBox(height: 12),
 
-          // Cyber Tab Bar
+          // Monochrome Tab Bar
           Container(
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: const Color(0xFF0C0C0C),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: const Color(0xFF1E293B)),
+              border: Border.all(color: const Color(0xFF262626)),
             ),
             child: TabBar(
               controller: _tabCtrl,
               indicator: BoxDecoration(
-                color: const Color(0xFF0F2338),
+                color: const Color(0xFF222222),
                 borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: TerminalColors.cyberCyan),
+                border: Border.all(color: TerminalColors.pureWhite),
               ),
-              labelColor: TerminalColors.cyberCyan,
+              labelColor: TerminalColors.pureWhite,
               unselectedLabelColor: TerminalColors.zinc,
               labelStyle: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.bold),
               indicatorSize: TabBarIndicatorSize.tab,
@@ -306,8 +314,8 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             Expanded(
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: TerminalColors.cyberCyan,
-                  side: const BorderSide(color: Color(0xFF1E293B)),
+                  foregroundColor: TerminalColors.pureWhite,
+                  side: const BorderSide(color: Color(0xFF404040)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 icon: const Icon(Icons.description, size: 16),
@@ -326,9 +334,8 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             Expanded(
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F2338),
-                  foregroundColor: TerminalColors.cyberCyan,
-                  side: const BorderSide(color: TerminalColors.cyberCyan),
+                  backgroundColor: TerminalColors.pureWhite,
+                  foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 icon: const Icon(Icons.play_arrow, size: 16),
@@ -349,20 +356,20 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF0C1322),
+          color: const Color(0xFF0E0E0E),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFF1E293B)),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: const Color(0xFF090D16),
+                color: const Color(0xFF171717),
                 shape: BoxShape.circle,
-                border: Border.all(color: TerminalColors.cyberCyan.withValues(alpha: 0.5)),
+                border: Border.all(color: const Color(0xFF404040)),
               ),
-              child: Icon(icon, color: TerminalColors.cyberCyan, size: 16),
+              child: Icon(icon, color: TerminalColors.pureWhite, size: 16),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -411,13 +418,12 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F2338),
-                foregroundColor: TerminalColors.cyberCyan,
-                side: const BorderSide(color: TerminalColors.cyberCyan),
+                backgroundColor: TerminalColors.pureWhite,
+                foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               ),
               icon: _loadingScreen
-                  ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.cyberCyan))
+                  ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                   : const Icon(Icons.refresh, size: 14),
               label: Text('CAPTURE SCREEN', style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold)),
               onPressed: _loadingScreen ? null : _captureScreen,
@@ -431,7 +437,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             decoration: BoxDecoration(
               color: Colors.black,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF1E293B)),
+              border: Border.all(color: const Color(0xFF262626)),
             ),
             child: _screenBytes != null
                 ? ClipRRect(
@@ -452,7 +458,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                         Icon(
                           _screenError != null ? Icons.error_outline : Icons.desktop_windows_outlined,
                           size: 40,
-                          color: _screenError != null ? const Color(0xFFF87171) : TerminalColors.zinc,
+                          color: TerminalColors.zinc,
                         ),
                         const SizedBox(height: 10),
                         Padding(
@@ -462,7 +468,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                             textAlign: TextAlign.center,
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 11,
-                              color: _screenError != null ? const Color(0xFFF87171) : TerminalColors.zinc,
+                              color: TerminalColors.zinc,
                             ),
                           ),
                         ),
@@ -487,13 +493,12 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F2338),
-                foregroundColor: TerminalColors.cyberCyan,
-                side: const BorderSide(color: TerminalColors.cyberCyan),
+                backgroundColor: TerminalColors.pureWhite,
+                foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               ),
               icon: _loadingCam
-                  ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.cyberCyan))
+                  ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                   : const Icon(Icons.camera_alt, size: 14),
               label: Text('CAPTURE WEBCAM', style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold)),
               onPressed: _loadingCam ? null : _captureCam,
@@ -507,7 +512,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
             decoration: BoxDecoration(
               color: Colors.black,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF1E293B)),
+              border: Border.all(color: const Color(0xFF262626)),
             ),
             child: _camBytes != null
                 ? ClipRRect(
@@ -524,7 +529,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                         Icon(
                           _camError != null ? Icons.videocam_off : Icons.videocam_outlined,
                           size: 40,
-                          color: _camError != null ? const Color(0xFFF87171) : TerminalColors.zinc,
+                          color: TerminalColors.zinc,
                         ),
                         const SizedBox(height: 10),
                         Padding(
@@ -534,7 +539,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                             textAlign: TextAlign.center,
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 11,
-                              color: _camError != null ? const Color(0xFFF87171) : TerminalColors.zinc,
+                              color: TerminalColors.zinc,
                             ),
                           ),
                         ),
