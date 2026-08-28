@@ -231,9 +231,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(color: TerminalColors.cardBorder, height: 20),
 
-                // Male Voice Profiles
+                // EasyLens Male Voice Profiles
                 Text(
-                  'VOICE PERSONA (MALE AI ASSISTANT)',
+                  'VOICE PERSONA (MALE AI ONLY - EASYLENS CALIBRATED)',
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -245,9 +245,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _buildVoiceProfilePill('Deep Male Commander', '0.45x • Deep 0.80'),
-                    _buildVoiceProfilePill('Calm Male Assistant', '0.48x • Neutral 0.88'),
-                    _buildVoiceProfilePill('Fast Male Agent', '0.55x • Fast 0.85'),
+                    _buildVoiceProfilePill('Echo (Deep Male)', '0.44x • Deep Pitch 0.50'),
+                    _buildVoiceProfilePill('Max (Bold Male)', '0.48x • Bold Pitch 0.55'),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -372,7 +371,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildVoiceProfilePill(String name, String sub) {
-    final isSelected = VoiceService().selectedVoiceProfile == name;
+    final isSelected = VoiceService().selectedVoicePersona == name;
     return InkWell(
       onTap: () async {
         await VoiceService().setProfile(name);

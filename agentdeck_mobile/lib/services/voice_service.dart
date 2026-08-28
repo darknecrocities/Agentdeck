@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -21,16 +22,18 @@ class VoiceService {
 
   bool _ttsEnabled = true;
   bool _autoPauseMicOnTts = true;
-  double _speechRate = 0.45; // Natural, clear conversational pacing (not rushed)
-  double _speechPitch = 0.82; // Deep, commanding male AI voice
-  String _selectedVoiceProfile = 'Deep Male Commander';
+  double _speechRate = 0.45; // EasyLens natural pace
+  double _speechPitch = 0.55; // EasyLens Deep Male pitch (Android 0.50-0.55)
+  String _selectedVoicePersona = 'Echo (Deep Male)';
   bool _initialized = false;
+  List<Map<String, String>> _deviceVoices = [];
+  bool _voicesLoaded = false;
 
   bool get ttsEnabled => _ttsEnabled;
   bool get autoPauseMicOnTts => _autoPauseMicOnTts;
   double get speechRate => _speechRate;
   double get speechPitch => _speechPitch;
-  String get selectedVoiceProfile => _selectedVoiceProfile;
+  String get selectedVoicePersona => _selectedVoicePersona;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -41,36 +44,14 @@ class VoiceService {
       _ttsEnabled = prefs.getBool('voice_tts_enabled') ?? true;
       _autoPauseMicOnTts = prefs.getBool('voice_auto_pause_mic') ?? true;
       _speechRate = prefs.getDouble('voice_speech_rate') ?? 0.45;
-      _speechPitch = prefs.getDouble('voice_speech_pitch') ?? 0.82;
-      _selectedVoiceProfile = prefs.getString('voice_profile') ?? 'Deep Male Commander';
+      _speechPitch = prefs.getDouble('voice_speech_pitch') ?? 0.55;
+      _selectedVoicePersona = prefs.getString('voice_profile') ?? 'Echo (Deep Male)';
 
       // Configure TTS handlers safely
       try {
+        await _tts.setSharedInstance(true);
+        await _tts.awaitSpeakCompletion(true);
         await _tts.setLanguage("en-US");
-        await _tts.setSpeechRate(_speechRate);
-        await _tts.setPitch(_speechPitch);
-        await _tts.setVolume(1.0);
-
-        // Select Male Voice
-        final voices = await _tts.getVoices;
-        if (voices is List) {
-          for (var v in voices) {
-            if (v is Map) {
-              final name = (v['name'] ?? '').toString().toLowerCase();
-              final locale = (v['locale'] ?? '').toString().toLowerCase();
-              final gender = (v['gender'] ?? '').toString().toLowerCase();
-              if (locale.startsWith('en') &&
-                  (gender == 'male' ||
-                      name.contains('male') ||
-                      name.contains('en-us-x-sfg') ||
-                      name.contains('en-us-x-iom') ||
-                      name.contains('en-us-x-tpd'))) {
-                await _tts.setVoice({"name": v['name'], "locale": v['locale']});
-                break;
-              }
-            }
-          }
-        }
 
         _tts.setStartHandler(() {
           isSpeaking.value = true;
@@ -91,6 +72,9 @@ class VoiceService {
           isSpeaking.value = false;
           debugPrint('TTS Error: $msg');
         });
+
+        await _loadDeviceVoices();
+        await _applyMaleVoice();
       } on MissingPluginException catch (_) {
         debugPrint('Notice: flutter_tts native binding requires a full "flutter run" restart.');
         isPluginAvailable.value = false;
@@ -124,26 +108,133 @@ class VoiceService {
     }
   }
 
-  Future<void> setProfile(String profileName) async {
-    _selectedVoiceProfile = profileName;
-    if (profileName == 'Deep Male Commander') {
-      _speechRate = 0.45;
-      _speechPitch = 0.80;
-    } else if (profileName == 'Calm Male Assistant') {
-      _speechRate = 0.48;
-      _speechPitch = 0.88;
-    } else if (profileName == 'Fast Male Agent') {
-      _speechRate = 0.55;
-      _speechPitch = 0.85;
+  Future<void> _loadDeviceVoices() async {
+    if (_voicesLoaded) return;
+    try {
+      final voices = await _tts.getVoices;
+      if (voices is List && voices.isNotEmpty) {
+        _deviceVoices = List<Map<String, String>>.from(
+          voices.map((v) {
+            if (v is Map) {
+              return Map<String, String>.from(v.map((k, val) => MapEntry(k.toString(), val.toString())));
+            }
+            return <String, String>{};
+          }).where((m) => m.isNotEmpty),
+        );
+        _voicesLoaded = true;
+        debugPrint('[TTS] Loaded ${_deviceVoices.length} device voices for AgentDeck.');
+      }
+    } catch (e) {
+      debugPrint('[TTS] Failed to fetch device voices: $e');
+    }
+  }
+
+  // Exact EasyLens Male Voice Filter and Selector
+  Future<void> _applyMaleVoice() async {
+    if (!_voicesLoaded) {
+      await _loadDeviceVoices();
     }
 
+    final isAndroid = Platform.isAndroid;
+    Map<String, String>? selectedMaleVoice;
+
+    // EasyLens Priority male keys:
+    // en-us-x-rgd (Echo Deep), en-us-x-iom (Max Bold), daniel, wavenet-d, wavenet-b, arthur, gordon
+    final priorityMaleKeys = [
+      'en-us-x-rgd', // Deep Male
+      'en-us-x-iom', // Bold Male
+      'en-us-x-iol',
+      'en-us-x-tpd',
+      'daniel',
+      'arthur',
+      'gordon',
+      'david',
+      'guy',
+      'wavenet-d',
+      'wavenet-b',
+      'male',
+    ];
+
+    // Filter English voices
+    final englishVoices = _deviceVoices.where((v) {
+      final loc = (v['locale'] ?? v['language'] ?? '').toLowerCase();
+      return loc.startsWith('en');
+    }).toList();
+
+    // 1. Try finding explicit male priority keys
+    for (final key in priorityMaleKeys) {
+      for (final v in englishVoices) {
+        final name = (v['name'] ?? '').toLowerCase();
+        // Disallow known female voices (sfg, samantha, iob, tpc, karen, female)
+        if (name.contains('female') ||
+            name.contains('sfg') ||
+            name.contains('iob') ||
+            name.contains('tpc') ||
+            name.contains('samantha') ||
+            name.contains('karen') ||
+            name.contains('aria') ||
+            name.contains('zira')) {
+          continue;
+        }
+        if (name.contains(key)) {
+          selectedMaleVoice = v;
+          break;
+        }
+      }
+      if (selectedMaleVoice != null) break;
+    }
+
+    // 2. If not found by priority key, pick any non-female voice
+    if (selectedMaleVoice == null) {
+      final nonFemale = englishVoices.where((v) {
+        final name = (v['name'] ?? '').toLowerCase();
+        return !name.contains('female') &&
+            !name.contains('sfg') &&
+            !name.contains('iob') &&
+            !name.contains('tpc') &&
+            !name.contains('samantha') &&
+            !name.contains('karen') &&
+            !name.contains('zira');
+      }).toList();
+
+      if (nonFemale.isNotEmpty) {
+        selectedMaleVoice = nonFemale.first;
+      }
+    }
+
+    if (selectedMaleVoice != null) {
+      debugPrint('[TTS] Applying EasyLens Male Voice: ${selectedMaleVoice['name']}');
+      try {
+        await _tts.setVoice(selectedMaleVoice);
+      } catch (e) {
+        debugPrint('[TTS] Failed to set voice: $e');
+      }
+    }
+
+    // Apply Deep Male Pitch and Speed (EasyLens calibration)
+    double targetPitch = isAndroid ? 0.52 : 0.80;
+    if (_selectedVoicePersona == 'Max (Bold Male)') {
+      targetPitch = isAndroid ? 0.55 : 0.85;
+      _speechRate = 0.48;
+    } else {
+      // Echo (Deep Male)
+      targetPitch = isAndroid ? 0.50 : 0.75;
+      _speechRate = 0.44;
+    }
+
+    _speechPitch = targetPitch;
     try {
+      await _tts.setPitch(targetPitch);
       await _tts.setSpeechRate(_speechRate);
-      await _tts.setPitch(_speechPitch);
     } catch (_) {}
+  }
+
+  Future<void> setProfile(String personaName) async {
+    _selectedVoicePersona = personaName;
+    await _applyMaleVoice();
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('voice_profile', profileName);
+    await prefs.setString('voice_profile', personaName);
     await prefs.setDouble('voice_speech_rate', _speechRate);
     await prefs.setDouble('voice_speech_pitch', _speechPitch);
   }
@@ -189,7 +280,10 @@ class VoiceService {
       await stopListening();
     }
 
-    // 2. Clean markdown, formatting, ANSI and code artifacts for crisp spoken voice
+    // 2. Re-apply EasyLens male voice
+    await _applyMaleVoice();
+
+    // 3. Clean markdown, formatting, ANSI and code artifacts for crisp spoken voice
     String cleaned = rawText
         .replaceAll(RegExp(r'```[\s\S]*?```'), ' Code block executed. ')
         .replaceAll(RegExp(r'`.*?`'), '')
@@ -206,8 +300,8 @@ class VoiceService {
     if (cleaned.isNotEmpty) {
       try {
         await _tts.stop();
-        await _tts.setSpeechRate(_speechRate);
         await _tts.setPitch(_speechPitch);
+        await _tts.setSpeechRate(_speechRate);
         await _tts.speak(cleaned);
       } catch (e) {
         debugPrint('VoiceService speak caught: $e');
