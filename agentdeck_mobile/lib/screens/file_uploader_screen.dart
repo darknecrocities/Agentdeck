@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
+import '../services/workstation_manager.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/directory_browser_modal.dart';
 
