@@ -221,4 +221,59 @@ pub async fn create_directory_handler(
     })))
 }
 
+#[derive(serde::Deserialize)]
+pub struct PingWorkstationQuery {
+    pub endpoint: String,
+}
+
+pub async fn ping_workstation_handler(
+    axum::extract::Query(query): axum::extract::Query<PingWorkstationQuery>,
+) -> Json<serde_json::Value> {
+    let endpoint = query.endpoint.trim().trim_end_matches('/');
+    let host = endpoint
+        .strip_prefix("http://")
+        .or_else(|| endpoint.strip_prefix("https://"))
+        .unwrap_or(endpoint)
+        .split(':')
+        .next()
+        .unwrap_or(endpoint);
+
+    // 1. Try HTTP /health check with short timeout
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(1500))
+        .build()
+        .unwrap_or_default();
+
+    let mut http_online = false;
+    if let Ok(res) = http_client.get(format!("{}/health", endpoint)).send().await {
+        if res.status().is_success() {
+            http_online = true;
+        }
+    }
+
+    // 2. Also test network / Tailscale ICMP reachability
+    let is_network_online = if host != "localhost" && host != "127.0.0.1" {
+        let output = tokio::process::Command::new("ping")
+            .args(["-c", "1", "-W", "1000", host])
+            .output()
+            .await;
+        match output {
+            Ok(out) => out.status.success(),
+            Err(_) => false,
+        }
+    } else {
+        true
+    };
+
+    let is_online = http_online || is_network_online;
+
+    Json(serde_json::json!({
+        "endpoint": endpoint,
+        "host": host,
+        "online": is_online,
+        "http_daemon_running": http_online,
+        "tailscale_network_reachable": is_network_online,
+    }))
+}
+
 

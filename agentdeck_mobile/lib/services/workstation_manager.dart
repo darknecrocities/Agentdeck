@@ -55,7 +55,7 @@ class WorkstationManager {
   factory WorkstationManager() => _instance;
   WorkstationManager._internal();
 
-  static const String _storageKey = 'agentdeck_saved_workstations';
+  static const String _storageKey = 'agentdeck_saved_workstations_v2';
 
   List<Workstation> _workstations = [];
 
@@ -70,10 +70,13 @@ class WorkstationManager {
       final data = prefs.getString(_storageKey);
       if (data != null && data.isNotEmpty) {
         final List<dynamic> list = jsonDecode(data);
-        _workstations = list.map((item) => Workstation.fromJson(item)).toList();
+        _workstations = list
+            .map((item) => Workstation.fromJson(item))
+            .where((w) => !w.endpoint.contains('.100:8765') && !w.endpoint.contains('.200:8765'))
+            .toList();
       }
 
-      // Default machines if empty
+      // Default real fleet machines
       if (_workstations.isEmpty) {
         _workstations = [
           Workstation(
@@ -93,7 +96,7 @@ class WorkstationManager {
         ];
         await _persist();
       } else {
-        // Ensure darknecrocities is present if not already added
+        // Ensure Windows PC darknecrocities is present
         if (!_workstations.any((w) => w.endpoint.contains('127.0.0.1'))) {
           _workstations.add(
             Workstation(
@@ -140,7 +143,22 @@ class WorkstationManager {
   Future<bool> pingWorkstation(String endpoint) async {
     try {
       final clean = endpoint.endsWith('/') ? endpoint.substring(0, endpoint.length - 1) : endpoint;
-      final res = await http.get(Uri.parse('$clean/health')).timeout(const Duration(seconds: 2));
+
+      // 1. First ask the active daemon to test the workstation (works across Tailscale mesh)
+      try {
+        final currentUrl = ApiService().baseUrl;
+        final probeUrl = Uri.parse('$currentUrl/api/system/ping_workstation?endpoint=${Uri.encodeComponent(clean)}');
+        final probeRes = await http.get(probeUrl).timeout(const Duration(milliseconds: 1500));
+        if (probeRes.statusCode == 200) {
+          final data = jsonDecode(probeRes.body);
+          if (data['online'] == true) {
+            return true;
+          }
+        }
+      } catch (_) {}
+
+      // 2. Direct HTTP probe fallback
+      final res = await http.get(Uri.parse('$clean/health')).timeout(const Duration(milliseconds: 1500));
       return res.statusCode == 200;
     } catch (_) {
       return false;
