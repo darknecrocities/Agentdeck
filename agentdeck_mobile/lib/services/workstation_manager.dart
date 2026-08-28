@@ -147,6 +147,14 @@ class WorkstationManager {
     }
   }
 
+  Future<Map<String, bool>> pingAll() async {
+    final Map<String, bool> results = {};
+    for (final ws in _workstations) {
+      results[ws.id] = await pingWorkstation(ws.endpoint);
+    }
+    return results;
+  }
+
   Future<void> _persist() async {
     try {
       final prefs = await SharedPreferences.getInstance();

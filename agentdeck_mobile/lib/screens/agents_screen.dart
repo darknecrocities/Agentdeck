@@ -128,7 +128,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                           ),
                           icon: const Icon(Icons.terminal, size: 16),
                           label: Text(
-                            '⚡ LAUNCH ${a['id'].toString().toUpperCase()} IN TERMINAL',
+                            'LAUNCH ${a['id'].toString().toUpperCase()} IN TERMINAL',
                             style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
                           ),
                           onPressed: () {

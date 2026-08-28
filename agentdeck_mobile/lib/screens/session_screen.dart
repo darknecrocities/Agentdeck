@@ -270,10 +270,10 @@ class _SessionScreenState extends State<SessionScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildQuickActionBtn('▶ Proceed', () => _sendPrompt('Proceed with the implementation.')),
-                  _buildQuickActionBtn('🧪 Run Tests', () => _sendPrompt('Run all tests and report results.')),
-                  _buildQuickActionBtn('🔧 Fix Errors', () => _sendPrompt('Analyze and fix all error outputs.')),
-                  _buildQuickActionBtn('📦 Commit & Push', () => _sendPrompt('Commit the changes and push.')),
+                  _buildQuickActionBtn(Icons.play_arrow, 'Proceed', () => _sendPrompt('Proceed with the implementation.')),
+                  _buildQuickActionBtn(Icons.bug_report, 'Run Tests', () => _sendPrompt('Run all tests and report results.')),
+                  _buildQuickActionBtn(Icons.build, 'Fix Errors', () => _sendPrompt('Analyze and fix all error outputs.')),
+                  _buildQuickActionBtn(Icons.cloud_upload, 'Commit & Push', () => _sendPrompt('Commit the changes and push.')),
                 ],
               ),
             ),
@@ -329,7 +329,7 @@ class _SessionScreenState extends State<SessionScreen> {
     );
   }
 
-  Widget _buildQuickActionBtn(String label, VoidCallback onTap) {
+  Widget _buildQuickActionBtn(IconData icon, String label, VoidCallback onTap) {
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: InkWell(
@@ -342,9 +342,16 @@ class _SessionScreenState extends State<SessionScreen> {
             borderRadius: BorderRadius.circular(3),
             border: Border.all(color: TerminalColors.cardBorderLight),
           ),
-          child: Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 12, color: TerminalColors.pureWhite),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite),
+              ),
+            ],
           ),
         ),
       ),

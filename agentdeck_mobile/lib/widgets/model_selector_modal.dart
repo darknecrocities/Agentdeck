@@ -249,9 +249,16 @@ class _ModelSelectorModalState extends State<ModelSelectorModal> {
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(color: TerminalColors.cardBorder),
                                       ),
-                                      child: Text(
-                                        'Fast ⓘ',
-                                        style: GoogleFonts.jetBrainsMono(fontSize: 9.5, color: TerminalColors.zinc),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'FAST',
+                                            style: GoogleFonts.jetBrainsMono(fontSize: 8.5, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
+                                          ),
+                                          const SizedBox(width: 3),
+                                          const Icon(Icons.info_outline, size: 10, color: TerminalColors.zinc),
+                                        ],
                                       ),
                                     ),
                                   ],

@@ -107,15 +107,20 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(color: TerminalColors.cardBorderLight),
                               ),
-                              child: Center(
-                                child: Text(
-                                  '⚡ CREATE NEW APP',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: mode == 0 ? Colors.black : TerminalColors.pureWhite,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_circle_outline, size: 14, color: mode == 0 ? Colors.black : TerminalColors.pureWhite),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'CREATE NEW APP',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: mode == 0 ? Colors.black : TerminalColors.pureWhite,
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ),
                           ),
@@ -131,15 +136,20 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(color: TerminalColors.cardBorderLight),
                               ),
-                              child: Center(
-                                child: Text(
-                                  '📁 ATTACH FOLDER',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: mode == 1 ? Colors.black : TerminalColors.pureWhite,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.folder_open, size: 14, color: mode == 1 ? Colors.black : TerminalColors.pureWhite),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'ATTACH FOLDER',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: mode == 1 ? Colors.black : TerminalColors.pureWhite,
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ),
                           ),
@@ -163,11 +173,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'flutter', child: Text('📱 Flutter Mobile App (iOS / Android)')),
-                          DropdownMenuItem(value: 'rust', child: Text('🦀 Rust Application / Backend')),
-                          DropdownMenuItem(value: 'python', child: Text('🐍 Python Script / Service')),
-                          DropdownMenuItem(value: 'node', child: Text('⚛️ Node.js / JavaScript Project')),
-                          DropdownMenuItem(value: 'empty', child: Text('📁 Clean Git Workspace')),
+                          DropdownMenuItem(value: 'flutter', child: Text('Flutter Mobile App (iOS / Android)')),
+                          DropdownMenuItem(value: 'rust', child: Text('Rust Application / Backend')),
+                          DropdownMenuItem(value: 'python', child: Text('Python Script / Service')),
+                          DropdownMenuItem(value: 'node', child: Text('Node.js / Web Application')),
+                          DropdownMenuItem(value: 'empty', child: Text('Clean Git Workspace')),
                         ],
                         onChanged: (v) => setModalState(() => template = v ?? 'flutter'),
                       ),
