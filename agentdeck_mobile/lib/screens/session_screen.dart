@@ -361,10 +361,10 @@ class _SessionScreenState extends State<SessionScreen> {
             ),
             child: Row(
               children: [
-                // Voice STT Trigger Button
+                // Vibe Agent Trigger Button
                 IconButton(
-                  icon: const Icon(Icons.mic, color: TerminalColors.pureWhite),
-                  tooltip: 'Voice Prompt (STT)',
+                  icon: const Icon(Icons.record_voice_over_rounded, color: TerminalColors.pureWhite),
+                  tooltip: 'Vibe Agent (Voice & Prompt)',
                   onPressed: () {
                     showModalBottomSheet(
                       context: context,

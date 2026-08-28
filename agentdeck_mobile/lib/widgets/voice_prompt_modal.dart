@@ -32,7 +32,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
   late AnimationController _animCtrl;
   bool _isListening = false;
   bool _isDispatching = false;
-  String _statusText = 'Tap microphone to speak...';
+  String _statusText = 'Tap microphone to speak to Vibe Agent...';
 
   @override
   void initState() {
@@ -58,7 +58,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
   Future<void> _startVoiceInput() async {
     setState(() {
       _isListening = true;
-      _statusText = 'Listening to your voice prompt...';
+      _statusText = 'Vibe Agent is listening to your prompt...';
     });
 
     final started = await _voice.startListening(
@@ -87,7 +87,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
     if (mounted) {
       setState(() {
         _isListening = false;
-        _statusText = _promptCtrl.text.isNotEmpty ? 'Speech captured.' : 'Tap mic to speak.';
+        _statusText = _promptCtrl.text.isNotEmpty ? 'Prompt captured.' : 'Tap mic to speak to Vibe Agent.';
       });
     }
   }
@@ -177,7 +177,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFF171717),
                         borderRadius: BorderRadius.circular(4),
@@ -186,14 +186,15 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.mic, color: TerminalColors.pureWhite, size: 13),
-                          const SizedBox(width: 4),
+                          const Icon(Icons.record_voice_over_rounded, color: TerminalColors.pureWhite, size: 14),
+                          const SizedBox(width: 5),
                           Text(
-                            'VOICE (STT)',
+                            'VIBE AGENT',
                             style: GoogleFonts.jetBrainsMono(
-                              fontSize: 9.5,
+                              fontSize: 10,
                               fontWeight: FontWeight.w900,
                               color: TerminalColors.pureWhite,
+                              letterSpacing: 0.6,
                             ),
                           ),
                         ],
@@ -283,7 +284,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
             maxLines: 3,
             style: GoogleFonts.jetBrainsMono(fontSize: 12, color: TerminalColors.pureWhite),
             decoration: InputDecoration(
-              hintText: 'Speak or type your prompt (e.g. "Build an object detection screen with SQLite offline sync")...',
+              hintText: 'Speak or type your vibe prompt (e.g. "Build an object detection screen with SQLite offline sync")...',
               hintStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 11),
               filled: true,
               fillColor: const Color(0xFF0C0C0C),
@@ -331,8 +332,8 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
                   ),
                   icon: _isDispatching
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                      : const Icon(Icons.send_rounded, size: 16),
-                  label: Text('DISPATCH PROMPT', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w900)),
+                      : const Icon(Icons.auto_awesome, size: 16),
+                  label: Text('DISPATCH VIBE PROMPT', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.w900)),
                   onPressed: _isDispatching ? null : _dispatchPrompt,
                 ),
               ),

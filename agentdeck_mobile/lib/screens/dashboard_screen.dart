@@ -570,10 +570,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.mic, size: 10, color: TerminalColors.pureWhite),
-                                        const SizedBox(width: 2),
+                                        const Icon(Icons.record_voice_over_rounded, size: 10, color: TerminalColors.pureWhite),
+                                        const SizedBox(width: 3),
                                         Text(
-                                          'VOICE',
+                                          'VIBE',
                                           style: GoogleFonts.jetBrainsMono(
                                             fontSize: 8,
                                             fontWeight: FontWeight.w900,
@@ -637,10 +637,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             foregroundColor: Colors.black,
                             padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
-                          icon: const Icon(Icons.mic, size: 16),
+                          icon: const Icon(Icons.record_voice_over_rounded, size: 16),
                           label: Text(
-                            'VOICE PROMPT (STT)',
-                            style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 10.5),
+                            'VIBE AGENT',
+                            style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
                           ),
                           onPressed: () {
                             showModalBottomSheet(

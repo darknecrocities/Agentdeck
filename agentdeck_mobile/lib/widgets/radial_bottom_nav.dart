@@ -34,12 +34,12 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
     super.initState();
     _radialCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 280),
     );
     _expandAnim = CurvedAnimation(
       parent: _radialCtrl,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeInBack,
     );
   }
 
@@ -69,7 +69,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
     }
   }
 
-  Widget _buildRadialItem({
+  Widget _buildRadialButton({
     required double angleDeg,
     required double distance,
     required IconData icon,
@@ -83,17 +83,22 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
       animation: _expandAnim,
       builder: (context, child) {
         final progress = _expandAnim.value;
-        final currentDistance = distance * progress;
-        final dx = -cos(rad) * currentDistance;
-        final dy = -sin(rad) * currentDistance;
+        if (progress <= 0.01) return const SizedBox.shrink();
 
-        return Transform.translate(
-          offset: Offset(dx, dy),
+        final currentDistance = distance * progress;
+        // Calculate direct bottom/right position coordinates from FAB origin (bottom: 20, right: 16)
+        final bottomPos = 24.0 + (sin(rad) * currentDistance);
+        final rightPos = 16.0 + (cos(rad) * currentDistance);
+
+        return Positioned(
+          bottom: bottomPos,
+          right: rightPos,
           child: Transform.scale(
             scale: progress.clamp(0.0, 1.0),
             child: Opacity(
               opacity: progress.clamp(0.0, 1.0),
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () {
                   _closeRadial();
                   onTap();
@@ -102,37 +107,43 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.black,
-                        border: Border.all(color: color, width: 1.5),
+                        border: Border.all(color: color, width: 1.6),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.white.withValues(alpha: 0.20),
-                            blurRadius: 16,
+                            color: Colors.white.withValues(alpha: 0.25),
+                            blurRadius: 18,
                             spreadRadius: 1,
                           ),
                         ],
                       ),
-                      child: Icon(icon, color: color, size: 22),
+                      child: Icon(icon, color: color, size: 24),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.black,
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFF404040), width: 0.8),
+                        border: Border.all(color: const Color(0xFF404040), width: 1.0),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.8),
+                            blurRadius: 6,
+                          ),
+                        ],
                       ),
                       child: Text(
                         label,
                         style: GoogleFonts.jetBrainsMono(
-                          fontSize: 8.5,
+                          fontSize: 9.0,
                           fontWeight: FontWeight.w900,
                           color: TerminalColors.pureWhite,
-                          letterSpacing: 0.4,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
@@ -154,7 +165,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
       clipBehavior: Clip.none,
       alignment: Alignment.bottomRight,
       children: [
-        // Frosted Glass Blur Backdrop Overlay
+        // Frosted Glass Blur Backdrop Overlay (closes menu when tapped outside)
         if (_isOpen)
           Positioned(
             bottom: 0,
@@ -175,95 +186,82 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
             ),
           ),
 
-        // Pop-Up Arc Items (Pure Black & White Monochrome)
-        if (_isOpen)
-          Positioned(
-            right: 28,
-            bottom: 86,
-            child: SizedBox(
-              width: 280,
-              height: 280,
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.bottomRight,
-                children: [
-                  // 1. Voice STT (Top) - 90 deg, 190px
-                  _buildRadialItem(
-                    angleDeg: 90,
-                    distance: 190,
-                    icon: Icons.mic,
-                    label: 'VOICE STT',
-                    color: TerminalColors.pureWhite,
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => const VoicePromptModal(),
-                      );
-                    },
-                  ),
-
-                  // 2. Machine Remote Control (Screen, Cam, Apps) - 68 deg, 205px
-                  _buildRadialItem(
-                    angleDeg: 68,
-                    distance: 205,
-                    icon: Icons.settings_remote,
-                    label: 'MACHINE',
-                    color: TerminalColors.pureWhite,
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => const RemoteMachineModal(),
-                      );
-                    },
-                  ),
-
-                  // 3. Interactive Terminal PTY - 46 deg, 190px
-                  _buildRadialItem(
-                    angleDeg: 46,
-                    distance: 190,
-                    icon: Icons.terminal,
-                    label: 'TERMINAL',
-                    color: TerminalColors.silver,
-                    onTap: () => widget.onTabSelected(4),
-                  ),
-
-                  // 4. File Uploader - 24 deg, 205px
-                  _buildRadialItem(
-                    angleDeg: 24,
-                    distance: 205,
-                    icon: Icons.cloud_upload_outlined,
-                    label: 'UPLOAD',
-                    color: TerminalColors.silver,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const FileUploaderScreen()),
-                      );
-                    },
-                  ),
-
-                  // 5. Google OAuth & Switcher - 0 deg, 190px
-                  _buildRadialItem(
-                    angleDeg: 0,
-                    distance: 190,
-                    icon: Icons.manage_accounts,
-                    label: 'ACCOUNTS',
-                    color: TerminalColors.zinc,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AccountSwitcherScreen()),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
+        // Pop-Up Arc Items (Direct Positioned for 100% Reliable Hit-Testing)
+        if (_isOpen) ...[
+          // 1. Vibe Agent (Top-most) - 90 deg, 195px
+          _buildRadialButton(
+            angleDeg: 90,
+            distance: 195,
+            icon: Icons.record_voice_over_rounded,
+            label: 'VIBE AGENT',
+            color: TerminalColors.pureWhite,
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const VoicePromptModal(),
+              );
+            },
           ),
+
+          // 2. Machine Remote Control (Screen, Cam, Apps) - 68 deg, 215px
+          _buildRadialButton(
+            angleDeg: 68,
+            distance: 215,
+            icon: Icons.settings_remote_rounded,
+            label: 'MACHINE',
+            color: TerminalColors.pureWhite,
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const RemoteMachineModal(),
+              );
+            },
+          ),
+
+          // 3. Interactive Terminal PTY - 46 deg, 195px
+          _buildRadialButton(
+            angleDeg: 46,
+            distance: 195,
+            icon: Icons.terminal_rounded,
+            label: 'TERMINAL',
+            color: TerminalColors.silver,
+            onTap: () => widget.onTabSelected(4),
+          ),
+
+          // 4. File Uploader - 24 deg, 215px
+          _buildRadialButton(
+            angleDeg: 24,
+            distance: 215,
+            icon: Icons.cloud_upload_rounded,
+            label: 'UPLOAD',
+            color: TerminalColors.silver,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FileUploaderScreen()),
+              );
+            },
+          ),
+
+          // 5. Google OAuth & Switcher - 0 deg, 195px
+          _buildRadialButton(
+            angleDeg: 0,
+            distance: 195,
+            icon: Icons.manage_accounts_rounded,
+            label: 'ACCOUNTS',
+            color: TerminalColors.zinc,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AccountSwitcherScreen()),
+              );
+            },
+          ),
+        ],
 
         // Pure Monochrome Bottom Navigation Bar
         Container(
