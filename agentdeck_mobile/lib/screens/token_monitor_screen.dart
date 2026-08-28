@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
+import '../services/workstation_manager.dart';
 import '../theme/terminal_theme.dart';
 import 'account_switcher_screen.dart';
 
@@ -15,23 +16,25 @@ class TokenMonitorScreen extends StatefulWidget {
 class _TokenMonitorScreenState extends State<TokenMonitorScreen> {
   final ApiService _api = ApiService();
   Map<String, dynamic> _summary = {};
+  Map<String, dynamic>? _antigravityAccount;
   bool _loading = true;
-  Timer? _countdownTimer;
 
   @override
   void initState() {
     super.initState();
     _loadSummary();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && _summary.isNotEmpty) {
-        setState(() {}); // live ticking countdown
-      }
-    });
+    WorkstationManager().addListener(_onWorkstationChanged);
+  }
+
+  void _onWorkstationChanged() {
+    if (mounted) {
+      _loadSummary();
+    }
   }
 
   @override
   void dispose() {
-    _countdownTimer?.cancel();
+    WorkstationManager().removeListener(_onWorkstationChanged);
     super.dispose();
   }
 
@@ -39,9 +42,11 @@ class _TokenMonitorScreenState extends State<TokenMonitorScreen> {
     setState(() => _loading = true);
     try {
       final res = await _api.getTokenSummary();
+      final agy = await _api.getAntigravityAccount();
       if (mounted) {
         setState(() {
           _summary = res;
+          _antigravityAccount = agy;
           _loading = false;
         });
       }
@@ -52,6 +57,24 @@ class _TokenMonitorScreenState extends State<TokenMonitorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final gemini = _summary['gemini_quota'] as Map<String, dynamic>?;
+    final claudeGpt = _summary['claude_gpt_quota'] as Map<String, dynamic>?;
+    final models = (_summary['models_quota'] as List<dynamic>?) ?? [];
+
+    final geminiWeekly = (gemini?['weekly_limit_remaining'] as num?)?.toInt() ?? 85;
+    final geminiWeeklyText = gemini?['weekly_reset_text'] ?? '3 days, 3 hours';
+    final gemini5h = (gemini?['five_hour_limit_remaining'] as num?)?.toInt() ?? 90;
+    final gemini5hText = gemini?['five_hour_reset_text'] ?? '4 hours, 12 minutes';
+
+    final claudeWeekly = (claudeGpt?['weekly_limit_remaining'] as num?)?.toInt() ?? 0;
+    final claudeWeeklyText = claudeGpt?['weekly_reset_text'] ?? 'Requires Anthropic API Token';
+    final claude5h = (claudeGpt?['five_hour_limit_remaining'] as num?)?.toInt() ?? 0;
+    final claude5hText = claudeGpt?['five_hour_reset_text'] ?? 'Requires Anthropic API Token';
+
+    final activeEmail = _antigravityAccount?['active_account'] ??
+        _summary['models_quota']?[0]?['active_account'] ??
+        'parejasarronkian@gmail.com';
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -84,20 +107,88 @@ class _TokenMonitorScreenState extends State<TokenMonitorScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // Active Account Card
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: TerminalColors.surface,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF51CF66), width: 1.2),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Image.asset(
+                              'assets/images/agentdeck_thinking.png',
+                              height: 38,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'SYNCED GOOGLE ACCOUNT',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF51CF66),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  activeEmail,
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: TerminalColors.pureWhite,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        InkWell(
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const AccountSwitcherScreen()),
+                            );
+                            _loadSummary();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: TerminalColors.pureWhite,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              'SWITCH',
+                              style: GoogleFonts.jetBrainsMono(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.black),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   // 1. Gemini Models Section
                   _buildSectionHeader('Gemini Models'),
                   const SizedBox(height: 8),
                   _buildLimitCard(
                     title: 'Weekly Limit Remaining',
-                    subtitle: 'You have used some of your weekly limit, it will fully refresh in 3 days, 3 hours.',
-                    percentage: 25,
+                    subtitle: 'Calculated for $activeEmail. Refreshes in $geminiWeeklyText.',
+                    percentage: geminiWeekly,
                     color: const Color(0xFF51CF66),
                   ),
                   const SizedBox(height: 10),
                   _buildLimitCard(
                     title: 'Five Hour Limit Remaining',
-                    subtitle: 'You have used some of your 5-hour limit, it will fully refresh in 2 hours, 36 minutes.',
-                    percentage: 54,
+                    subtitle: 'Rolling window of agent requests. Next window reset in $gemini5hText.',
+                    percentage: gemini5h,
                     color: const Color(0xFF51CF66),
                   ),
                   const SizedBox(height: 20),
@@ -107,16 +198,20 @@ class _TokenMonitorScreenState extends State<TokenMonitorScreen> {
                   const SizedBox(height: 8),
                   _buildLimitCard(
                     title: 'Weekly Limit Remaining',
-                    subtitle: 'You have hit your weekly limit, it refreshes in 3 days, 5 hours. If on a supported paid plan, you can use AI credits in the interim or upgrade to a higher tier.',
-                    percentage: 0,
-                    color: const Color(0xFF555555),
+                    subtitle: claudeWeekly > 0
+                        ? 'Active Anthropic Token linked. Refreshes: $claudeWeeklyText.'
+                        : 'Google OAuth Free Tier. To unlock Claude models, add your Anthropic key in Accounts.',
+                    percentage: claudeWeekly,
+                    color: claudeWeekly > 0 ? const Color(0xFF51CF66) : const Color(0xFF555555),
                   ),
                   const SizedBox(height: 10),
                   _buildLimitCard(
                     title: 'Five Hour Limit Remaining',
-                    subtitle: 'You have hit your weekly limit, the 5-hour limit does not currently apply. Your weekly limit will fully refresh in 3 days, 5 hours.',
-                    percentage: 0,
-                    color: const Color(0xFF555555),
+                    subtitle: claude5h > 0
+                        ? 'Live token budget: $claude5hText.'
+                        : 'Add Claude / OpenAI key in Account Switcher to enable direct multi-agent leasing.',
+                    percentage: claude5h,
+                    color: claude5h > 0 ? const Color(0xFF51CF66) : const Color(0xFF555555),
                   ),
                   const SizedBox(height: 24),
 
@@ -132,13 +227,32 @@ class _TokenMonitorScreenState extends State<TokenMonitorScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  _buildModelQuotaItem('Gemini 3.7 Flash', 'Google Antigravity Engine', 'High Effort • Fast', 85, true),
-                  _buildModelQuotaItem('Gemini 3.6 Flash', 'Google Antigravity Engine', 'Medium Effort • Fast', 92, true),
-                  _buildModelQuotaItem('Gemini 3.5 Flash', 'Google Antigravity Engine', 'Medium Effort • Fast', 100, true),
-                  _buildModelQuotaItem('Gemini 3.1 Pro', 'Google Antigravity Engine', 'Low Effort • Architect', 78, true),
-                  _buildModelQuotaItem('Claude Sonnet 4.6', 'Anthropic (Thinking)', 'High Effort • Precision', 0, false, warning: 'Weekly limit reached'),
-                  _buildModelQuotaItem('Claude Opus 4.6', 'Anthropic (Thinking)', 'High Effort • Deep Reason', 0, false, warning: 'Weekly limit reached'),
-                  _buildModelQuotaItem('GPT-OSS 120B', 'OpenAI / OSS', 'Medium Effort • Logic', 0, false, warning: 'Quota exhausted'),
+                  if (models.isNotEmpty)
+                    ...models.map((m) {
+                      final name = m['model'] ?? '';
+                      final tier = m['tier'] ?? '';
+                      final isAvail = m['is_available'] == true;
+                      final pctUsed = (m['percent_used'] as num?)?.toDouble() ?? 0.0;
+                      final pctLeft = (100.0 - pctUsed).round().clamp(0, 100);
+                      final resetText = m['reset_time_utc'] ?? '';
+
+                      return _buildModelQuotaItem(
+                        name,
+                        tier,
+                        'Effort: Adaptive • Reset: $resetText',
+                        pctLeft,
+                        isAvail,
+                        warning: isAvail ? null : 'Key Required in Accounts',
+                      );
+                    })
+                  else ...[
+                    _buildModelQuotaItem('Gemini 3.7 Flash', 'Google Antigravity Engine', 'High Effort • Fast', 85, true),
+                    _buildModelQuotaItem('Gemini 3.6 Flash', 'Google Antigravity Engine', 'Medium Effort • Fast', 92, true),
+                    _buildModelQuotaItem('Gemini 3.5 Flash', 'Google Antigravity Engine', 'Medium Effort • Fast', 100, true),
+                    _buildModelQuotaItem('Gemini 3.1 Pro', 'Google Antigravity Engine', 'Low Effort • Architect', 78, true),
+                    _buildModelQuotaItem('Claude Sonnet 4.6', 'Anthropic (Thinking)', 'High Effort • Precision', 0, false, warning: 'Add Claude Key'),
+                    _buildModelQuotaItem('GPT-4o / Codex', 'OpenAI API', 'Medium Effort • Logic', 0, false, warning: 'Add OpenAI Key'),
+                  ],
                 ],
               ),
             ),
@@ -246,12 +360,16 @@ class _TokenMonitorScreenState extends State<TokenMonitorScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                name,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.bold,
-                  color: available ? TerminalColors.pureWhite : TerminalColors.textMuted,
+              Expanded(
+                child: Text(
+                  name,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: available ? TerminalColors.pureWhite : TerminalColors.textMuted,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Container(
@@ -262,9 +380,9 @@ class _TokenMonitorScreenState extends State<TokenMonitorScreen> {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Text(
-                  available ? 'AVAILABLE' : 'LIMIT REACHED',
+                  available ? 'AVAILABLE' : 'KEY REQUIRED',
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
+                    fontSize: 8.5,
                     fontWeight: FontWeight.w900,
                     color: available ? Colors.black : const Color(0xFFFFD43B),
                   ),
@@ -276,9 +394,13 @@ class _TokenMonitorScreenState extends State<TokenMonitorScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                details,
-                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
+              Expanded(
+                child: Text(
+                  details,
+                  style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               if (warning != null)
                 Text(
