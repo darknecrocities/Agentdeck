@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../services/api_service.dart';
+import '../services/workstation_manager.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/ansi_text_view.dart';
 
@@ -188,7 +189,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                         children: _output.isEmpty
                             ? [
                                 TextSpan(
-                                  text: 'AgentDeck Remote ZSH Terminal Connected.\nType commands or tap shortcuts below.\n\n',
+                                  text: 'AgentDeck Remote ${(WorkstationManager().currentWorkstation?.os ?? "Host")} Terminal Connected (${WorkstationManager().currentWorkstation?.name ?? "Workstation"}).\nType commands or tap shortcuts below.\n\n',
                                   style: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11.5),
                                 )
                               ]

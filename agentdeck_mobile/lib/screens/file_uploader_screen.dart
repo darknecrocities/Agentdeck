@@ -27,7 +27,21 @@ class _FileUploaderScreenState extends State<FileUploaderScreen> {
   @override
   void initState() {
     super.initState();
-    _destinationPath = widget.initialDestination ?? '/path/to/your/projects';
+    _destinationPath = widget.initialDestination ?? '';
+    _loadDefaultDestination();
+  }
+
+  Future<void> _loadDefaultDestination() async {
+    if (widget.initialDestination == null || _destinationPath.isEmpty) {
+      try {
+        final res = await _api.browseDirectories();
+        if (res['current_path'] != null && mounted) {
+          setState(() {
+            _destinationPath = res['current_path'];
+          });
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> _chooseDestinationFolder() async {
