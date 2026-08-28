@@ -442,6 +442,39 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
                 }
             }
         }
+
+        // Fallback to ffmpeg screen capture on macOS
+        let ffmpeg_candidates = ["ffmpeg", "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"];
+        for bin in ffmpeg_candidates {
+            if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
+                let res = tokio::process::Command::new(bin)
+                    .args([
+                        "-f", "avfoundation",
+                        "-i", "1:none",
+                        "-vframes", "1",
+                        "-update", "1",
+                        "-y",
+                        target_path.to_str().unwrap_or("/tmp/screenshot.png"),
+                    ])
+                    .output()
+                    .await;
+                if let Ok(out) = res {
+                    if out.status.success() && target_path.exists() {
+                        if let Ok(bytes) = std::fs::read(&target_path) {
+                            let _ = std::fs::remove_file(&target_path);
+                            let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                            return Ok(Json(serde_json::json!({
+                                "success": true,
+                                "image_base64": b64,
+                                "size_bytes": bytes.len(),
+                                "timestamp": chrono::Utc::now().to_rfc3339(),
+                            })));
+                        }
+                    }
+                }
+                break;
+            }
+        }
     }
 
     #[cfg(target_os = "windows")]
@@ -497,7 +530,7 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
 
     #[cfg(target_os = "macos")]
     {
-        // Try imagesnap if installed, or ffmpeg
+        // Try imagesnap if installed, or ffmpeg (including /opt/homebrew/bin/ffmpeg)
         let mut captured = false;
         if which::which("imagesnap").is_ok() {
             let res = tokio::process::Command::new("imagesnap")
@@ -509,21 +542,30 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
             }
         }
 
-        if !captured && which::which("ffmpeg").is_ok() {
-            let res = tokio::process::Command::new("ffmpeg")
-                .args([
-                    "-f", "avfoundation",
-                    "-framerate", "30",
-                    "-video_size", "640x480",
-                    "-i", "0",
-                    "-vframes", "1",
-                    "-y",
-                    target_path.to_str().unwrap_or("/tmp/cam.jpg"),
-                ])
-                .output()
-                .await;
-            if let Ok(out) = res {
-                captured = out.status.success();
+        if !captured {
+            let ffmpeg_candidates = ["ffmpeg", "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"];
+            for bin in ffmpeg_candidates {
+                if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
+                    let res = tokio::process::Command::new(bin)
+                        .args([
+                            "-f", "avfoundation",
+                            "-framerate", "30",
+                            "-video_size", "640x480",
+                            "-i", "0:none",
+                            "-vframes", "1",
+                            "-update", "1",
+                            "-y",
+                            target_path.to_str().unwrap_or("/tmp/cam.jpg"),
+                        ])
+                        .output()
+                        .await;
+                    if let Ok(out) = res {
+                        if out.status.success() {
+                            captured = true;
+                            break;
+                        }
+                    }
+                }
             }
         }
 

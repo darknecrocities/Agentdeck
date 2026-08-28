@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -49,23 +50,39 @@ class ApiService {
     } catch (_) {}
   }
 
-  // HTTP Helpers with fast failure timeout
+  // HTTP Helpers with fast failure timeout & graceful error recovery
   Future<dynamic> _get(String path, {Map<String, String>? query}) async {
-    final uri = Uri.parse('$baseUrl$path').replace(queryParameters: query);
-    final res = await http.get(uri, headers: _headers).timeout(_timeout);
-    return jsonDecode(res.body);
+    try {
+      final uri = Uri.parse('$baseUrl$path').replace(queryParameters: query);
+      final res = await http.get(uri, headers: _headers).timeout(_timeout);
+      if (res.body.trim().isEmpty) return null;
+      return jsonDecode(res.body);
+    } catch (e) {
+      debugPrint('ApiService._get error on $path: $e');
+      return null;
+    }
   }
 
   Future<dynamic> _post(String path, Map<String, dynamic> body) async {
-    final uri = Uri.parse('$baseUrl$path');
-    final res = await http.post(uri, headers: _headers, body: jsonEncode(body)).timeout(_timeout);
-    return jsonDecode(res.body);
+    try {
+      final uri = Uri.parse('$baseUrl$path');
+      final res = await http.post(uri, headers: _headers, body: jsonEncode(body)).timeout(_timeout);
+      if (res.body.trim().isEmpty) return null;
+      return jsonDecode(res.body);
+    } catch (e) {
+      debugPrint('ApiService._post error on $path: $e');
+      return null;
+    }
   }
 
   Future<bool> _del(String path) async {
-    final uri = Uri.parse('$baseUrl$path');
-    final res = await http.delete(uri, headers: _headers).timeout(_timeout);
-    return res.statusCode == 200;
+    try {
+      final uri = Uri.parse('$baseUrl$path');
+      final res = await http.delete(uri, headers: _headers).timeout(_timeout);
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 
   // System

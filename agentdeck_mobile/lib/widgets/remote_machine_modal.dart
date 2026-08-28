@@ -34,6 +34,14 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl.addListener(() {
+      if (_tabCtrl.indexIsChanging) return;
+      if (_tabCtrl.index == 1 && _screenBytes == null && !_loadingScreen) {
+        _captureScreen();
+      } else if (_tabCtrl.index == 2 && _camBytes == null && !_loadingCam) {
+        _captureCam();
+      }
+    });
   }
 
   @override
