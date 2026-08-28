@@ -38,6 +38,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/system/browse", get(handlers::system::browse_directories_handler))
         // Projects
         .route("/api/projects", get(handlers::projects::list_projects).post(handlers::projects::create_project))
+        .route("/api/projects/scaffold", post(handlers::projects::scaffold_project))
         .route("/api/projects/:id", delete(handlers::projects::delete_project))
         .route("/api/projects/:id/files", get(handlers::projects::list_project_files))
         .route("/api/projects/:id/files/content", get(handlers::projects::read_file_content))

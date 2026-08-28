@@ -20,6 +20,22 @@ pub struct CreateProjectRequest {
 }
 
 #[derive(Deserialize)]
+pub struct ScaffoldProjectRequest {
+    pub name: String,
+    pub parent_path: Option<String>,
+    pub template: Option<String>, // "empty", "flutter", "rust", "python", "node"
+    pub initial_prompt: Option<String>,
+    pub default_agent: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct ScaffoldProjectResponse {
+    pub project: Project,
+    pub session_id: Option<String>,
+    pub message: String,
+}
+
+#[derive(Deserialize)]
 pub struct FilesQuery {
     pub path: Option<String>,
 }
@@ -64,6 +80,129 @@ pub async fn create_project(
     }
 
     Ok(Json(project))
+}
+
+pub async fn scaffold_project(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<ScaffoldProjectRequest>,
+) -> Result<Json<ScaffoldProjectResponse>, (StatusCode, String)> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/Users/arronkianparejas".to_string());
+    let parent = req.parent_path.unwrap_or(home);
+    let clean_name = req.name.trim().replace(' ', "_").to_lowercase();
+    let target_dir = PathBuf::from(&parent).join(&clean_name);
+
+    let _ = fs::create_dir_all(&target_dir);
+
+    let template = req.template.as_deref().unwrap_or("empty");
+    let mut scaffold_log = String::new();
+
+    match template {
+        "flutter" => {
+            let output = tokio::process::Command::new("flutter")
+                .args(["create", "--org", "com.agentdeck", "--project-name", &clean_name, "."])
+                .current_dir(&target_dir)
+                .output()
+                .await;
+            if let Ok(out) = output {
+                scaffold_log = String::from_utf8_lossy(&out.stdout).to_string();
+            }
+        }
+        "rust" => {
+            let output = tokio::process::Command::new("cargo")
+                .args(["init", "--bin", "--name", &clean_name, "."])
+                .current_dir(&target_dir)
+                .output()
+                .await;
+            if let Ok(out) = output {
+                scaffold_log = String::from_utf8_lossy(&out.stdout).to_string();
+            }
+        }
+        "node" => {
+            let _ = tokio::process::Command::new("npm")
+                .args(["init", "-y"])
+                .current_dir(&target_dir)
+                .output()
+                .await;
+            let _ = tokio::process::Command::new("git")
+                .args(["init"])
+                .current_dir(&target_dir)
+                .output()
+                .await;
+            scaffold_log = "Initialized Node.js project".to_string();
+        }
+        "python" => {
+            let _ = tokio::process::Command::new("git")
+                .args(["init"])
+                .current_dir(&target_dir)
+                .output()
+                .await;
+            let main_py = target_dir.join("main.py");
+            let _ = fs::write(main_py, "# Python application created by AgentDeck\n\ndef main():\n    print(\"Hello from AgentDeck!\")\n\nif __name__ == \"__main__\":\n    main()\n");
+            scaffold_log = "Initialized Python workspace with main.py".to_string();
+        }
+        _ => {
+            let _ = tokio::process::Command::new("git")
+                .args(["init"])
+                .current_dir(&target_dir)
+                .output()
+                .await;
+            let readme = target_dir.join("README.md");
+            let _ = fs::write(readme, format!("# {}\n\nCreated with AgentDeck.", req.name));
+            scaffold_log = "Created clean workspace directory".to_string();
+        }
+    }
+
+    let canonical = target_dir.canonicalize().unwrap_or(target_dir);
+    let now = Utc::now();
+    let default_agent = req.default_agent.unwrap_or_else(|| "antigravity".to_string());
+
+    let project = Project {
+        id: Uuid::new_v4().to_string(),
+        name: req.name,
+        path: canonical.to_string_lossy().to_string(),
+        default_agent: default_agent.clone(),
+        created_at: now,
+        updated_at: now,
+    };
+
+    state
+        .event_bus
+        .db()
+        .insert_project(&project)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if let Ok(mut watcher) = state.watcher.lock() {
+        let _ = watcher.watch_directory(&project.id, &project.path);
+    }
+
+    // If initial prompt provided, automatically launch Antigravity AI agent!
+    let session_id = if let Some(prompt) = req.initial_prompt {
+        if !prompt.trim().is_empty() {
+            let start_req = crate::models::AgentStartRequest {
+                project_id: project.id.clone(),
+                workspace_path: project.path.clone(),
+                prompt,
+                conversation_id: None,
+                model: None,
+                effort: None,
+            };
+            if let Ok(sess) = state.agent_manager.start_session(&default_agent, start_req).await {
+                Some(sess.id)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok(Json(ScaffoldProjectResponse {
+        project,
+        session_id,
+        message: if scaffold_log.is_empty() { "Project created successfully".to_string() } else { scaffold_log },
+    }))
 }
 
 pub async fn delete_project(

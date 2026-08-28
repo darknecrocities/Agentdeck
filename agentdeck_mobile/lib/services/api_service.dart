@@ -72,6 +72,27 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  Future<Map<String, dynamic>> scaffoldProject({
+    required String name,
+    String? parentPath,
+    String template = 'empty',
+    String? initialPrompt,
+    String defaultAgent = 'antigravity',
+  }) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/projects/scaffold'),
+      headers: _headers,
+      body: jsonEncode({
+        'name': name,
+        'parent_path': parentPath,
+        'template': template,
+        'initial_prompt': initialPrompt,
+        'default_agent': defaultAgent,
+      }),
+    );
+    return jsonDecode(res.body);
+  }
+
   Future<bool> deleteProject(String id) async {
     final res = await http.delete(Uri.parse('$baseUrl/api/projects/$id'), headers: _headers);
     return res.statusCode == 200;

@@ -42,9 +42,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   void _showAddProjectDialog() {
-    final nameCtrl = TextEditingController(text: 'AgentDeck');
+    int mode = 0; // 0 = Scaffold New App, 1 = Attach Existing
+    final nameCtrl = TextEditingController(text: 'my_new_app');
+    final parentCtrl = TextEditingController(text: '/Users/arronkianparejas');
     final pathCtrl = TextEditingController(text: '/Users/arronkianparejas/agentdeck');
+    final promptCtrl = TextEditingController(text: 'Analyze requirements, build the project structure, and implement core features.');
+    String template = 'flutter';
     String defaultAgent = 'antigravity';
+    bool creating = false;
 
     showModalBottomSheet(
       context: context,
@@ -65,121 +70,296 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 border: Border(top: BorderSide(color: TerminalColors.cardBorderLight, width: 1.5)),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'REGISTER PROJECT WORKSPACE',
-                        style: GoogleFonts.jetBrainsMono(
-                          color: TerminalColors.pureWhite,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: TerminalColors.zinc, size: 18),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Browse Computer Button
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: TerminalColors.pureWhite,
-                      side: const BorderSide(color: TerminalColors.pureWhite, width: 1.2),
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                      minimumSize: const Size(double.infinity, 44),
-                    ),
-                    icon: const Icon(Icons.folder_open, size: 18, color: TerminalColors.pureWhite),
-                    label: Text(
-                      'BROWSE MAC COMPUTER FOLDERS',
-                      style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
-                    ),
-                    onPressed: () async {
-                      final selected = await showModalBottomSheet<Map<String, dynamic>>(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => DirectoryBrowserModal(initialPath: pathCtrl.text),
-                      );
-                      if (selected != null) {
-                        setModalState(() {
-                          pathCtrl.text = selected['path'] ?? pathCtrl.text;
-                          nameCtrl.text = selected['name'] ?? nameCtrl.text;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 14),
-
-                  TextField(
-                    controller: nameCtrl,
-                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
-                    decoration: InputDecoration(
-                      labelText: 'PROJECT NAME',
-                      labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
-                      filled: true,
-                      fillColor: Colors.black,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: pathCtrl,
-                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
-                    decoration: InputDecoration(
-                      labelText: 'WORKSPACE PATH ON MAC',
-                      labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
-                      filled: true,
-                      fillColor: Colors.black,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: TerminalColors.pureWhite,
-                            side: const BorderSide(color: TerminalColors.cardBorderLight),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          mode == 0 ? 'AUTOMATED APP CREATOR (MAC)' : 'ATTACH EXISTING WORKSPACE',
+                          style: GoogleFonts.jetBrainsMono(
+                            color: TerminalColors.pureWhite,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: TerminalColors.zinc, size: 18),
                           onPressed: () => Navigator.pop(ctx),
-                          child: Text('CANCEL', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Mode Switcher Tabs
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setModalState(() => mode = 0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: mode == 0 ? TerminalColors.pureWhite : Colors.black,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: TerminalColors.cardBorderLight),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '⚡ CREATE NEW APP',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: mode == 0 ? Colors.black : TerminalColors.pureWhite,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setModalState(() => mode = 1),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: mode == 1 ? TerminalColors.pureWhite : Colors.black,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: TerminalColors.cardBorderLight),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '📁 ATTACH FOLDER',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: mode == 1 ? Colors.black : TerminalColors.pureWhite,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    if (mode == 0) ...[
+                      // App Template Selector
+                      Text('SELECT PROJECT TEMPLATE', style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.zinc)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        initialValue: template,
+                        dropdownColor: TerminalColors.surface,
+                        style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.black,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'flutter', child: Text('📱 Flutter Mobile App (iOS / Android)')),
+                          DropdownMenuItem(value: 'rust', child: Text('🦀 Rust Application / Backend')),
+                          DropdownMenuItem(value: 'python', child: Text('🐍 Python Script / Service')),
+                          DropdownMenuItem(value: 'node', child: Text('⚛️ Node.js / JavaScript Project')),
+                          DropdownMenuItem(value: 'empty', child: Text('📁 Clean Git Workspace')),
+                        ],
+                        onChanged: (v) => setModalState(() => template = v ?? 'flutter'),
+                      ),
+                      const SizedBox(height: 12),
+
+                      TextField(
+                        controller: nameCtrl,
+                        style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
+                        decoration: InputDecoration(
+                          labelText: 'NEW APP / FOLDER NAME',
+                          labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
+                          filled: true,
+                          fillColor: Colors.black,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: TerminalColors.pureWhite,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: parentCtrl,
+                              style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 11),
+                              decoration: InputDecoration(
+                                labelText: 'PARENT DESTINATION FOLDER',
+                                labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 10),
+                                filled: true,
+                                fillColor: Colors.black,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                              ),
+                            ),
                           ),
-                          onPressed: () async {
-                            if (nameCtrl.text.isNotEmpty && pathCtrl.text.isNotEmpty) {
-                              await _api.createProject(
-                                name: nameCtrl.text,
-                                path: pathCtrl.text,
-                                defaultAgent: defaultAgent,
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.folder_open, color: TerminalColors.pureWhite),
+                            onPressed: () async {
+                              final selected = await showModalBottomSheet<Map<String, dynamic>>(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => DirectoryBrowserModal(initialPath: parentCtrl.text),
                               );
-                              if (ctx.mounted) Navigator.pop(ctx);
-                              _loadProjects();
-                            }
-                          },
-                          child: Text('REGISTER', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
+                              if (selected != null) {
+                                setModalState(() => parentCtrl.text = selected['path'] ?? parentCtrl.text);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      TextField(
+                        controller: promptCtrl,
+                        maxLines: 3,
+                        style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+                        decoration: InputDecoration(
+                          labelText: 'INITIAL AI GENERATION PROMPT',
+                          labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
+                          hintText: 'e.g. Build a camera object detection app with offline SQLite sync...',
+                          hintStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 11),
+                          filled: true,
+                          fillColor: Colors.black,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                        ),
+                      ),
+                    ] else ...[
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: TerminalColors.pureWhite,
+                          side: const BorderSide(color: TerminalColors.pureWhite, width: 1.2),
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                          minimumSize: const Size(double.infinity, 44),
+                        ),
+                        icon: const Icon(Icons.folder_open, size: 18, color: TerminalColors.pureWhite),
+                        label: Text(
+                          'BROWSE MAC COMPUTER FOLDERS',
+                          style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
+                        ),
+                        onPressed: () async {
+                          final selected = await showModalBottomSheet<Map<String, dynamic>>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => DirectoryBrowserModal(initialPath: pathCtrl.text),
+                          );
+                          if (selected != null) {
+                            setModalState(() {
+                              pathCtrl.text = selected['path'] ?? pathCtrl.text;
+                              nameCtrl.text = selected['name'] ?? nameCtrl.text;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: nameCtrl,
+                        style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
+                        decoration: InputDecoration(
+                          labelText: 'PROJECT NAME',
+                          labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
+                          filled: true,
+                          fillColor: Colors.black,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: pathCtrl,
+                        style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+                        decoration: InputDecoration(
+                          labelText: 'WORKSPACE PATH ON MAC',
+                          labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
+                          filled: true,
+                          fillColor: Colors.black,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
                         ),
                       ),
                     ],
-                  ),
-                ],
+
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: TerminalColors.pureWhite,
+                              side: const BorderSide(color: TerminalColors.cardBorderLight),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text('CANCEL', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: TerminalColors.pureWhite,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            onPressed: creating
+                                ? null
+                                : () async {
+                                    setModalState(() => creating = true);
+                                    if (mode == 0) {
+                                      final res = await _api.scaffoldProject(
+                                        name: nameCtrl.text,
+                                        parentPath: parentCtrl.text,
+                                        template: template,
+                                        initialPrompt: promptCtrl.text,
+                                        defaultAgent: defaultAgent,
+                                      );
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      _loadProjects();
+
+                                      if (mounted && res['session_id'] != null) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => SessionScreen(
+                                              sessionId: res['session_id'],
+                                              agentName: defaultAgent,
+                                              projectId: res['project']['id'],
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      if (nameCtrl.text.isNotEmpty && pathCtrl.text.isNotEmpty) {
+                                        await _api.createProject(
+                                          name: nameCtrl.text,
+                                          path: pathCtrl.text,
+                                          defaultAgent: defaultAgent,
+                                        );
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        _loadProjects();
+                                      }
+                                    }
+                                  },
+                            child: Text(
+                              mode == 0 ? 'CREATE & LAUNCH AGENT' : 'REGISTER WORKSPACE',
+                              style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             );
           },
