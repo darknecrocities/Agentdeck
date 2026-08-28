@@ -15,7 +15,7 @@ class ApiService {
 
   // Reusable HTTP client for fast connection pooling & keep-alive
   final http.Client _client = http.Client();
-  static const Duration _timeout = Duration(milliseconds: 1800);
+  static const Duration _timeout = Duration(seconds: 6);
 
   Map<String, String> get _headers {
     final map = <String, String>{'Content-Type': 'application/json'};
