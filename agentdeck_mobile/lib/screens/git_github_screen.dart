@@ -94,8 +94,14 @@ class _GitGitHubScreenState extends State<GitGitHubScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text('${widget.projectName.toUpperCase()} GIT / GITHUB')),
-        body: const Center(child: CircularProgressIndicator(color: TerminalColors.neonGreen)),
+        appBar: AppBar(
+          title: Text(
+            '${widget.projectName.toUpperCase()} GIT',
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator(color: TerminalColors.pureWhite)),
       );
     }
 
@@ -108,7 +114,11 @@ class _GitGitHubScreenState extends State<GitGitHubScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.projectName.toUpperCase()} GIT & GITHUB'),
+        title: Text(
+          '${widget.projectName.toUpperCase()} GIT',
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadGitData),
         ],

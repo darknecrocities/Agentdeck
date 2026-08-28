@@ -170,10 +170,18 @@ class _SessionScreenState extends State<SessionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 0,
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text('${widget.agentName.toUpperCase()} CONTROLLER'),
-            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                widget.agentName.toUpperCase(),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            const SizedBox(width: 6),
             StatusBadge(status: _status),
           ],
         ),
