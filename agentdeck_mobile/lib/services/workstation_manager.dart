@@ -65,6 +65,8 @@ class WorkstationManager extends ChangeNotifier {
   Workstation? get currentWorkstation =>
       _workstations.isNotEmpty ? _workstations.firstWhere((w) => w.isCurrent, orElse: () => _workstations.first) : null;
 
+  Workstation? get activeWorkstation => currentWorkstation;
+
   Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();

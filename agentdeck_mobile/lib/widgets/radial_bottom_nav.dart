@@ -5,6 +5,7 @@ import '../theme/terminal_theme.dart';
 import '../screens/file_uploader_screen.dart';
 import '../screens/account_switcher_screen.dart';
 import 'voice_prompt_modal.dart';
+import 'remote_machine_modal.dart';
 
 class RadialBottomNav extends StatefulWidget {
   final int currentIndex;
@@ -123,14 +124,15 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: TerminalColors.cardBorder, width: 0.8),
+                        border: Border.all(color: color.withValues(alpha: 0.5)),
                       ),
                       child: Text(
                         label,
                         style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w900,
                           color: TerminalColors.pureWhite,
+                          letterSpacing: 0.4,
                         ),
                       ),
                     ),
@@ -147,18 +149,14 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Stack(
-      clipBehavior: Clip.none,
       alignment: Alignment.bottomRight,
       children: [
-        // Backdrop Dismiss Overlay
+        // Backdrop overlay to close on outside tap
         if (_isOpen)
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: _closeRadial,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.65),
-              ),
+          GestureDetector(
+            onTap: _closeRadial,
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.65),
             ),
           ),
 
@@ -168,8 +166,8 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
             right: 24,
             bottom: 84,
             child: SizedBox(
-              width: 220,
-              height: 220,
+              width: 230,
+              height: 230,
               child: Stack(
                 alignment: Alignment.bottomRight,
                 children: [
@@ -179,7 +177,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     distance: 145,
                     icon: Icons.mic,
                     label: 'VOICE STT',
-                    color: const Color(0xFF51CF66),
+                    color: TerminalColors.cyberCyan,
                     onTap: () {
                       showModalBottomSheet(
                         context: context,
@@ -190,20 +188,37 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     },
                   ),
 
-                  // 2. Terminal PTY - 68 deg
+                  // 2. Machine Hub (Screen, Webcam, Apps) - 68 deg
                   _buildRadialItem(
                     angleDeg: 68,
                     distance: 140,
+                    icon: Icons.settings_remote,
+                    label: 'MACHINE',
+                    color: const Color(0xFF00E5FF),
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const RemoteMachineModal(),
+                      );
+                    },
+                  ),
+
+                  // 3. Terminal PTY - 46 deg
+                  _buildRadialItem(
+                    angleDeg: 46,
+                    distance: 135,
                     icon: Icons.terminal,
                     label: 'TERMINAL',
-                    color: const Color(0xFF339AF0),
+                    color: const Color(0xFF60A5FA),
                     onTap: () => widget.onTabSelected(4),
                   ),
 
-                  // 3. File Uploader - 45 deg
+                  // 4. File Uploader - 24 deg
                   _buildRadialItem(
-                    angleDeg: 45,
-                    distance: 135,
+                    angleDeg: 24,
+                    distance: 140,
                     icon: Icons.cloud_upload_outlined,
                     label: 'UPLOAD',
                     color: const Color(0xFFFF922B),
@@ -215,10 +230,10 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                     },
                   ),
 
-                  // 4. Accounts & Google Auth - 22 deg
+                  // 5. Accounts & Google Auth - 0 deg (Far right)
                   _buildRadialItem(
-                    angleDeg: 22,
-                    distance: 140,
+                    angleDeg: 0,
+                    distance: 145,
                     icon: Icons.manage_accounts,
                     label: 'ACCOUNTS',
                     color: const Color(0xFFCC5DE8),
@@ -228,16 +243,6 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                         MaterialPageRoute(builder: (_) => const AccountSwitcherScreen()),
                       );
                     },
-                  ),
-
-                  // 5. Scaffold App - 0 deg (Far right)
-                  _buildRadialItem(
-                    angleDeg: 0,
-                    distance: 145,
-                    icon: Icons.add_to_queue,
-                    label: 'NEW APP',
-                    color: const Color(0xFF20C997),
-                    onTap: () => widget.onTabSelected(1),
                   ),
                 ],
               ),
@@ -292,14 +297,14 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
                       margin: const EdgeInsets.only(right: 6),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isRotated ? const Color(0xFF51CF66) : const Color(0xFF141414),
+                        color: isRotated ? TerminalColors.cyberCyan : const Color(0xFF141414),
                         border: Border.all(
-                          color: isRotated ? const Color(0xFF51CF66) : TerminalColors.cardBorderLight,
+                          color: isRotated ? TerminalColors.cyberCyan : TerminalColors.cardBorderLight,
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: (isRotated ? const Color(0xFF51CF66) : Colors.white).withValues(alpha: 0.22),
+                            color: (isRotated ? TerminalColors.cyberCyan : Colors.white).withValues(alpha: 0.25),
                             blurRadius: 14,
                             spreadRadius: 1,
                           ),

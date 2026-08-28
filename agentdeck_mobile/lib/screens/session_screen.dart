@@ -8,6 +8,7 @@ import '../services/voice_service.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/terminal_widgets.dart';
 import '../widgets/voice_prompt_modal.dart';
+import '../widgets/file_viewer_modal.dart';
 
 class SessionScreen extends StatefulWidget {
   final String sessionId;
@@ -100,8 +101,7 @@ class _SessionScreenState extends State<SessionScreen> {
     if (type == 'FileCreated' || type == 'FileModified') {
       final path = data['path'] ?? '';
       if (path.isNotEmpty) {
-        final basename = path.split('/').last;
-        _modifiedFiles.add(basename);
+        _modifiedFiles.add(path);
       }
     } else if (type == 'ThinkingUpdate') {
       _currentTask = data['stage'] ?? _currentTask;
@@ -178,12 +178,12 @@ class _SessionScreenState extends State<SessionScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.play_arrow_outlined, color: TerminalColors.pureWhite),
+            icon: const Icon(Icons.play_arrow_outlined, color: TerminalColors.cyberCyan),
             tooltip: 'Resume with --continue',
             onPressed: _continueAgent,
           ),
           IconButton(
-            icon: const Icon(Icons.stop_outlined, color: TerminalColors.pureWhite),
+            icon: const Icon(Icons.stop_outlined, color: Color(0xFFF87171)),
             tooltip: 'Stop Agent',
             onPressed: _stopAgent,
           ),
@@ -195,8 +195,8 @@ class _SessionScreenState extends State<SessionScreen> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: const BoxDecoration(
-              color: TerminalColors.surface,
-              border: Border(bottom: BorderSide(color: TerminalColors.cardBorder)),
+              color: Color(0xFF090D16),
+              border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,8 +213,8 @@ class _SessionScreenState extends State<SessionScreen> {
                       ),
                     ),
                     Text(
-                      'SESSION: ${widget.sessionId.substring(0, 8)}',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.textMuted),
+                      'SESSION: ${widget.sessionId.length > 8 ? widget.sessionId.substring(0, 8) : widget.sessionId}',
+                      style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.cyberCyan),
                     ),
                   ],
                 ),
@@ -231,16 +231,35 @@ class _SessionScreenState extends State<SessionScreen> {
                     spacing: 6,
                     runSpacing: 4,
                     children: _modifiedFiles.map((f) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(3),
-                          border: Border.all(color: TerminalColors.cardBorderLight),
-                        ),
-                        child: Text(
-                          '~ $f',
-                          style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.pureWhite),
+                      final basename = f.split('/').last.split(r'\').last;
+                      return InkWell(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => FileViewerModal(initialPath: f),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(3),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F172A),
+                            borderRadius: BorderRadius.circular(3),
+                            border: Border.all(color: TerminalColors.cyberCyan.withValues(alpha: 0.6)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.code, size: 10, color: TerminalColors.cyberCyan),
+                              const SizedBox(width: 4),
+                              Text(
+                                basename,
+                                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.pureWhite, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }).toList(),
@@ -263,7 +282,7 @@ class _SessionScreenState extends State<SessionScreen> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF51CF66).withValues(alpha: 0.3),
+                                color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
                                 blurRadius: 36,
                                 spreadRadius: 6,
                               ),
@@ -298,7 +317,7 @@ class _SessionScreenState extends State<SessionScreen> {
           // Quick Action Prompt Injection Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            color: TerminalColors.surfaceElevated,
+            color: const Color(0xFF0C1322),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -316,14 +335,14 @@ class _SessionScreenState extends State<SessionScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
-              color: TerminalColors.surface,
-              border: Border(top: BorderSide(color: TerminalColors.cardBorder)),
+              color: Color(0xFF090D16),
+              border: Border(top: BorderSide(color: Color(0xFF1E293B))),
             ),
             child: Row(
               children: [
                 // Voice STT Trigger Button
                 IconButton(
-                  icon: const Icon(Icons.mic, color: Color(0xFF51CF66)),
+                  icon: const Icon(Icons.mic, color: TerminalColors.cyberCyan),
                   tooltip: 'Voice Prompt (STT)',
                   onPressed: () {
                     showModalBottomSheet(

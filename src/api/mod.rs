@@ -38,6 +38,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/system/browse", get(handlers::system::browse_directories_handler))
         .route("/api/system/mkdir", post(handlers::system::create_directory_handler))
         .route("/api/system/ping_workstation", get(handlers::system::ping_workstation_handler))
+        .route("/api/system/launch-app", post(handlers::system::launch_app_handler))
+        .route("/api/system/screenshot", get(handlers::system::take_screenshot_handler))
+        .route("/api/system/camera", get(handlers::system::take_camera_snapshot_handler))
+        .route("/api/system/file", get(handlers::system::read_system_file_handler))
         .route("/api/files/upload", post(handlers::system::upload_file_handler))
         // Projects
         .route("/api/projects", get(handlers::projects::list_projects).post(handlers::projects::create_project))

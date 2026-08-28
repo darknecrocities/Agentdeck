@@ -13,6 +13,8 @@ import 'file_uploader_screen.dart';
 import '../services/workstation_manager.dart';
 import '../widgets/model_selector_modal.dart';
 import '../widgets/voice_prompt_modal.dart';
+import '../widgets/remote_machine_modal.dart';
+import '../widgets/file_viewer_modal.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int) onNavigate;
@@ -110,6 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final memTotal = _deviceInfo?['memory_total_mb'] ?? 1;
     final memPercent = ((memUsed / memTotal) * 100).round();
     final diskFree = (_deviceInfo?['disk_free_gb'] as num?)?.toStringAsFixed(1) ?? '0';
+    final isOnline = _deviceInfo != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -154,7 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     width: 6,
                     height: 6,
                     decoration: const BoxDecoration(
-                      color: Color(0xFF51CF66),
+                      color: TerminalColors.cyberCyan,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -275,8 +278,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             // Host Telemetry Card
             TerminalCard(
-              title: '${(WorkstationManager().currentWorkstation?.os ?? "HOST").toUpperCase()} WORKSTATION TELEMETRY',
-              trailing: StatusBadge(status: _deviceInfo != null ? 'ONLINE' : 'CONNECTING'),
+              title: '${activeWs?.os.toUpperCase() ?? "HOST"} WORKSTATION TELEMETRY',
+              trailing: StatusBadge(status: isOnline ? 'ONLINE' : 'OFFLINE'),
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const RemoteMachineModal(),
+                );
+              },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -287,7 +298,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Text(
                           host.toUpperCase(),
                           style: GoogleFonts.jetBrainsMono(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
                             color: TerminalColors.pureWhite,
                           ),
@@ -299,15 +310,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Text(
                         'TS: $tsIp',
                         style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10.5,
-                          color: TerminalColors.silver,
+                          fontSize: 10,
+                          color: TerminalColors.cyberCyan,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                   if (_deviceInfo != null) ...[
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     _buildMetricRow('CPU LOAD', cpu),
                     const SizedBox(height: 10),
                     _buildMetricRow(
@@ -322,6 +333,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Text('DISK AVAILABLE', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc)),
                         Text('$diskFree GB FREE', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite)),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(color: Color(0xFF1E293B), height: 1),
+                    const SizedBox(height: 10),
+
+                    // Remote Machine Hub Quick Action Row
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildRemoteQuickActionPill(
+                            Icons.apps,
+                            'REMOTE APPS',
+                            () => showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => const RemoteMachineModal(),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildRemoteQuickActionPill(
+                            Icons.desktop_windows,
+                            'SCREEN LIVE',
+                            () => showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => const RemoteMachineModal(),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildRemoteQuickActionPill(
+                            Icons.videocam,
+                            'WEBCAM',
+                            () => showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => const RemoteMachineModal(),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildRemoteQuickActionPill(
+                            Icons.description,
+                            'LIVE FILES',
+                            () => showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => const FileViewerModal(),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ] else ...[
                     const SizedBox(height: 12),
@@ -485,21 +551,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF143318),
+                                      color: const Color(0xFF0F2338),
                                       borderRadius: BorderRadius.circular(3),
-                                      border: Border.all(color: const Color(0xFF51CF66)),
+                                      border: Border.all(color: TerminalColors.cyberCyan),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.mic, size: 10, color: Color(0xFF51CF66)),
+                                        const Icon(Icons.mic, size: 10, color: TerminalColors.cyberCyan),
                                         const SizedBox(width: 2),
                                         Text(
                                           'VOICE',
                                           style: GoogleFonts.jetBrainsMono(
                                             fontSize: 8,
                                             fontWeight: FontWeight.w900,
-                                            color: const Color(0xFF51CF66),
+                                            color: TerminalColors.cyberCyan,
                                           ),
                                         ),
                                       ],
@@ -523,16 +589,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      // Bigger Mascot with Luminous Ambient Aura
+                      // Bigger Mascot with Luminous Ambient Aura (Cyber Cyan / Pure White)
                       Container(
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF51CF66).withValues(alpha: 0.25),
-                              blurRadius: 20,
+                              color: const Color(0xFF38BDF8).withValues(alpha: 0.30),
+                              blurRadius: 24,
                               spreadRadius: 2,
+                            ),
+                            BoxShadow(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              blurRadius: 14,
+                              spreadRadius: 1,
                             ),
                           ],
                         ),
@@ -550,9 +621,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF143318),
-                            foregroundColor: const Color(0xFF51CF66),
-                            side: const BorderSide(color: Color(0xFF51CF66), width: 1.2),
+                            backgroundColor: const Color(0xFF0F2338),
+                            foregroundColor: TerminalColors.cyberCyan,
+                            side: const BorderSide(color: TerminalColors.cyberCyan, width: 1.2),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                           icon: const Icon(Icons.mic, size: 16),
@@ -578,7 +649,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: TerminalColors.pureWhite,
-                            side: const BorderSide(color: TerminalColors.pureWhite, width: 1.2),
+                            side: const BorderSide(color: Color(0xFF334155), width: 1.2),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                           icon: const Icon(Icons.terminal, size: 16),
@@ -821,7 +892,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
-                            color: Color(0xFF51CF66),
+                            color: TerminalColors.cyberCyan,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -849,11 +920,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF141414),
-                          border: Border.all(color: const Color(0xFF51CF66).withValues(alpha: 0.6), width: 1.2),
+                          color: const Color(0xFF0F172A),
+                          border: Border.all(color: TerminalColors.cyberCyan, width: 1.2),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF51CF66).withValues(alpha: 0.35),
+                              color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
                               blurRadius: 12,
                               spreadRadius: 1,
                             ),
@@ -889,9 +960,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: TerminalColors.surface,
+                        color: const Color(0xFF0B0F17),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: TerminalColors.cardBorder),
+                        border: Border.all(color: const Color(0xFF1E293B)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -920,7 +991,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     style: GoogleFonts.jetBrainsMono(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF51CF66),
+                                      color: TerminalColors.cyberCyan,
                                     ),
                                   ),
                                 ],
@@ -931,8 +1002,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: CircularProgressIndicator(
                                   value: geminiWeekly / 100.0,
                                   strokeWidth: 2.5,
-                                  backgroundColor: const Color(0xFF222222),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF51CF66)),
+                                  backgroundColor: const Color(0xFF1E293B),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(TerminalColors.cyberCyan),
                                 ),
                               ),
                             ],
@@ -953,7 +1024,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     style: GoogleFonts.jetBrainsMono(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF51CF66),
+                                      color: TerminalColors.electricBlue,
                                     ),
                                   ),
                                 ],
@@ -964,8 +1035,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: CircularProgressIndicator(
                                   value: gemini5h / 100.0,
                                   strokeWidth: 2.5,
-                                  backgroundColor: const Color(0xFF222222),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF51CF66)),
+                                  backgroundColor: const Color(0xFF1E293B),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(TerminalColors.electricBlue),
                                 ),
                               ),
                             ],
@@ -1080,6 +1151,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 4),
         AsciiProgressBar(percent: percent),
       ],
+    );
+  }
+
+  Widget _buildRemoteQuickActionPill(IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: const Color(0xFF334155)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: TerminalColors.cyberCyan),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9.5,
+                fontWeight: FontWeight.bold,
+                color: TerminalColors.pureWhite,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

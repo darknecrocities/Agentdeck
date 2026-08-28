@@ -12,13 +12,21 @@ class TerminalColors {
   static const Color cardBorder = Color(0xFF262626);
   static const Color cardBorderLight = Color(0xFF404040);
   static const Color cardBorderGlow = Color(0xFFFFFFFF);
+  static const Color titaniumBorder = Color(0xFF1E293B);
+  static const Color titaniumBorderGlow = Color(0xFF38BDF8);
 
-  // Accents (Monochrome High-Contrast)
+  // Accents (Monochrome High-Contrast & Cyber Ice-Cyan)
   static const Color pureWhite = Color(0xFFFFFFFF);
   static const Color silver = Color(0xFFD4D4D4);
   static const Color zinc = Color(0xFFA3A3A3);
   static const Color textMuted = Color(0xFF525252);
   static const Color textDark = Color(0xFF171717);
+
+  // Cyber Titanium / Ice-Blue Accent (Zero Green Theme)
+  static const Color cyberCyan = Color(0xFF38BDF8);
+  static const Color electricBlue = Color(0xFF60A5FA);
+  static const Color iceCyanGlow = Color(0xFF00E5FF);
+  static const Color obsidianCard = Color(0xFF0B0F17);
 
   // Status Inverted Pills
   static const Color badgeBg = Color(0xFFFFFFFF);
@@ -26,15 +34,15 @@ class TerminalColors {
   static const Color badgeBorder = Color(0xFFE5E5E5);
   
   // Subtle Warning / Danger Monochrome Accents
-  static const Color warning = Color(0xFFE5E5E5);
-  static const Color danger = Color(0xFFFFFFFF);
+  static const Color warning = Color(0xFFFBBF24);
+  static const Color danger = Color(0xFFF87171);
 
   // Legacy mappings for compatibility
-  static const Color neonGreen = Color(0xFFFFFFFF);
-  static const Color electricCyan = Color(0xFFE5E5E5);
-  static const Color neonAmber = Color(0xFFD4D4D4);
-  static const Color neonRed = Color(0xFFFFFFFF);
-  static const Color neonPurple = Color(0xFFA3A3A3);
+  static const Color neonGreen = Color(0xFF38BDF8);
+  static const Color electricCyan = Color(0xFF38BDF8);
+  static const Color neonAmber = Color(0xFFFBBF24);
+  static const Color neonRed = Color(0xFFF87171);
+  static const Color neonPurple = Color(0xFFA78BFA);
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFFA3A3A3);
 }

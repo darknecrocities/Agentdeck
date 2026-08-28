@@ -367,6 +367,50 @@ class ApiService {
     return data is Map<String, dynamic> ? data : {};
   }
 
+  // Remote Machine Controls: Launch Apps, Screen Capture, Webcam
+  Future<Map<String, dynamic>> launchApp({
+    required String app,
+    String? path,
+    String? url,
+  }) async {
+    final data = await _post('/api/system/launch-app', {
+      'app': app,
+      if (path != null) 'path': path,
+      if (url != null) 'url': url,
+    });
+    return data is Map<String, dynamic> ? data : {};
+  }
+
+  Future<String?> takeScreenshot() async {
+    try {
+      final data = await _get('/api/system/screenshot');
+      if (data is Map && data['success'] == true) {
+        return data['image_base64'] as String?;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<String?> takeCameraSnapshot() async {
+    try {
+      final data = await _get('/api/system/camera');
+      if (data is Map && data['success'] == true) {
+        return data['image_base64'] as String?;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> readSystemFile(String path) async {
+    try {
+      final data = await _get('/api/system/file', query: {'path': path});
+      if (data is Map<String, dynamic> && data['content'] != null) {
+        return data;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // WebSockets
   WebSocketChannel connectEventsStream({int afterEventId = 0}) {
     final wsScheme = baseUrl.startsWith('https') ? 'wss' : 'ws';

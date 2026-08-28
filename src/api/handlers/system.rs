@@ -290,4 +290,328 @@ pub async fn ping_workstation_handler(
     }))
 }
 
+#[derive(serde::Deserialize)]
+pub struct LaunchAppRequest {
+    pub app: String,
+    pub path: Option<String>,
+    pub url: Option<String>,
+}
+
+pub async fn launch_app_handler(
+    Json(payload): Json<LaunchAppRequest>,
+) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    let app_target = payload.app.to_lowercase();
+    let mut cmd_str = String::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        match app_target.as_str() {
+            "vscode" | "code" => {
+                let p = payload.path.as_deref().unwrap_or(".");
+                cmd_str = format!("cmd.exe /c start code \"{}\"", p);
+            }
+            "antigravity" | "ide" => {
+                let p = payload.path.as_deref().unwrap_or(".");
+                cmd_str = format!("cmd.exe /c start agy \"{}\"", p);
+            }
+            "terminal" | "powershell" => {
+                cmd_str = "cmd.exe /c start wt.exe || cmd.exe /c start powershell.exe".to_string();
+            }
+            "explorer" => {
+                let p = payload.path.as_deref().unwrap_or(".");
+                cmd_str = format!("cmd.exe /c start explorer.exe \"{}\"", p);
+            }
+            "taskmgr" | "taskmanager" => {
+                cmd_str = "cmd.exe /c start taskmgr.exe".to_string();
+            }
+            "browser" | "url" => {
+                let u = payload.url.as_deref().unwrap_or("https://google.com");
+                cmd_str = format!("cmd.exe /c start \"\" \"{}\"", u);
+            }
+            _ => {
+                if let Some(url) = payload.url {
+                    cmd_str = format!("cmd.exe /c start \"\" \"{}\"", url);
+                } else if let Some(path) = payload.path {
+                    cmd_str = format!("cmd.exe /c start \"\" \"{}\"", path);
+                } else {
+                    cmd_str = format!("cmd.exe /c start {}", payload.app);
+                }
+            }
+        }
+        let _ = tokio::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &cmd_str])
+            .spawn();
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        match app_target.as_str() {
+            "vscode" | "code" => {
+                let p = payload.path.as_deref().unwrap_or(".");
+                cmd_str = format!("open -a 'Visual Studio Code' \"{}\"", p);
+            }
+            "antigravity" | "ide" => {
+                let p = payload.path.as_deref().unwrap_or(".");
+                cmd_str = format!("agy \"{}\"", p);
+            }
+            "terminal" | "iterm" => {
+                cmd_str = "open -a Terminal".to_string();
+            }
+            "explorer" | "finder" => {
+                let p = payload.path.as_deref().unwrap_or(".");
+                cmd_str = format!("open \"{}\"", p);
+            }
+            "taskmgr" | "activitymonitor" => {
+                cmd_str = "open -a 'Activity Monitor'".to_string();
+            }
+            "browser" | "url" => {
+                let u = payload.url.as_deref().unwrap_or("https://google.com");
+                cmd_str = format!("open \"{}\"", u);
+            }
+            _ => {
+                if let Some(url) = payload.url {
+                    cmd_str = format!("open \"{}\"", url);
+                } else if let Some(path) = payload.path {
+                    cmd_str = format!("open \"{}\"", path);
+                } else {
+                    cmd_str = format!("open -a \"{}\"", payload.app);
+                }
+            }
+        }
+        let _ = tokio::process::Command::new("sh")
+            .args(["-c", &cmd_str])
+            .spawn();
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        match app_target.as_str() {
+            "vscode" | "code" => {
+                let p = payload.path.as_deref().unwrap_or(".");
+                cmd_str = format!("code \"{}\"", p);
+            }
+            "explorer" | "finder" => {
+                let p = payload.path.as_deref().unwrap_or(".");
+                cmd_str = format!("xdg-open \"{}\"", p);
+            }
+            "browser" | "url" => {
+                let u = payload.url.as_deref().unwrap_or("https://google.com");
+                cmd_str = format!("xdg-open \"{}\"", u);
+            }
+            _ => {
+                cmd_str = format!("xdg-open \"{}\"", payload.app);
+            }
+        }
+        let _ = tokio::process::Command::new("sh")
+            .args(["-c", &cmd_str])
+            .spawn();
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "app": payload.app,
+        "command": cmd_str,
+        "message": format!("Launched {} on workstation", payload.app),
+    })))
+}
+
+pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    use base64::Engine;
+    let temp_dir = std::env::temp_dir();
+    let file_name = format!("agentdeck_screen_{}.png", chrono::Utc::now().timestamp_millis());
+    let target_path = temp_dir.join(&file_name);
+
+    #[cfg(target_os = "macos")]
+    {
+        let output = tokio::process::Command::new("screencapture")
+            .args(["-x", "-t", "png", target_path.to_str().unwrap_or("/tmp/screenshot.png")])
+            .output()
+            .await;
+
+        if let Ok(out) = output {
+            if out.status.success() && target_path.exists() {
+                if let Ok(bytes) = std::fs::read(&target_path) {
+                    let _ = std::fs::remove_file(&target_path);
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                    return Ok(Json(serde_json::json!({
+                        "success": true,
+                        "image_base64": b64,
+                        "size_bytes": bytes.len(),
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    })));
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let ps_script = format!(
+            r#"Add-Type -AssemblyName System.Windows.Forms;
+               Add-Type -AssemblyName System.Drawing;
+               $screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds;
+               $bitmap = New-Object System.Drawing.Bitmap $screen.Width, $screen.Height;
+               $graphics = [System.Drawing.Graphics]::FromImage($bitmap);
+               $graphics.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size);
+               $bitmap.Save('{}', [System.Drawing.Imaging.ImageFormat]::Png);
+               $graphics.Dispose();
+               $bitmap.Dispose();"#,
+            target_path.to_string_lossy().replace('\\', "\\\\")
+        );
+
+        let output = tokio::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &ps_script])
+            .output()
+            .await;
+
+        if let Ok(out) = output {
+            if out.status.success() && target_path.exists() {
+                if let Ok(bytes) = std::fs::read(&target_path) {
+                    let _ = std::fs::remove_file(&target_path);
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                    return Ok(Json(serde_json::json!({
+                        "success": true,
+                        "image_base64": b64,
+                        "size_bytes": bytes.len(),
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    })));
+                }
+            }
+        }
+    }
+
+    Err((
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        Json(serde_json::json!({
+            "success": false,
+            "error": "Failed to capture workstation screen. Make sure screen recording permissions are allowed."
+        })),
+    ))
+}
+
+pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    use base64::Engine;
+    let temp_dir = std::env::temp_dir();
+    let file_name = format!("agentdeck_cam_{}.jpg", chrono::Utc::now().timestamp_millis());
+    let target_path = temp_dir.join(&file_name);
+
+    #[cfg(target_os = "macos")]
+    {
+        // Try imagesnap if installed, or ffmpeg
+        let mut captured = false;
+        if which::which("imagesnap").is_ok() {
+            let res = tokio::process::Command::new("imagesnap")
+                .args(["-q", target_path.to_str().unwrap_or("/tmp/cam.jpg")])
+                .output()
+                .await;
+            if let Ok(out) = res {
+                captured = out.status.success();
+            }
+        }
+
+        if !captured && which::which("ffmpeg").is_ok() {
+            let res = tokio::process::Command::new("ffmpeg")
+                .args([
+                    "-f", "avfoundation",
+                    "-framerate", "30",
+                    "-video_size", "640x480",
+                    "-i", "0",
+                    "-vframes", "1",
+                    "-y",
+                    target_path.to_str().unwrap_or("/tmp/cam.jpg"),
+                ])
+                .output()
+                .await;
+            if let Ok(out) = res {
+                captured = out.status.success();
+            }
+        }
+
+        if captured && target_path.exists() {
+            if let Ok(bytes) = std::fs::read(&target_path) {
+                let _ = std::fs::remove_file(&target_path);
+                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                return Ok(Json(serde_json::json!({
+                    "success": true,
+                    "image_base64": b64,
+                    "size_bytes": bytes.len(),
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                })));
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if which::which("ffmpeg").is_ok() {
+            let res = tokio::process::Command::new("ffmpeg")
+                .args([
+                    "-f", "dshow",
+                    "-i", "video=Integrated Camera",
+                    "-vframes", "1",
+                    "-y",
+                    &target_path.to_string_lossy(),
+                ])
+                .output()
+                .await;
+            if let Ok(out) = res {
+                if out.status.success() && target_path.exists() {
+                    if let Ok(bytes) = std::fs::read(&target_path) {
+                        let _ = std::fs::remove_file(&target_path);
+                        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                        return Ok(Json(serde_json::json!({
+                            "success": true,
+                            "image_base64": b64,
+                            "size_bytes": bytes.len(),
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                        })));
+                    }
+                }
+            }
+        }
+    }
+
+    Err((
+        axum::http::StatusCode::SERVICE_UNAVAILABLE,
+        Json(serde_json::json!({
+            "success": false,
+            "error": "Workstation webcam capture requires camera permission or imagesnap/ffmpeg."
+        })),
+    ))
+}
+
+#[derive(serde::Deserialize)]
+pub struct SystemFileQuery {
+    pub path: String,
+}
+
+pub async fn read_system_file_handler(
+    axum::extract::Query(query): axum::extract::Query<SystemFileQuery>,
+) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    let p = std::path::PathBuf::from(&query.path);
+    if !p.exists() || !p.is_file() {
+        return Err((
+            axum::http::StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "File not found on workstation" })),
+        ));
+    }
+
+    match std::fs::read_to_string(&p) {
+        Ok(content) => {
+            let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
+            Ok(Json(serde_json::json!({
+                "path": query.path,
+                "filename": p.file_name().map(|n| n.to_string_lossy()).unwrap_or_default(),
+                "content": content,
+                "extension": ext,
+                "size_bytes": content.len(),
+            })))
+        }
+        Err(e) => Err((
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("Failed to read file: {}", e) })),
+        )),
+    }
+}
+
 
