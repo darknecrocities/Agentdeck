@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -349,12 +350,14 @@ class ApiService {
   Future<Map<String, dynamic>> uploadFile({
     required String destinationPath,
     required String filename,
-    required String base64Content,
+    Uint8List? bytes,
+    String? base64Content,
   }) async {
+    final b64 = base64Content ?? (bytes != null ? base64Encode(bytes) : '');
     final data = await _post('/api/files/upload', {
       'destination_path': destinationPath,
       'filename': filename,
-      'content_base64': base64Content,
+      'content_base64': b64,
     });
     return data is Map<String, dynamic> ? data : {};
   }

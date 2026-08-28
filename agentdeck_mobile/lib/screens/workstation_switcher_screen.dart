@@ -268,8 +268,14 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
             onPressed: _showAddMachineDialog,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh, color: TerminalColors.pureWhite),
-            onPressed: _refreshPings,
+            icon: _testingPings
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.pureWhite),
+                  )
+                : const Icon(Icons.refresh, color: TerminalColors.pureWhite),
+            onPressed: _testingPings ? null : _refreshPings,
           ),
         ],
       ),
