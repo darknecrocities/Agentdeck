@@ -21,14 +21,16 @@ class VoiceService {
 
   bool _ttsEnabled = true;
   bool _autoPauseMicOnTts = true;
-  double _speechRate = 0.85;
-  double _speechPitch = 1.0;
+  double _speechRate = 0.45; // Natural, clear conversational pacing (not rushed)
+  double _speechPitch = 0.82; // Deep, commanding male AI voice
+  String _selectedVoiceProfile = 'Deep Male Commander';
   bool _initialized = false;
 
   bool get ttsEnabled => _ttsEnabled;
   bool get autoPauseMicOnTts => _autoPauseMicOnTts;
   double get speechRate => _speechRate;
   double get speechPitch => _speechPitch;
+  String get selectedVoiceProfile => _selectedVoiceProfile;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -38,8 +40,9 @@ class VoiceService {
       final prefs = await SharedPreferences.getInstance();
       _ttsEnabled = prefs.getBool('voice_tts_enabled') ?? true;
       _autoPauseMicOnTts = prefs.getBool('voice_auto_pause_mic') ?? true;
-      _speechRate = prefs.getDouble('voice_speech_rate') ?? 0.85;
-      _speechPitch = prefs.getDouble('voice_speech_pitch') ?? 1.0;
+      _speechRate = prefs.getDouble('voice_speech_rate') ?? 0.45;
+      _speechPitch = prefs.getDouble('voice_speech_pitch') ?? 0.82;
+      _selectedVoiceProfile = prefs.getString('voice_profile') ?? 'Deep Male Commander';
 
       // Configure TTS handlers safely
       try {
@@ -47,6 +50,27 @@ class VoiceService {
         await _tts.setSpeechRate(_speechRate);
         await _tts.setPitch(_speechPitch);
         await _tts.setVolume(1.0);
+
+        // Select Male Voice
+        final voices = await _tts.getVoices;
+        if (voices is List) {
+          for (var v in voices) {
+            if (v is Map) {
+              final name = (v['name'] ?? '').toString().toLowerCase();
+              final locale = (v['locale'] ?? '').toString().toLowerCase();
+              final gender = (v['gender'] ?? '').toString().toLowerCase();
+              if (locale.startsWith('en') &&
+                  (gender == 'male' ||
+                      name.contains('male') ||
+                      name.contains('en-us-x-sfg') ||
+                      name.contains('en-us-x-iom') ||
+                      name.contains('en-us-x-tpd'))) {
+                await _tts.setVoice({"name": v['name'], "locale": v['locale']});
+                break;
+              }
+            }
+          }
+        }
 
         _tts.setStartHandler(() {
           isSpeaking.value = true;
@@ -100,6 +124,30 @@ class VoiceService {
     }
   }
 
+  Future<void> setProfile(String profileName) async {
+    _selectedVoiceProfile = profileName;
+    if (profileName == 'Deep Male Commander') {
+      _speechRate = 0.45;
+      _speechPitch = 0.80;
+    } else if (profileName == 'Calm Male Assistant') {
+      _speechRate = 0.48;
+      _speechPitch = 0.88;
+    } else if (profileName == 'Fast Male Agent') {
+      _speechRate = 0.55;
+      _speechPitch = 0.85;
+    }
+
+    try {
+      await _tts.setSpeechRate(_speechRate);
+      await _tts.setPitch(_speechPitch);
+    } catch (_) {}
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('voice_profile', profileName);
+    await prefs.setDouble('voice_speech_rate', _speechRate);
+    await prefs.setDouble('voice_speech_pitch', _speechPitch);
+  }
+
   Future<void> updateSettings({
     bool? ttsEnabled,
     bool? autoPauseMic,
@@ -131,7 +179,7 @@ class VoiceService {
     }
   }
 
-  // Speak AI responses or Agent status
+  // Speak AI responses or Agent status with deep male natural speech
   Future<void> speak(String rawText) async {
     if (!_ttsEnabled || rawText.trim().isEmpty) return;
     await init();
@@ -158,6 +206,8 @@ class VoiceService {
     if (cleaned.isNotEmpty) {
       try {
         await _tts.stop();
+        await _tts.setSpeechRate(_speechRate);
+        await _tts.setPitch(_speechPitch);
         await _tts.speak(cleaned);
       } catch (e) {
         debugPrint('VoiceService speak caught: $e');
