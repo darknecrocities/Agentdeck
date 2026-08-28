@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
+import '../services/voice_service.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/terminal_widgets.dart';
+import '../widgets/voice_prompt_modal.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -189,6 +191,119 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 14),
+
+          // Voice Agent & Speech Synthesis (STT / TTS) Card
+          TerminalCard(
+            title: 'VOICE AGENT & SPEECH SYNTHESIS (STT / TTS)',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Text-to-Speech (TTS) Voice Responses',
+                            style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, color: TerminalColors.pureWhite, fontSize: 11.5),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Agent speaks summaries & responses out loud',
+                            style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: VoiceService().ttsEnabled,
+                      activeColor: const Color(0xFF51CF66),
+                      onChanged: (val) {
+                        setState(() {
+                          VoiceService().updateSettings(ttsEnabled: val);
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const Divider(color: TerminalColors.cardBorder, height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Echo Cancellation & Mic Auto-Pause',
+                            style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, color: const Color(0xFF51CF66), fontSize: 11.5),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Automatically pauses speech-to-text when agent is speaking so mic never catches AI output',
+                            style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: VoiceService().autoPauseMicOnTts,
+                      activeColor: const Color(0xFF51CF66),
+                      onChanged: (val) {
+                        setState(() {
+                          VoiceService().updateSettings(autoPauseMic: val);
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: TerminalColors.pureWhite,
+                          side: const BorderSide(color: TerminalColors.cardBorderLight),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        icon: const Icon(Icons.volume_up, size: 16),
+                        label: Text('TEST TTS VOICE', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          VoiceService().speak('AgentDeck speech synthesizer is online and calibrated. Voice prompts will execute seamlessly on your workstation.');
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF143318),
+                          foregroundColor: const Color(0xFF51CF66),
+                          side: const BorderSide(color: Color(0xFF51CF66)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        icon: const Icon(Icons.mic, size: 16),
+                        label: Text('VOICE PROMPTER', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => const VoicePromptModal(),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     );
