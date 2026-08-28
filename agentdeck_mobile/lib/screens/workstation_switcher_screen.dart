@@ -325,28 +325,35 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            ws.os == 'Windows'
-                                ? Icons.desktop_windows
-                                : ws.os == 'macOS'
-                                    ? Icons.laptop_mac
-                                    : Icons.developer_board,
-                            color: TerminalColors.pureWhite,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            ws.name,
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(
+                              ws.os == 'Windows'
+                                  ? Icons.desktop_windows
+                                  : ws.os == 'macOS'
+                                      ? Icons.laptop_mac
+                                      : Icons.developer_board,
                               color: TerminalColors.pureWhite,
+                              size: 18,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                ws.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: TerminalColors.pureWhite,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
