@@ -144,22 +144,34 @@ class WorkstationManager {
     try {
       final clean = endpoint.endsWith('/') ? endpoint.substring(0, endpoint.length - 1) : endpoint;
 
-      // 1. First ask the active daemon to test the workstation (works across Tailscale mesh)
+      // 1. Direct HTTP probe to the workstation daemon
       try {
-        final currentUrl = ApiService().baseUrl;
-        final probeUrl = Uri.parse('$currentUrl/api/system/ping_workstation?endpoint=${Uri.encodeComponent(clean)}');
-        final probeRes = await http.get(probeUrl).timeout(const Duration(milliseconds: 1500));
-        if (probeRes.statusCode == 200) {
-          final data = jsonDecode(probeRes.body);
-          if (data['online'] == true) {
-            return true;
-          }
+        final res = await http.get(Uri.parse('$clean/health')).timeout(const Duration(milliseconds: 1500));
+        if (res.statusCode == 200) {
+          return true;
         }
       } catch (_) {}
 
-      // 2. Direct HTTP probe fallback
-      final res = await http.get(Uri.parse('$clean/health')).timeout(const Duration(milliseconds: 1500));
-      return res.statusCode == 200;
+      // 2. Ask the primary daemon / current host to ping over Tailscale mesh (ICMP network probe)
+      final hostCandidates = [
+        ApiService().baseUrl,
+        'http://100.114.182.27:8765',
+      ];
+
+      for (final host in hostCandidates) {
+        try {
+          final probeUrl = Uri.parse('$host/api/system/ping_workstation?endpoint=${Uri.encodeComponent(clean)}');
+          final probeRes = await http.get(probeUrl).timeout(const Duration(milliseconds: 2000));
+          if (probeRes.statusCode == 200) {
+            final data = jsonDecode(probeRes.body);
+            if (data['online'] == true) {
+              return true;
+            }
+          }
+        } catch (_) {}
+      }
+
+      return false;
     } catch (_) {
       return false;
     }
