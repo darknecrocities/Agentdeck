@@ -202,18 +202,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        host.toUpperCase(),
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: TerminalColors.pureWhite,
+                      Expanded(
+                        child: Text(
+                          host.toUpperCase(),
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: TerminalColors.pureWhite,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         'TS: $tsIp',
                         style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           color: TerminalColors.silver,
                           fontWeight: FontWeight.w600,
                         ),
