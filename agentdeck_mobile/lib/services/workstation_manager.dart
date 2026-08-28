@@ -84,21 +84,28 @@ class WorkstationManager {
             isCurrent: true,
           ),
           Workstation(
-            id: 'win-dev',
-            name: 'Windows Desktop PC',
+            id: 'win-darknecrocities',
+            name: 'Windows PC (darknecrocities)',
             os: 'Windows',
-            endpoint: 'http://100.x.y.z:8765:8765',
-            isCurrent: false,
-          ),
-          Workstation(
-            id: 'linux-srv',
-            name: 'Linux Compute Node',
-            os: 'Linux',
             endpoint: 'http://127.0.0.1:8765',
             isCurrent: false,
           ),
         ];
         await _persist();
+      } else {
+        // Ensure darknecrocities is present if not already added
+        if (!_workstations.any((w) => w.endpoint.contains('127.0.0.1'))) {
+          _workstations.add(
+            Workstation(
+              id: 'win-darknecrocities',
+              name: 'Windows PC (darknecrocities)',
+              os: 'Windows',
+              endpoint: 'http://127.0.0.1:8765',
+              isCurrent: false,
+            ),
+          );
+          await _persist();
+        }
       }
 
       final active = currentWorkstation;
