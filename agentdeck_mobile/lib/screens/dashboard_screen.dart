@@ -113,6 +113,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const AgentDeckLogoHeader(size: 24),
+        bottom: _loading
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(2),
+                child: LinearProgressIndicator(
+                  minHeight: 2,
+                  color: TerminalColors.pureWhite,
+                  backgroundColor: Colors.transparent,
+                ),
+              )
+            : null,
         actions: [
           // Active Workstation Quick Switcher Pill
           InkWell(
