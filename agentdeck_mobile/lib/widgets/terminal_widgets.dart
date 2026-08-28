@@ -3,6 +3,57 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/terminal_theme.dart';
 
+class AgentDeckLogoHeader extends StatelessWidget {
+  final double size;
+  final bool showText;
+
+  const AgentDeckLogoHeader({
+    super.key,
+    this.size = 28,
+    this.showText = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: TerminalColors.cardBorderLight, width: 1),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.asset(
+            'assets/images/agentdeck.png',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: Colors.white,
+              child: const Center(
+                child: Icon(Icons.code_rounded, color: Colors.black, size: 16),
+              ),
+            ),
+          ),
+        ),
+        if (showText) ...[
+          const SizedBox(width: 10),
+          Text(
+            'AGENTDECK',
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.5,
+              color: TerminalColors.pureWhite,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class TerminalCard extends StatelessWidget {
   final Widget child;
   final String? title;
@@ -25,22 +76,15 @@ class TerminalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
         decoration: BoxDecoration(
           color: TerminalColors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: borderColor ?? TerminalColors.cardBorder,
             width: borderColor != null ? 1.5 : 1.0,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,7 +92,7 @@ class TerminalCard extends StatelessWidget {
           children: [
             if (title != null) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: const BoxDecoration(
                   border: Border(
                     bottom: BorderSide(color: TerminalColors.cardBorder, width: 1),
@@ -60,20 +104,20 @@ class TerminalCard extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          width: 8,
-                          height: 8,
+                          width: 6,
+                          height: 6,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            color: TerminalColors.neonGreen,
+                            color: TerminalColors.pureWhite,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           title!.toUpperCase(),
                           style: GoogleFonts.jetBrainsMono(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: TerminalColors.neonGreen,
+                            color: TerminalColors.pureWhite,
                             letterSpacing: 1.2,
                           ),
                         ),
@@ -101,7 +145,7 @@ class AnimatedStreamingText extends StatefulWidget {
     super.key,
     required this.text,
     this.style,
-    this.speed = const Duration(milliseconds: 20),
+    this.speed = const Duration(milliseconds: 15),
   });
 
   @override
@@ -153,7 +197,7 @@ class _AnimatedStreamingTextState extends State<AnimatedStreamingText> {
   Widget build(BuildContext context) {
     return Text(
       _displayed,
-      style: widget.style ?? GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary),
+      style: widget.style ?? GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite),
     );
   }
 }
@@ -165,65 +209,57 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color color;
-    switch (status.toLowerCase()) {
-      case 'running':
-      case 'executing':
-      case 'online':
-      case 'healthy':
-        color = TerminalColors.neonGreen;
-        break;
-      case 'awaiting_approval':
-      case 'waiting':
-      case 'paused':
-        color = TerminalColors.neonAmber;
-        break;
-      case 'failed':
-      case 'crashed':
-      case 'stopped':
-      case 'error':
-        color = TerminalColors.neonRed;
-        break;
-      default:
-        color = TerminalColors.electricCyan;
+    final s = status.toLowerCase();
+    final isActive = s == 'running' || s == 'executing' || s == 'online' || s == 'healthy';
+
+    if (isActive) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: TerminalColors.pureWhite,
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 5,
+              height: 5,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              status.toUpperCase(),
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                color: Colors.black,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.6), width: 1),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: TerminalColors.cardBorderLight, width: 1),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.8),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            status.toUpperCase(),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: color,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ],
+      child: Text(
+        status.toUpperCase(),
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: TerminalColors.zinc,
+          letterSpacing: 0.8,
+        ),
       ),
     );
   }
@@ -251,8 +287,8 @@ class AsciiProgressBar extends StatelessWidget {
           child: Text(
             bar,
             style: GoogleFonts.jetBrainsMono(
-              color: TerminalColors.neonGreen,
-              fontSize: 12,
+              color: TerminalColors.pureWhite,
+              fontSize: 11,
               letterSpacing: 1.0,
             ),
             maxLines: 1,
@@ -263,8 +299,8 @@ class AsciiProgressBar extends StatelessWidget {
         Text(
           '$percent%',
           style: GoogleFonts.jetBrainsMono(
-            color: TerminalColors.neonGreen,
-            fontSize: 12,
+            color: TerminalColors.pureWhite,
+            fontSize: 11,
             fontWeight: FontWeight.bold,
           ),
         ),

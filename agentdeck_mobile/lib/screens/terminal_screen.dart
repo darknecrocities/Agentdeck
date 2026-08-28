@@ -19,7 +19,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   String _terminalId = '';
   WebSocketChannel? _wsChannel;
-  String _output = 'AgentDeck Terminal Subsystem v0.1.0\nType any command or use quick keys below.\n\n';
+  String _output = 'AgentDeck Interactive Terminal PTY Subsystem v0.1.0\nType commands or tap quick keys below.\n\n';
   bool _connecting = true;
 
   @override
@@ -101,12 +101,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
                 child: SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.neonGreen),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: TerminalColors.pureWhite),
                 ),
               ),
             ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: TerminalColors.neonGreen),
+            icon: const Icon(Icons.refresh_rounded, color: TerminalColors.pureWhite),
             onPressed: () {
               _wsChannel?.sink.close();
               _output = '';
@@ -117,7 +117,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       ),
       body: Column(
         children: [
-          // Terminal Output Canvas
+          // Terminal Canvas
           Expanded(
             child: Container(
               color: Colors.black,
@@ -127,7 +127,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                 child: Text(
                   _output,
                   style: GoogleFonts.jetBrainsMono(
-                    color: TerminalColors.neonGreen,
+                    color: TerminalColors.pureWhite,
                     fontSize: 12,
                     height: 1.3,
                   ),
@@ -136,9 +136,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
             ),
           ),
 
-          // Quick Keys Toolbar for Mobile
+          // Quick Keys Toolbar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: const BoxDecoration(
               color: TerminalColors.surface,
               border: Border(top: BorderSide(color: TerminalColors.cardBorder)),
@@ -153,8 +153,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   _buildQuickKey('↑', () => _sendInput('\x1b[A')),
                   _buildQuickKey('↓', () => _sendInput('\x1b[B')),
                   _buildQuickKey('Clear', () => setState(() => _output = '')),
-                  _buildQuickKey('ls -la', () => _sendInput('ls -la\n')),
                   _buildQuickKey('git status', () => _sendInput('git status\n')),
+                  _buildQuickKey('cargo check', () => _sendInput('cargo check\n')),
+                  _buildQuickKey('agy --help', () => _sendInput('agy --help\n')),
                 ],
               ),
             ),
@@ -169,11 +170,11 @@ class _TerminalScreenState extends State<TerminalScreen> {
             ),
             child: Row(
               children: [
-                Text('\$ ', style: GoogleFonts.jetBrainsMono(color: TerminalColors.neonGreen, fontWeight: FontWeight.bold)),
+                Text('\$ ', style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontWeight: FontWeight.bold)),
                 Expanded(
                   child: TextField(
                     controller: _inputCtrl,
-                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary, fontSize: 13),
+                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Enter shell command...',
                       hintStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 13),
@@ -183,7 +184,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.send_rounded, color: TerminalColors.neonGreen, size: 20),
+                  icon: const Icon(Icons.arrow_upward_rounded, color: TerminalColors.pureWhite, size: 20),
                   onPressed: _submitCommand,
                 ),
               ],
@@ -196,19 +197,19 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   Widget _buildQuickKey(String label, VoidCallback onTap) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
-          foregroundColor: TerminalColors.textPrimary,
-          side: const BorderSide(color: TerminalColors.cardBorder),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          foregroundColor: TerminalColors.pureWhite,
+          side: const BorderSide(color: TerminalColors.cardBorderLight),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         onPressed: onTap,
         child: Text(
           label,
-          style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold),
+          style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold),
         ),
       ),
     );

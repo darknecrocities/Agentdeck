@@ -39,48 +39,50 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
   Future<void> _handleResolve(String id, bool approve) async {
     await _api.resolveApproval(id, approve);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          approve ? 'Action APPROVED' : 'Action DENIED',
-          style: GoogleFonts.jetBrainsMono(),
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            approve ? 'Action APPROVED' : 'Action DENIED',
+            style: GoogleFonts.jetBrainsMono(color: approve ? Colors.black : Colors.white),
+          ),
+          backgroundColor: approve ? Colors.white : Colors.black,
         ),
-        backgroundColor: approve ? TerminalColors.neonGreen : TerminalColors.neonRed,
-      ),
-    );
-    _loadApprovals();
+      );
+      _loadApprovals();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SECURITY APPROVALS QUEUE'),
+        title: const Text('SECURITY APPROVALS'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadApprovals),
+          IconButton(icon: const Icon(Icons.refresh, color: TerminalColors.pureWhite), onPressed: _loadApprovals),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: TerminalColors.neonGreen))
+          ? const Center(child: CircularProgressIndicator(color: TerminalColors.pureWhite))
           : _approvals.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.verified_user_outlined, color: TerminalColors.neonGreen, size: 48),
+                      const Icon(Icons.check_circle_outline, color: TerminalColors.pureWhite, size: 42),
                       const SizedBox(height: 12),
                       Text(
                         'NO PENDING APPROVALS',
                         style: GoogleFonts.jetBrainsMono(
-                          color: TerminalColors.neonGreen,
+                          color: TerminalColors.pureWhite,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 13,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'All agent operations are running within safe parameters.',
-                        style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 12),
+                        style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 11),
                       ),
                     ],
                   ),
@@ -91,26 +93,24 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                   itemBuilder: (ctx, idx) {
                     final req = _approvals[idx];
                     final risk = req['risk'] ?? 'medium';
-                    Color riskColor = TerminalColors.neonAmber;
-                    if (risk == 'critical' || risk == 'high') riskColor = TerminalColors.neonRed;
 
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 14),
+                      margin: const EdgeInsets.only(bottom: 12),
                       child: TerminalCard(
-                        title: 'APPROVAL REQUIRED',
-                        borderColor: riskColor,
+                        title: 'SECURITY APPROVAL REQUIRED',
+                        borderColor: TerminalColors.pureWhite,
                         trailing: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: riskColor.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(4),
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(3),
                           ),
                           child: Text(
                             'RISK: ${risk.toString().toUpperCase()}',
                             style: GoogleFonts.jetBrainsMono(
-                              color: riskColor,
+                              color: Colors.black,
                               fontWeight: FontWeight.bold,
-                              fontSize: 10,
+                              fontSize: 9,
                             ),
                           ),
                         ),
@@ -121,16 +121,16 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                               'Agent: ${(req['agent'] ?? 'unknown').toString().toUpperCase()}',
                               style: GoogleFonts.jetBrainsMono(
                                 fontWeight: FontWeight.bold,
-                                color: TerminalColors.textPrimary,
-                                fontSize: 13,
+                                color: TerminalColors.pureWhite,
+                                fontSize: 12,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Text(
-                              req['description'] ?? 'Dangerous action requested',
+                              req['description'] ?? 'High-risk action requested',
                               style: GoogleFonts.jetBrainsMono(
-                                color: TerminalColors.textSecondary,
-                                fontSize: 12,
+                                color: TerminalColors.zinc,
+                                fontSize: 11,
                               ),
                             ),
                             if (req['command'] != null) ...[
@@ -141,35 +141,35 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.black,
                                   borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: TerminalColors.cardBorder),
+                                  border: Border.all(color: TerminalColors.cardBorderLight),
                                 ),
                                 child: Text(
                                   req['command'],
                                   style: GoogleFonts.jetBrainsMono(
-                                    color: TerminalColors.neonAmber,
-                                    fontSize: 12,
+                                    color: TerminalColors.pureWhite,
+                                    fontSize: 11,
                                   ),
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             Row(
                               children: [
                                 Expanded(
                                   child: OutlinedButton(
                                     style: OutlinedButton.styleFrom(
-                                      foregroundColor: TerminalColors.neonRed,
-                                      side: const BorderSide(color: TerminalColors.neonRed),
+                                      foregroundColor: TerminalColors.pureWhite,
+                                      side: const BorderSide(color: TerminalColors.cardBorderLight),
                                     ),
                                     onPressed: () => _handleResolve(req['id'], false),
                                     child: Text('DENY', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: TerminalColors.neonGreen,
+                                      backgroundColor: TerminalColors.pureWhite,
                                       foregroundColor: Colors.black,
                                     ),
                                     onPressed: () => _handleResolve(req['id'], true),

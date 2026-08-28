@@ -42,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _testConnection() async {
     setState(() {
       _testing = true;
-      _testStatus = 'Testing connection...';
+      _testStatus = 'Testing connection to Mac...';
     });
 
     _api.updateConfig(url: _urlCtrl.text.trim(), token: _tokenCtrl.text.trim());
@@ -50,12 +50,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final res = await _api.getHealth();
       setState(() {
-        _testStatus = 'CONNECTED! Service: ${res['service']} v${res['version']}';
+        _testStatus = 'CONNECTED: ${res['service']} v${res['version']}';
         _testing = false;
       });
     } catch (e) {
       setState(() {
-        _testStatus = 'FAILED: $e';
+        _testStatus = 'FAILED TO CONNECT: $e';
         _testing = false;
       });
     }
@@ -70,51 +70,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Connection Card
           TerminalCard(
-            title: 'DAEMON CONNECTIVITY',
+            title: 'DAEMON CONNECTIVITY (TAILSCALE)',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'TAILSCALE / LOCALHOST ENDPOINT',
+                  'MAC TAILSCALE / LOCAL ENDPOINT',
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: TerminalColors.electricCyan,
+                    color: TerminalColors.zinc,
                   ),
                 ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _urlCtrl,
-                  style: GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary, fontSize: 13),
+                  style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'http://100.x.x.x:8765 or http://127.0.0.1:8765',
+                    hintText: 'http://127.0.0.1:8765 or http://127.0.0.1:8765',
                     filled: true,
-                    fillColor: TerminalColors.background,
+                    fillColor: Colors.black,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.pureWhite)),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'AUTH TOKEN (BEARER)',
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: TerminalColors.electricCyan,
+                    color: TerminalColors.zinc,
                   ),
                 ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _tokenCtrl,
                   obscureText: true,
-                  style: GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary, fontSize: 13),
+                  style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Optional bearer token',
                     filled: true,
-                    fillColor: TerminalColors.background,
+                    fillColor: Colors.black,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.pureWhite)),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -123,22 +126,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: TerminalColors.electricCyan,
-                          side: const BorderSide(color: TerminalColors.electricCyan),
+                          foregroundColor: TerminalColors.pureWhite,
+                          side: const BorderSide(color: TerminalColors.cardBorderLight),
                         ),
                         onPressed: _testing ? null : _testConnection,
-                        child: Text('TEST PING', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
+                        child: Text('TEST PING', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, fontSize: 11)),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: TerminalColors.neonGreen,
+                          backgroundColor: TerminalColors.pureWhite,
                           foregroundColor: Colors.black,
                         ),
                         onPressed: _saveSettings,
-                        child: Text('SAVE CONFIG', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
+                        child: Text('SAVE CONFIG', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, fontSize: 11)),
                       ),
                     ),
                   ],
@@ -151,17 +154,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: Colors.black,
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                        color: _testStatus.startsWith('CONNECTED')
-                            ? TerminalColors.neonGreen
-                            : TerminalColors.neonRed,
+                        color: _testStatus.startsWith('CONNECTED') ? Colors.white : TerminalColors.cardBorderLight,
                       ),
                     ),
                     child: Text(
                       _testStatus,
                       style: GoogleFonts.jetBrainsMono(
-                        color: _testStatus.startsWith('CONNECTED')
-                            ? TerminalColors.neonGreen
-                            : TerminalColors.neonRed,
+                        color: TerminalColors.pureWhite,
                         fontSize: 11,
                       ),
                     ),
@@ -170,22 +169,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Security Policy Info
+          // Security Card
           TerminalCard(
             title: 'SECURITY ARCHITECTURE',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Local-First & Zero Cloud Mesh',
-                  style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, color: TerminalColors.textPrimary),
+                  'Local-First & Private Mesh Tunnel',
+                  style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, color: TerminalColors.pureWhite, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Traffic never traverses third-party servers. Communications are routed directly through your private Tailscale WireGuard mesh directly to your Mac.',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 12, color: TerminalColors.textSecondary),
+                  'Your phone connects directly to your Mac over an encrypted WireGuard tunnel provided by Tailscale. No third party ever sees your source code or agent streams.',
+                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.zinc),
                 ),
               ],
             ),

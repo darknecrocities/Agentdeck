@@ -2,23 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class TerminalColors {
-  static const Color background = Color(0xFF0A0E14);
-  static const Color surface = Color(0xFF12161F);
-  static const Color surfaceHover = Color(0xFF1A202C);
-  static const Color cardBorder = Color(0xFF1E2638);
-  static const Color cardBorderGlow = Color(0xFF00FF9D);
+  // Pure Black & White Monochrome Palette
+  static const Color background = Color(0xFF000000);
+  static const Color surface = Color(0xFF0C0C0C);
+  static const Color surfaceHover = Color(0xFF171717);
+  static const Color surfaceElevated = Color(0xFF1F1F1F);
+  
+  // Borders
+  static const Color cardBorder = Color(0xFF262626);
+  static const Color cardBorderLight = Color(0xFF404040);
+  static const Color cardBorderGlow = Color(0xFFFFFFFF);
 
-  // Accents
-  static const Color neonGreen = Color(0xFF00FF9D);
-  static const Color electricCyan = Color(0xFF00E5FF);
-  static const Color neonAmber = Color(0xFFFFB86C);
-  static const Color neonRed = Color(0xFFFF5555);
-  static const Color neonPurple = Color(0xFFBD93F9);
+  // Accents (Monochrome High-Contrast)
+  static const Color pureWhite = Color(0xFFFFFFFF);
+  static const Color silver = Color(0xFFD4D4D4);
+  static const Color zinc = Color(0xFFA3A3A3);
+  static const Color textMuted = Color(0xFF525252);
+  static const Color textDark = Color(0xFF171717);
 
-  // Typography
-  static const Color textPrimary = Color(0xFFE6EDF3);
-  static const Color textSecondary = Color(0xFF8B949E);
-  static const Color textMuted = Color(0xFF484F58);
+  // Status Inverted Pills
+  static const Color badgeBg = Color(0xFFFFFFFF);
+  static const Color badgeText = Color(0xFF000000);
+  static const Color badgeBorder = Color(0xFFE5E5E5);
+  
+  // Subtle Warning / Danger Monochrome Accents
+  static const Color warning = Color(0xFFE5E5E5);
+  static const Color danger = Color(0xFFFFFFFF);
+
+  // Legacy mappings for compatibility
+  static const Color neonGreen = Color(0xFFFFFFFF);
+  static const Color electricCyan = Color(0xFFE5E5E5);
+  static const Color neonAmber = Color(0xFFD4D4D4);
+  static const Color neonRed = Color(0xFFFFFFFF);
+  static const Color neonPurple = Color(0xFFA3A3A3);
+  static const Color textPrimary = Color(0xFFFFFFFF);
+  static const Color textSecondary = Color(0xFFA3A3A3);
 }
 
 class TerminalTheme {
@@ -26,43 +44,47 @@ class TerminalTheme {
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: TerminalColors.background,
-      primaryColor: TerminalColors.neonGreen,
+      primaryColor: TerminalColors.pureWhite,
       cardColor: TerminalColors.surface,
       dividerColor: TerminalColors.cardBorder,
       colorScheme: const ColorScheme.dark(
-        primary: TerminalColors.neonGreen,
-        secondary: TerminalColors.electricCyan,
+        primary: TerminalColors.pureWhite,
+        secondary: TerminalColors.silver,
         surface: TerminalColors.surface,
-        error: TerminalColors.neonRed,
+        error: TerminalColors.pureWhite,
       ),
       textTheme: TextTheme(
         displayLarge: GoogleFonts.jetBrainsMono(
-          fontSize: 28,
+          fontSize: 26,
           fontWeight: FontWeight.bold,
-          color: TerminalColors.textPrimary,
+          color: TerminalColors.pureWhite,
+          letterSpacing: -0.5,
         ),
         titleLarge: GoogleFonts.jetBrainsMono(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: TerminalColors.textPrimary,
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: TerminalColors.pureWhite,
+          letterSpacing: 0.2,
         ),
         titleMedium: GoogleFonts.jetBrainsMono(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: TerminalColors.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: TerminalColors.pureWhite,
         ),
         bodyLarge: GoogleFonts.jetBrainsMono(
-          fontSize: 14,
-          color: TerminalColors.textPrimary,
+          fontSize: 13,
+          color: TerminalColors.pureWhite,
+          height: 1.4,
         ),
         bodyMedium: GoogleFonts.jetBrainsMono(
-          fontSize: 13,
-          color: TerminalColors.textSecondary,
+          fontSize: 12,
+          color: TerminalColors.zinc,
+          height: 1.3,
         ),
         labelSmall: GoogleFonts.jetBrainsMono(
-          fontSize: 11,
+          fontSize: 10,
           color: TerminalColors.textMuted,
-          letterSpacing: 0.5,
+          letterSpacing: 0.6,
         ),
       ),
       appBarTheme: AppBarTheme(
@@ -70,18 +92,19 @@ class TerminalTheme {
         elevation: 0,
         centerTitle: false,
         titleTextStyle: GoogleFonts.jetBrainsMono(
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.bold,
-          color: TerminalColors.neonGreen,
+          color: TerminalColors.pureWhite,
+          letterSpacing: 1.0,
         ),
-        iconTheme: const IconThemeData(color: TerminalColors.neonGreen),
+        iconTheme: const IconThemeData(color: TerminalColors.pureWhite),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: TerminalColors.surface,
-        selectedItemColor: TerminalColors.neonGreen,
+        selectedItemColor: TerminalColors.pureWhite,
         unselectedItemColor: TerminalColors.textMuted,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 0,
       ),
     );
   }

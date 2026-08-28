@@ -51,10 +51,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         return AlertDialog(
           backgroundColor: TerminalColors.surface,
           title: Text(
-            'REGISTER PROJECT WORKSPACE',
+            'REGISTER WORKSPACE',
             style: GoogleFonts.jetBrainsMono(
-              color: TerminalColors.neonGreen,
-              fontSize: 14,
+              color: TerminalColors.pureWhite,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -63,19 +63,19 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             children: [
               TextField(
                 controller: nameCtrl,
-                style: GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary),
+                style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
                 decoration: InputDecoration(
                   labelText: 'PROJECT NAME',
-                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textSecondary, fontSize: 12),
+                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: pathCtrl,
-                style: GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary),
+                style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
                 decoration: InputDecoration(
                   labelText: 'ABSOLUTE WORKSPACE PATH',
-                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textSecondary, fontSize: 12),
+                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
                 ),
               ),
             ],
@@ -86,7 +86,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               child: Text('CANCEL', style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted)),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: TerminalColors.neonGreen),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TerminalColors.pureWhite,
+                foregroundColor: Colors.black,
+              ),
               onPressed: () async {
                 if (nameCtrl.text.isNotEmpty && pathCtrl.text.isNotEmpty) {
                   await _api.createProject(
@@ -94,11 +97,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     path: pathCtrl.text,
                     defaultAgent: defaultAgent,
                   );
-                  Navigator.pop(ctx);
+                  if (ctx.mounted) Navigator.pop(ctx);
                   _loadProjects();
                 }
               },
-              child: Text('REGISTER', style: GoogleFonts.jetBrainsMono(color: Colors.black, fontWeight: FontWeight.bold)),
+              child: Text('REGISTER', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -107,7 +110,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   void _startSessionDialog(Map<String, dynamic> project) {
-    final promptCtrl = TextEditingController(text: 'Analyze this codebase and summarize architecture');
+    final promptCtrl = TextEditingController(text: 'Analyze this codebase architecture and create an implementation plan');
     String agent = project['default_agent'] ?? 'antigravity';
 
     showDialog(
@@ -118,8 +121,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           title: Text(
             'LAUNCH AGENT ON ${project['name'].toString().toUpperCase()}',
             style: GoogleFonts.jetBrainsMono(
-              color: TerminalColors.neonGreen,
-              fontSize: 13,
+              color: TerminalColors.pureWhite,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -127,15 +130,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: agent,
+                initialValue: agent,
                 dropdownColor: TerminalColors.surface,
-                style: GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary),
+                style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
                 decoration: InputDecoration(
                   labelText: 'SELECT AI AGENT',
-                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textSecondary, fontSize: 12),
+                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'antigravity', child: Text('Antigravity CLI (agy)')),
+                  DropdownMenuItem(value: 'antigravity', child: Text('Antigravity CLI (agy) — Priority')),
                   DropdownMenuItem(value: 'claude', child: Text('Claude Code')),
                   DropdownMenuItem(value: 'gemini', child: Text('Gemini CLI')),
                   DropdownMenuItem(value: 'ollama', child: Text('Ollama Local')),
@@ -146,10 +149,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               TextField(
                 controller: promptCtrl,
                 maxLines: 3,
-                style: GoogleFonts.jetBrainsMono(color: TerminalColors.textPrimary),
+                style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
                 decoration: InputDecoration(
                   labelText: 'INITIAL TASK / PROMPT',
-                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.textSecondary, fontSize: 12),
+                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
                 ),
               ),
             ],
@@ -160,7 +163,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               child: Text('CANCEL', style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted)),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: TerminalColors.neonGreen),
+              style: ElevatedButton.styleFrom(backgroundColor: TerminalColors.pureWhite, foregroundColor: Colors.black),
               onPressed: () async {
                 Navigator.pop(ctx);
                 final res = await _api.startSession(
@@ -181,7 +184,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   );
                 }
               },
-              child: Text('LAUNCH', style: GoogleFonts.jetBrainsMono(color: Colors.black, fontWeight: FontWeight.bold)),
+              child: Text('LAUNCH', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -193,16 +196,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('REGISTERED WORKSPACES'),
+        title: const Text('PROJECT WORKSPACES'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_box_outlined, color: TerminalColors.neonGreen),
+            icon: const Icon(Icons.add_rounded, color: TerminalColors.pureWhite),
             onPressed: _showAddProjectDialog,
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: TerminalColors.neonGreen))
+          ? const Center(child: CircularProgressIndicator(color: TerminalColors.pureWhite))
           : _projects.isEmpty
               ? Center(
                   child: Text(
@@ -223,12 +226,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         trailing: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: TerminalColors.electricCyan.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: TerminalColors.cardBorderLight),
+                            borderRadius: BorderRadius.circular(3),
                           ),
                           child: Text(
                             p['default_agent'] ?? 'antigravity',
-                            style: GoogleFonts.jetBrainsMono(color: TerminalColors.electricCyan, fontSize: 11),
+                            style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 10),
                           ),
                         ),
                         child: Column(
@@ -236,7 +239,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           children: [
                             Text(
                               p['path'] ?? '',
-                              style: GoogleFonts.jetBrainsMono(fontSize: 12, color: TerminalColors.textSecondary),
+                              style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.zinc),
                             ),
                             const SizedBox(height: 14),
                             Row(
@@ -244,24 +247,24 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                 Expanded(
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: TerminalColors.neonGreen,
+                                      backgroundColor: TerminalColors.pureWhite,
                                       foregroundColor: Colors.black,
                                       padding: const EdgeInsets.symmetric(vertical: 8),
                                     ),
-                                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                                    label: Text('START AGENT', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, fontSize: 12)),
+                                    icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                                    label: Text('START AGENT', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, fontSize: 11)),
                                     onPressed: () => _startSessionDialog(p),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: TerminalColors.electricCyan,
-                                    side: const BorderSide(color: TerminalColors.cardBorder),
-                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                    foregroundColor: TerminalColors.pureWhite,
+                                    side: const BorderSide(color: TerminalColors.cardBorderLight),
+                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
                                   ),
-                                  icon: const Icon(Icons.folder_outlined, size: 16),
-                                  label: Text('FILES', style: GoogleFonts.jetBrainsMono(fontSize: 12)),
+                                  icon: const Icon(Icons.folder_outlined, size: 14),
+                                  label: Text('FILES', style: GoogleFonts.jetBrainsMono(fontSize: 11)),
                                   onPressed: () {
                                     Navigator.push(
                                       context,
@@ -274,12 +277,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                 const SizedBox(width: 8),
                                 OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: TerminalColors.neonPurple,
-                                    side: const BorderSide(color: TerminalColors.cardBorder),
-                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                    foregroundColor: TerminalColors.pureWhite,
+                                    side: const BorderSide(color: TerminalColors.cardBorderLight),
+                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
                                   ),
-                                  icon: const Icon(Icons.commit, size: 16),
-                                  label: Text('GIT', style: GoogleFonts.jetBrainsMono(fontSize: 12)),
+                                  icon: const Icon(Icons.commit, size: 14),
+                                  label: Text('GIT', style: GoogleFonts.jetBrainsMono(fontSize: 11)),
                                   onPressed: () {
                                     Navigator.push(
                                       context,
