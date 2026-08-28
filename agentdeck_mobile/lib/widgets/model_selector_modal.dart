@@ -7,73 +7,84 @@ class AntigravityModelOption {
   final String name;
   final String provider;
   final String description;
-  final bool hasThinking;
+  final String defaultEffort;
+  final bool isFast;
+  final bool hasQuotaWarning;
 
   const AntigravityModelOption({
     required this.id,
     required this.name,
     required this.provider,
     required this.description,
-    this.hasThinking = false,
+    this.defaultEffort = 'High',
+    this.isFast = false,
+    this.hasQuotaWarning = false,
   });
 }
 
 const List<AntigravityModelOption> kAntigravityModels = [
   AntigravityModelOption(
-    id: 'gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro',
+    id: 'gemini-3.7-flash',
+    name: 'Gemini 3.7 Flash',
     provider: 'Google Antigravity Engine',
-    description: 'Deep reasoning, multi-phase planning & code verification (Recommended)',
-    hasThinking: true,
+    description: 'Ultra-fast deep reasoning with adaptive thinking budget',
+    defaultEffort: 'High',
+    isFast: true,
+    hasQuotaWarning: false,
   ),
   AntigravityModelOption(
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
+    id: 'gemini-3.6-flash',
+    name: 'Gemini 3.6 Flash',
     provider: 'Google Antigravity Engine',
-    description: 'Ultra-low latency, high throughput code generation',
-    hasThinking: false,
+    description: 'High throughput fast reasoning and code execution',
+    defaultEffort: 'Medium',
+    isFast: true,
+    hasQuotaWarning: false,
   ),
   AntigravityModelOption(
-    id: 'claude-3-7-sonnet',
-    name: 'Claude 3.7 Sonnet',
+    id: 'gemini-3.5-flash',
+    name: 'Gemini 3.5 Flash',
+    provider: 'Google Antigravity Engine',
+    description: 'Balanced speed and context comprehension',
+    defaultEffort: 'Medium',
+    isFast: true,
+    hasQuotaWarning: false,
+  ),
+  AntigravityModelOption(
+    id: 'gemini-3.1-pro',
+    name: 'Gemini 3.1 Pro',
+    provider: 'Google Antigravity Engine',
+    description: 'Architectural reasoning & large-scale codebase planning',
+    defaultEffort: 'Low',
+    isFast: false,
+    hasQuotaWarning: false,
+  ),
+  AntigravityModelOption(
+    id: 'claude-sonnet-4.6',
+    name: 'Claude Sonnet 4.6 (Thinking)',
     provider: 'Anthropic',
-    description: 'Hybrid reasoning and extended chain of thought',
-    hasThinking: true,
+    description: 'Extended chain of thought with state-of-the-art coding precision',
+    defaultEffort: 'High',
+    isFast: false,
+    hasQuotaWarning: true,
   ),
   AntigravityModelOption(
-    id: 'claude-3-5-sonnet',
-    name: 'Claude 3.5 Sonnet',
+    id: 'claude-opus-4.6',
+    name: 'Claude Opus 4.6 (Thinking)',
     provider: 'Anthropic',
-    description: 'State of the art precision coding and tool execution',
-    hasThinking: false,
+    description: 'Maximum depth reasoning for mission-critical engineering',
+    defaultEffort: 'High',
+    isFast: false,
+    hasQuotaWarning: true,
   ),
   AntigravityModelOption(
-    id: 'gpt-4o',
-    name: 'GPT-4o',
-    provider: 'OpenAI',
-    description: 'Omni-modal reasoning and general coding',
-    hasThinking: false,
-  ),
-  AntigravityModelOption(
-    id: 'o3-mini',
-    name: 'o3-mini',
-    provider: 'OpenAI',
-    description: 'Specialized STEM, logic, and algorithmic reasoning',
-    hasThinking: true,
-  ),
-  AntigravityModelOption(
-    id: 'deepseek-r1',
-    name: 'DeepSeek R1',
-    provider: 'DeepSeek / Ollama Local',
-    description: 'Open-weights deep reasoning engine',
-    hasThinking: true,
-  ),
-  AntigravityModelOption(
-    id: 'deepseek-v3',
-    name: 'DeepSeek V3',
-    provider: 'DeepSeek / Ollama Local',
-    description: 'Fast open-weights coding model',
-    hasThinking: false,
+    id: 'gpt-oss-120b',
+    name: 'GPT-OSS 120B (Medium)',
+    provider: 'OpenAI / OSS',
+    description: 'Open-weights high parameter logic engine',
+    defaultEffort: 'Medium',
+    isFast: false,
+    hasQuotaWarning: true,
   ),
 ];
 
@@ -211,37 +222,52 @@ class _ModelSelectorModalState extends State<ModelSelectorModal> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                m.name,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: TerminalColors.pureWhite,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    m.name,
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: TerminalColors.pureWhite,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    m.defaultEffort,
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11,
+                                      color: TerminalColors.zinc,
+                                    ),
+                                  ),
+                                  if (m.isFast) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF222222),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: TerminalColors.cardBorder),
+                                      ),
+                                      child: Text(
+                                        'Fast ⓘ',
+                                        style: GoogleFonts.jetBrainsMono(fontSize: 9.5, color: TerminalColors.zinc),
+                                      ),
+                                    ),
+                                  ],
+                                  if (m.hasQuotaWarning) ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFFFD43B), size: 16),
+                                  ],
+                                ],
                               ),
-                              if (m.hasThinking)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: TerminalColors.cardBorderLight),
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                  child: Text(
-                                    'THINKING',
-                                    style: GoogleFonts.jetBrainsMono(fontSize: 9, color: TerminalColors.pureWhite),
-                                  ),
-                                ),
+                              const Icon(Icons.chevron_right, color: TerminalColors.zinc, size: 18),
                             ],
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            m.provider,
-                            style: GoogleFonts.jetBrainsMono(fontSize: 10.5, color: TerminalColors.textMuted),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
                             m.description,
-                            style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
+                            style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.textMuted),
                           ),
                         ],
                       ),
