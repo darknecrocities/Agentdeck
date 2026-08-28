@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class ApiService {
@@ -19,9 +20,30 @@ class ApiService {
     return map;
   }
 
-  void updateConfig({required String url, String? token}) {
+  Future<void> initFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedUrl = prefs.getString('agentdeck_daemon_url');
+      final savedToken = prefs.getString('agentdeck_auth_token');
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        baseUrl = savedUrl.endsWith('/') ? savedUrl.substring(0, savedUrl.length - 1) : savedUrl;
+      }
+      if (savedToken != null && savedToken.isNotEmpty) {
+        authToken = savedToken;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> updateConfig({required String url, String? token}) async {
     baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
     authToken = token;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('agentdeck_daemon_url', baseUrl);
+      if (token != null) {
+        await prefs.setString('agentdeck_auth_token', token);
+      }
+    } catch (_) {}
   }
 
   // System
