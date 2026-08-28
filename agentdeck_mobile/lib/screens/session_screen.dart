@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../services/api_service.dart';
+import '../services/voice_service.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/terminal_widgets.dart';
+import '../widgets/voice_prompt_modal.dart';
 
 class SessionScreen extends StatefulWidget {
   final String sessionId;
@@ -103,11 +105,18 @@ class _SessionScreenState extends State<SessionScreen> {
       }
     } else if (type == 'ThinkingUpdate') {
       _currentTask = data['stage'] ?? _currentTask;
+    } else if (type == 'AgentMessage') {
+      final msg = data['content'] ?? '';
+      if (msg.isNotEmpty) {
+        VoiceService().speak(msg);
+      }
     } else if (type == 'SessionCompleted') {
       _status = 'completed';
       _progress = 100;
+      VoiceService().speak('Antigravity session completed. All changes applied.');
     } else if (type == 'SessionFailed') {
       _status = 'failed';
+      VoiceService().speak('Agent encountered an error.');
     }
   }
 
@@ -248,14 +257,27 @@ class _SessionScreenState extends State<SessionScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset(
-                          'assets/images/agentdeck_thinking.png',
-                          height: 120,
-                          fit: BoxFit.contain,
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF51CF66).withValues(alpha: 0.3),
+                                blurRadius: 36,
+                                spreadRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: Image.asset(
+                            'assets/images/agentdeck_thinking.png',
+                            height: 140,
+                            fit: BoxFit.contain,
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 18),
                         Text(
-                          'Awaiting agent reasoning & outputs...\nConnection is live.',
+                          'Awaiting agent reasoning & outputs...\nAntigravity is calibrated.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted, fontSize: 12),
                         ),
@@ -299,6 +321,22 @@ class _SessionScreenState extends State<SessionScreen> {
             ),
             child: Row(
               children: [
+                // Voice STT Trigger Button
+                IconButton(
+                  icon: const Icon(Icons.mic, color: Color(0xFF51CF66)),
+                  tooltip: 'Voice Prompt (STT)',
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => VoicePromptModal(
+                        projectId: widget.projectId,
+                        agent: widget.agentName,
+                      ),
+                    );
+                  },
+                ),
                 Expanded(
                   child: TextField(
                     controller: _promptController,

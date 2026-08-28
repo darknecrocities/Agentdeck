@@ -12,6 +12,7 @@ import 'workstation_switcher_screen.dart';
 import 'file_uploader_screen.dart';
 import '../services/workstation_manager.dart';
 import '../widgets/model_selector_modal.dart';
+import '../widgets/voice_prompt_modal.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int) onNavigate;
@@ -456,9 +457,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'QUICK PROMPT DISPATCHER',
-                              style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'QUICK PROMPT DISPATCHER',
+                                  style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
+                                ),
+                                InkWell(
+                                  onTap: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (_) => VoicePromptModal(
+                                        model: _selectedModel,
+                                        effort: _selectedEffort,
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF143318),
+                                      borderRadius: BorderRadius.circular(3),
+                                      border: Border.all(color: const Color(0xFF51CF66)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.mic, size: 11, color: Color(0xFF51CF66)),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'VOICE STT',
+                                          style: GoogleFonts.jetBrainsMono(
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.w900,
+                                            color: const Color(0xFF51CF66),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             Wrap(
@@ -475,36 +517,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Image.asset(
-                        'assets/images/agentdeck_pointing.png',
-                        height: 72,
-                        fit: BoxFit.contain,
+                      // Bigger Mascot with Luminous Ambient Aura
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF51CF66).withValues(alpha: 0.28),
+                              blurRadius: 28,
+                              spreadRadius: 4,
+                            ),
+                            BoxShadow(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              blurRadius: 16,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          'assets/images/agentdeck_pointing.png',
+                          height: 110,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: TerminalColors.pureWhite,
-                      side: const BorderSide(color: TerminalColors.pureWhite, width: 1.2),
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                      minimumSize: const Size(double.infinity, 38),
-                    ),
-                    icon: const Icon(Icons.terminal, size: 16),
-                    label: Text(
-                      'OPEN ANTIGRAVITY IN LIVE TERMINAL',
-                      style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => TerminalScreen(
-                            initialCommand: 'agy --model $_selectedModel --effort $_selectedEffort',
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF143318),
+                            foregroundColor: const Color(0xFF51CF66),
+                            side: const BorderSide(color: Color(0xFF51CF66), width: 1.2),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
+                          icon: const Icon(Icons.mic, size: 16),
+                          label: Text(
+                            'VOICE PROMPT (STT)',
+                            style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 10.5),
+                          ),
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => VoicePromptModal(
+                                model: _selectedModel,
+                                effort: _selectedEffort,
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: TerminalColors.pureWhite,
+                            side: const BorderSide(color: TerminalColors.pureWhite, width: 1.2),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          icon: const Icon(Icons.terminal, size: 16),
+                          label: Text(
+                            'LIVE TERMINAL',
+                            style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 10.5),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TerminalScreen(
+                                  initialCommand: 'agy --model $_selectedModel --effort $_selectedEffort',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -744,10 +837,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   Row(
                     children: [
-                      Image.asset(
-                        'assets/images/agentdeck_thinking.png',
-                        height: 28,
-                        fit: BoxFit.contain,
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF141414),
+                          border: Border.all(color: const Color(0xFF51CF66).withValues(alpha: 0.6), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF51CF66).withValues(alpha: 0.35),
+                              blurRadius: 16,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          'assets/images/agentdeck_thinking.png',
+                          height: 42,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -755,11 +863,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 9.5,
                           fontWeight: FontWeight.bold,
-                          color: TerminalColors.zinc,
+                          color: TerminalColors.pureWhite,
                         ),
                       ),
                       const SizedBox(width: 2),
-                      const Icon(Icons.chevron_right, color: TerminalColors.zinc, size: 14),
+                      const Icon(Icons.chevron_right, color: TerminalColors.pureWhite, size: 14),
                     ],
                   ),
                 ],

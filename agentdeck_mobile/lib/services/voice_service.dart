@@ -1,0 +1,207 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:shared_preferences/shared_preferences.dart';
+
+class VoiceService {
+  static final VoiceService _instance = VoiceService._internal();
+  factory VoiceService() => _instance;
+  VoiceService._internal();
+
+  final FlutterTts _tts = FlutterTts();
+  final stt.SpeechToText _stt = stt.SpeechToText();
+
+  final ValueNotifier<bool> isListening = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> isSpeaking = ValueNotifier<bool>(false);
+  final ValueNotifier<String> lastWords = ValueNotifier<String>('');
+  final ValueNotifier<double> soundLevel = ValueNotifier<double>(0.0);
+
+  bool _ttsEnabled = true;
+  bool _autoPauseMicOnTts = true;
+  double _speechRate = 0.85;
+  double _speechPitch = 1.0;
+  bool _initialized = false;
+
+  bool get ttsEnabled => _ttsEnabled;
+  bool get autoPauseMicOnTts => _autoPauseMicOnTts;
+  double get speechRate => _speechRate;
+  double get speechPitch => _speechPitch;
+
+  Future<void> init() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _ttsEnabled = prefs.getBool('voice_tts_enabled') ?? true;
+      _autoPauseMicOnTts = prefs.getBool('voice_auto_pause_mic') ?? true;
+      _speechRate = prefs.getDouble('voice_speech_rate') ?? 0.85;
+      _speechPitch = prefs.getDouble('voice_speech_pitch') ?? 1.0;
+
+      // Configure TTS
+      await _tts.setLanguage("en-US");
+      await _tts.setSpeechRate(_speechRate);
+      await _tts.setPitch(_speechPitch);
+      await _tts.setVolume(1.0);
+
+      _tts.setStartHandler(() {
+        isSpeaking.value = true;
+        // Auto-pause STT if active so it doesn't hear itself
+        if (_autoPauseMicOnTts && isListening.value) {
+          _stt.stop();
+          isListening.value = false;
+        }
+      });
+
+      _tts.setCompletionHandler(() {
+        isSpeaking.value = false;
+      });
+
+      _tts.setCancelHandler(() {
+        isSpeaking.value = false;
+      });
+
+      _tts.setErrorHandler((msg) {
+        isSpeaking.value = false;
+        debugPrint('TTS Error: $msg');
+      });
+
+      // Init STT
+      await _stt.initialize(
+        onError: (err) {
+          isListening.value = false;
+          debugPrint('STT Error: ${err.errorMsg}');
+        },
+        onStatus: (status) {
+          if (status == 'notListening' || status == 'done') {
+            isListening.value = false;
+          } else if (status == 'listening') {
+            isListening.value = true;
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('VoiceService init failed: $e');
+    }
+  }
+
+  // Update Settings
+  Future<void> updateSettings({
+    bool? ttsEnabled,
+    bool? autoPauseMic,
+    double? rate,
+    double? pitch,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (ttsEnabled != null) {
+      _ttsEnabled = ttsEnabled;
+      await prefs.setBool('voice_tts_enabled', ttsEnabled);
+    }
+    if (autoPauseMic != null) {
+      _autoPauseMicOnTts = autoPauseMic;
+      await prefs.setBool('voice_auto_pause_mic', autoPauseMic);
+    }
+    if (rate != null) {
+      _speechRate = rate;
+      await _tts.setSpeechRate(rate);
+      await prefs.setDouble('voice_speech_rate', rate);
+    }
+    if (pitch != null) {
+      _speechPitch = pitch;
+      await _tts.setPitch(pitch);
+      await prefs.setDouble('voice_speech_pitch', pitch);
+    }
+  }
+
+  // Speak AI responses or Agent status
+  Future<void> speak(String rawText) async {
+    if (!_ttsEnabled || rawText.trim().isEmpty) return;
+    await init();
+
+    // 1. Automatic Echo Cancellation / Mic Pause
+    if (_autoPauseMicOnTts && isListening.value) {
+      await stopListening();
+    }
+
+    // 2. Clean markdown, formatting, ANSI and code artifacts for crisp spoken voice
+    String cleaned = rawText
+        .replaceAll(RegExp(r'```[\s\S]*?```'), ' Code block executed. ')
+        .replaceAll(RegExp(r'`.*?`'), '')
+        .replaceAll(RegExp(r'[#*_~>|-]'), ' ')
+        .replaceAll(RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]'), '') // ANSI escape codes
+        .replaceAll(RegExp(r'https?:\/\/\S+'), 'link')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    if (cleaned.length > 500) {
+      // Keep spoken summary concise so it doesn't drone on endlessly
+      cleaned = '${cleaned.substring(0, 480)}...';
+    }
+
+    if (cleaned.isNotEmpty) {
+      await _tts.stop();
+      await _tts.speak(cleaned);
+    }
+  }
+
+  Future<void> stopSpeaking() async {
+    await _tts.stop();
+    isSpeaking.value = false;
+  }
+
+  // Listen to user voice (Speech-to-Text)
+  Future<bool> startListening({
+    required Function(String text, bool isFinal) onResult,
+  }) async {
+    await init();
+
+    // If currently speaking, stop TTS output so it doesn't interfere
+    if (isSpeaking.value) {
+      await stopSpeaking();
+    }
+
+    final available = await _stt.initialize();
+    if (!available) {
+      isListening.value = false;
+      return false;
+    }
+
+    lastWords.value = '';
+    isListening.value = true;
+
+    await _stt.listen(
+      onResult: (result) {
+        lastWords.value = result.recognizedWords;
+        onResult(result.recognizedWords, result.finalResult);
+      },
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 4),
+      listenOptions: stt.SpeechListenOptions(
+        partialResults: true,
+        cancelOnError: true,
+        listenMode: stt.ListenMode.dictation,
+      ),
+      onSoundLevelChange: (level) {
+        soundLevel.value = level;
+      },
+    );
+
+    return true;
+  }
+
+  Future<void> stopListening() async {
+    await _stt.stop();
+    isListening.value = false;
+  }
+
+  Future<void> toggleListening({
+    required Function(String text, bool isFinal) onResult,
+  }) async {
+    if (isListening.value) {
+      await stopListening();
+    } else {
+      await startListening(onResult: onResult);
+    }
+  }
+}

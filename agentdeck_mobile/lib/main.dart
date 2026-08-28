@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/workstation_manager.dart';
 import 'theme/terminal_theme.dart';
@@ -11,6 +10,7 @@ import 'screens/timeline_screen.dart';
 import 'screens/terminal_screen.dart';
 import 'screens/approvals_screen.dart';
 import 'screens/settings_screen.dart';
+import 'widgets/radial_bottom_nav.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,47 +88,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: TerminalColors.cardBorder, width: 1)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex > 4 ? 0 : _currentIndex,
-          onTap: (idx) => _setIndex(idx),
-          selectedItemColor: TerminalColors.pureWhite,
-          unselectedItemColor: TerminalColors.textMuted,
-          backgroundColor: TerminalColors.surface,
-          type: BottomNavigationBarType.fixed,
-          selectedLabelStyle: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold),
-          unselectedLabelStyle: GoogleFonts.jetBrainsMono(fontSize: 10),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard, color: TerminalColors.pureWhite),
-              label: 'DASH',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.folder_outlined),
-              activeIcon: Icon(Icons.folder, color: TerminalColors.pureWhite),
-              label: 'WORKSPACES',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.smart_toy_outlined),
-              activeIcon: Icon(Icons.smart_toy, color: TerminalColors.pureWhite),
-              label: 'AGENTS',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history_outlined),
-              activeIcon: Icon(Icons.history, color: TerminalColors.pureWhite),
-              label: 'TIMELINE',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.terminal_outlined),
-              activeIcon: Icon(Icons.terminal, color: TerminalColors.pureWhite),
-              label: 'TERMINAL',
-            ),
-          ],
-        ),
+      bottomNavigationBar: RadialBottomNav(
+        currentIndex: _currentIndex,
+        onTabSelected: _setIndex,
       ),
     );
   }
