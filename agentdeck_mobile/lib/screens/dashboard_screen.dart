@@ -10,6 +10,7 @@ import 'token_monitor_screen.dart';
 import 'account_switcher_screen.dart';
 import 'workstation_switcher_screen.dart';
 import 'file_uploader_screen.dart';
+import '../services/workstation_manager.dart';
 import '../widgets/model_selector_modal.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -94,44 +95,113 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const AgentDeckLogoHeader(size: 26),
+        title: const AgentDeckLogoHeader(size: 24),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.devices, color: TerminalColors.pureWhite, size: 20),
-            tooltip: 'Switch Workstations (Mac/Windows/Linux)',
-            onPressed: () => Navigator.push(
+          // Active Workstation Quick Switcher Pill
+          InkWell(
+            onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const WorkstationSwitcherScreen()),
             ).then((_) => _loadData()),
-          ),
-          IconButton(
-            icon: const Icon(Icons.cloud_upload_outlined, color: TerminalColors.pureWhite, size: 20),
-            tooltip: 'Upload Files & Media',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FileUploaderScreen()),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: TerminalColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: TerminalColors.cardBorderLight),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    WorkstationManager().currentWorkstation?.os == 'Windows'
+                        ? Icons.desktop_windows
+                        : Icons.laptop_mac,
+                    size: 13,
+                    color: TerminalColors.pureWhite,
+                  ),
+                  const SizedBox(width: 5),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF51CF66),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_drop_down, color: TerminalColors.zinc, size: 16),
+                ],
+              ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.token_outlined, color: TerminalColors.pureWhite, size: 20),
-            tooltip: 'Token & Quota Monitor',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const TokenMonitorScreen()),
+          const SizedBox(width: 4),
+
+          // Consolidated Quick Actions Menu
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: TerminalColors.pureWhite, size: 20),
+            color: const Color(0xFF141414),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: const BorderSide(color: TerminalColors.cardBorderLight),
             ),
+            onSelected: (val) {
+              if (val == 'upload') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const FileUploaderScreen()));
+              } else if (val == 'tokens') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const TokenMonitorScreen()));
+              } else if (val == 'accounts') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountSwitcherScreen()));
+              } else if (val == 'settings') {
+                widget.onNavigate(6);
+              }
+            },
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: 'upload',
+                child: Row(
+                  children: [
+                    const Icon(Icons.cloud_upload_outlined, size: 16, color: TerminalColors.pureWhite),
+                    const SizedBox(width: 10),
+                    Text('Upload Files & Media', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'tokens',
+                child: Row(
+                  children: [
+                    const Icon(Icons.speed, size: 16, color: TerminalColors.pureWhite),
+                    const SizedBox(width: 10),
+                    Text('Antigravity Quotas', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'accounts',
+                child: Row(
+                  children: [
+                    const Icon(Icons.manage_accounts_outlined, size: 16, color: TerminalColors.pureWhite),
+                    const SizedBox(width: 10),
+                    Text('Auth & Accounts', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite)),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(height: 1),
+              PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    const Icon(Icons.settings_outlined, size: 16, color: TerminalColors.zinc),
+                    const SizedBox(width: 10),
+                    Text('Settings', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.zinc)),
+                  ],
+                ),
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.manage_accounts_outlined, color: TerminalColors.pureWhite, size: 20),
-            tooltip: 'Switch Accounts',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AccountSwitcherScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: TerminalColors.pureWhite, size: 20),
-            onPressed: () => widget.onNavigate(6),
-          ),
+          const SizedBox(width: 6),
         ],
       ),
       body: RefreshIndicator(
