@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/workstation_manager.dart';
 import '../theme/terminal_theme.dart';
+import 'find_deck_screen.dart';
 
 class WorkstationSwitcherScreen extends StatefulWidget {
   const WorkstationSwitcherScreen({super.key});
@@ -265,8 +266,16 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
             onPressed: () => setState(() => _showGuide = !_showGuide),
           ),
           IconButton(
+            icon: const Icon(Icons.explore_rounded, color: TerminalColors.pureWhite),
+            tooltip: 'Find Deck on Map & Radar',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FindDeckScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.add, color: TerminalColors.pureWhite),
-            tooltip: 'Add Machine',
+            tooltip: 'Add Workstation',
             onPressed: _showAddMachineDialog,
           ),
           IconButton(

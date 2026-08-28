@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/terminal_theme.dart';
 import '../screens/file_uploader_screen.dart';
 import '../screens/account_switcher_screen.dart';
+import '../screens/find_deck_screen.dart';
 import 'voice_prompt_modal.dart';
 import 'remote_machine_modal.dart';
 
@@ -191,9 +192,24 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
             ),
 
             // 2. Direct Positioned Floating Action Buttons
-            // 1. Vibe Agent (Top-most) - 90 deg, 195px
+            // 1. Find Deck (Top-left) - 100 deg, 220px
             _buildPositionedButton(
-              angleDeg: 90,
+              angleDeg: 100,
+              distance: 220,
+              icon: Icons.explore_rounded,
+              label: 'FIND DECK',
+              color: TerminalColors.pureWhite,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FindDeckScreen()),
+                );
+              },
+            ),
+
+            // 2. Vibe Agent - 80 deg, 195px
+            _buildPositionedButton(
+              angleDeg: 80,
               distance: 195,
               icon: Icons.record_voice_over_rounded,
               label: 'VIBE AGENT',
@@ -208,10 +224,10 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
               },
             ),
 
-            // 2. Machine Remote Control (Screen, Cam, Apps) - 68 deg, 215px
+            // 3. Machine Remote Control (Screen, Cam, Apps) - 60 deg, 220px
             _buildPositionedButton(
-              angleDeg: 68,
-              distance: 215,
+              angleDeg: 60,
+              distance: 220,
               icon: Icons.settings_remote_rounded,
               label: 'MACHINE',
               color: TerminalColors.pureWhite,
@@ -225,9 +241,9 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
               },
             ),
 
-            // 3. Interactive Terminal PTY - 46 deg, 195px
+            // 4. Interactive Terminal PTY - 40 deg, 195px
             _buildPositionedButton(
-              angleDeg: 46,
+              angleDeg: 40,
               distance: 195,
               icon: Icons.terminal_rounded,
               label: 'TERMINAL',
@@ -235,10 +251,10 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
               onTap: () => widget.onTabSelected(4),
             ),
 
-            // 4. File Uploader - 24 deg, 215px
+            // 5. File Uploader - 20 deg, 220px
             _buildPositionedButton(
-              angleDeg: 24,
-              distance: 215,
+              angleDeg: 20,
+              distance: 220,
               icon: Icons.cloud_upload_rounded,
               label: 'UPLOAD',
               color: TerminalColors.silver,
@@ -250,7 +266,7 @@ class _RadialBottomNavState extends State<RadialBottomNav> with SingleTickerProv
               },
             ),
 
-            // 5. Google OAuth & Switcher - 0 deg, 195px
+            // 6. Google OAuth & Switcher - 0 deg, 195px
             _buildPositionedButton(
               angleDeg: 0,
               distance: 195,

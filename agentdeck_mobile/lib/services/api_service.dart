@@ -435,6 +435,11 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> playSound() async {
+    final data = await _post('/api/system/play-sound', {});
+    return data is Map<String, dynamic> ? data : {};
+  }
+
   Future<Map<String, dynamic>?> readSystemFile(String path) async {
     try {
       final data = await _get('/api/system/file', query: {'path': path});

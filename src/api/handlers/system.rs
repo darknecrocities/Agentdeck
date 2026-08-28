@@ -623,6 +623,27 @@ pub async fn stop_camera_handler() -> Result<Json<serde_json::Value>, (axum::htt
     })))
 }
 
+pub async fn play_sound_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = tokio::process::Command::new("afplay")
+            .arg("/System/Library/Sounds/Glass.aiff")
+            .spawn();
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let _ = tokio::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", "[System.Media.SystemSounds]::Asterisk.Play(); Start-Sleep -Milliseconds 300; [System.Media.SystemSounds]::Asterisk.Play()"])
+            .spawn();
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Sound alert played on workstation for Find Deck locating."
+    })))
+}
+
 #[derive(serde::Deserialize)]
 pub struct SystemFileQuery {
     pub path: String,
