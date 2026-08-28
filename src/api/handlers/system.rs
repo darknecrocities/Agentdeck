@@ -418,13 +418,13 @@ pub async fn launch_app_handler(
 pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
     use base64::Engine;
     let temp_dir = std::env::temp_dir();
-    let file_name = format!("agentdeck_screen_{}.png", chrono::Utc::now().timestamp_millis());
+    let file_name = format!("agentdeck_screen_{}.jpg", chrono::Utc::now().timestamp_millis());
     let target_path = temp_dir.join(&file_name);
 
     #[cfg(target_os = "macos")]
     {
         let output = tokio::process::Command::new("screencapture")
-            .args(["-x", "-t", "png", target_path.to_str().unwrap_or("/tmp/screenshot.png")])
+            .args(["-x", "-t", "jpg", target_path.to_str().unwrap_or("/tmp/screenshot.jpg")])
             .output()
             .await;
 
