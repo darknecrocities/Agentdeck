@@ -188,36 +188,43 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF183018),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: const Color(0xFF51CF66)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.mic, color: Color(0xFF51CF66), size: 14),
-                        const SizedBox(width: 5),
-                        Text(
-                          'VOICE COMMANDER (STT)',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: const Color(0xFF51CF66),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF183018),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFF51CF66)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.mic, color: Color(0xFF51CF66), size: 13),
+                          const SizedBox(width: 4),
+                          Text(
+                            'VOICE (STT)',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF51CF66),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '• ${activeWs?.name ?? "Active Machine"}',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 10, color: TerminalColors.zinc),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '• ${activeWs?.name ?? "Active Machine"}',
+                        style: GoogleFonts.jetBrainsMono(fontSize: 9.5, color: TerminalColors.zinc),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.close, color: TerminalColors.zinc, size: 18),
