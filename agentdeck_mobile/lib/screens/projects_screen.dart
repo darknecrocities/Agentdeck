@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../theme/terminal_theme.dart';
 import '../widgets/terminal_widgets.dart';
+import '../widgets/directory_browser_modal.dart';
 import 'session_screen.dart';
 import 'files_diff_screen.dart';
 import 'git_github_screen.dart';
@@ -41,69 +42,147 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   void _showAddProjectDialog() {
-    final nameCtrl = TextEditingController();
-    final pathCtrl = TextEditingController(text: '/Users/arronkianparejas/');
+    final nameCtrl = TextEditingController(text: 'AgentDeck');
+    final pathCtrl = TextEditingController(text: '/path/to/your/projects');
     String defaultAgent = 'antigravity';
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: TerminalColors.surface,
-          title: Text(
-            'REGISTER WORKSPACE',
-            style: GoogleFonts.jetBrainsMono(
-              color: TerminalColors.pureWhite,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
-                decoration: InputDecoration(
-                  labelText: 'PROJECT NAME',
-                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
-                ),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: pathCtrl,
-                style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
-                decoration: InputDecoration(
-                  labelText: 'ABSOLUTE WORKSPACE PATH',
-                  labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
-                ),
+              decoration: const BoxDecoration(
+                color: TerminalColors.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                border: Border(top: BorderSide(color: TerminalColors.cardBorderLight, width: 1.5)),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('CANCEL', style: GoogleFonts.jetBrainsMono(color: TerminalColors.textMuted)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: TerminalColors.pureWhite,
-                foregroundColor: Colors.black,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'REGISTER PROJECT WORKSPACE',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: TerminalColors.pureWhite,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: TerminalColors.zinc, size: 18),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Browse Computer Button
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: TerminalColors.pureWhite,
+                      side: const BorderSide(color: TerminalColors.pureWhite, width: 1.2),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                      minimumSize: const Size(double.infinity, 44),
+                    ),
+                    icon: const Icon(Icons.folder_open, size: 18, color: TerminalColors.pureWhite),
+                    label: Text(
+                      'BROWSE MAC COMPUTER FOLDERS',
+                      style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11),
+                    ),
+                    onPressed: () async {
+                      final selected = await showModalBottomSheet<Map<String, dynamic>>(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => DirectoryBrowserModal(initialPath: pathCtrl.text),
+                      );
+                      if (selected != null) {
+                        setModalState(() {
+                          pathCtrl.text = selected['path'] ?? pathCtrl.text;
+                          nameCtrl.text = selected['name'] ?? nameCtrl.text;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  TextField(
+                    controller: nameCtrl,
+                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'PROJECT NAME',
+                      labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
+                      filled: true,
+                      fillColor: Colors.black,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: pathCtrl,
+                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+                    decoration: InputDecoration(
+                      labelText: 'WORKSPACE PATH ON MAC',
+                      labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
+                      filled: true,
+                      fillColor: Colors.black,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: TerminalColors.pureWhite,
+                            side: const BorderSide(color: TerminalColors.cardBorderLight),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text('CANCEL', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: TerminalColors.pureWhite,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: () async {
+                            if (nameCtrl.text.isNotEmpty && pathCtrl.text.isNotEmpty) {
+                              await _api.createProject(
+                                name: nameCtrl.text,
+                                path: pathCtrl.text,
+                                defaultAgent: defaultAgent,
+                              );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              _loadProjects();
+                            }
+                          },
+                          child: Text('REGISTER', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              onPressed: () async {
-                if (nameCtrl.text.isNotEmpty && pathCtrl.text.isNotEmpty) {
-                  await _api.createProject(
-                    name: nameCtrl.text,
-                    path: pathCtrl.text,
-                    defaultAgent: defaultAgent,
-                  );
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  _loadProjects();
-                }
-              },
-              child: Text('REGISTER', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold)),
-            ),
-          ],
+            );
+          },
         );
       },
     );

@@ -45,6 +45,14 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  Future<Map<String, dynamic>> browseDirectories({String? path}) async {
+    final uri = Uri.parse('$baseUrl/api/system/browse').replace(
+      queryParameters: path != null ? {'path': path} : null,
+    );
+    final res = await http.get(uri, headers: _headers);
+    return jsonDecode(res.body);
+  }
+
   // Projects
   Future<List<dynamic>> getProjects() async {
     final res = await http.get(Uri.parse('$baseUrl/api/projects'), headers: _headers);
