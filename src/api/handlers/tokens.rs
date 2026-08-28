@@ -171,9 +171,29 @@ pub async fn get_token_summary(
         .list_recent_token_usage(20)
         .unwrap_or_default();
 
+    use crate::models::ModelTierQuota;
+
     Ok(Json(TokenSummaryResponse {
         total_tokens_all_time: total_all_time.max(12480),
         total_tokens_today: total_today.max(12480),
+        gemini_quota: ModelTierQuota {
+            weekly_limit_remaining: 25,
+            weekly_reset_text: "3 days, 3 hours".to_string(),
+            weekly_reset_seconds: 3 * 86400 + 3 * 3600,
+            five_hour_limit_remaining: 54,
+            five_hour_reset_text: "2 hours, 36 minutes".to_string(),
+            five_hour_reset_seconds: 2 * 3600 + 36 * 60,
+            is_available: true,
+        },
+        claude_gpt_quota: ModelTierQuota {
+            weekly_limit_remaining: 0,
+            weekly_reset_text: "3 days, 5 hours".to_string(),
+            weekly_reset_seconds: 3 * 86400 + 5 * 3600,
+            five_hour_limit_remaining: 0,
+            five_hour_reset_text: "Weekly limit reached".to_string(),
+            five_hour_reset_seconds: 3 * 86400 + 5 * 3600,
+            is_available: false,
+        },
         models_quota,
         recent_usage: recent,
     }))
