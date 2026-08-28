@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'services/api_service.dart';
 import 'theme/terminal_theme.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/projects_screen.dart';
@@ -12,6 +13,9 @@ import 'screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load saved daemon endpoint (Tailscale IP: 100.114.182.27)
+  await ApiService().initFromPrefs();
 
   // Globally hide the mobile system navigation bar (Immersive Sticky Mode)
   await SystemChrome.setEnabledSystemUIMode(
