@@ -40,7 +40,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
   String? _camError;
   int _camFrameCount = 0;
   Timer? _camStreamTimer;
-  int _camIntervalMs = 100; // Fast ~10 FPS live continuous webcam stream
+  int _camIntervalMs = 40; // Fluid 25-30 FPS live continuous webcam stream
   final TransformationController _camTransformCtrl = TransformationController();
   double _camZoomLevel = 1.0;
 

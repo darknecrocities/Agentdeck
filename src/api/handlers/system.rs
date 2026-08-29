@@ -619,13 +619,17 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                         let mut c = tokio::process::Command::new(bin);
                         c.args([
                             "-f", "avfoundation",
+                            "-fflags", "nobuffer",
+                            "-flags", "low_delay",
+                            "-probesize", "32",
+                            "-analyzeduration", "0",
                             "-framerate", "30",
                             "-video_size", "1280x720",
+                            "-pixel_format", "nv12",
                             "-i", "0:none",
-                            "-pix_fmt", "yuv420p",
                             "-f", "image2pipe",
                             "-vcodec", "mjpeg",
-                            "-q:v", "5",
+                            "-q:v", "4",
                             "-",
                         ]);
                         c.stdout(std::process::Stdio::piped());
@@ -690,12 +694,15 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                     let mut c = tokio::process::Command::new(&bin);
                     c.args([
                         "-f", "dshow",
+                        "-fflags", "nobuffer",
+                        "-flags", "low_delay",
+                        "-probesize", "32",
+                        "-analyzeduration", "0",
                         "-i", &camera_input,
                         "-framerate", "30",
-                        "-pix_fmt", "yuv420p",
                         "-f", "image2pipe",
                         "-vcodec", "mjpeg",
-                        "-q:v", "5",
+                        "-q:v", "4",
                         "-",
                     ]);
                     c.stdout(std::process::Stdio::piped());
@@ -710,11 +717,15 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                     let mut c = tokio::process::Command::new("ffmpeg");
                     c.args([
                         "-f", "v4l2",
+                        "-fflags", "nobuffer",
+                        "-flags", "low_delay",
+                        "-probesize", "32",
+                        "-analyzeduration", "0",
                         "-framerate", "30",
                         "-i", "/dev/video0",
                         "-f", "image2pipe",
                         "-vcodec", "mjpeg",
-                        "-q:v", "5",
+                        "-q:v", "4",
                         "-",
                     ]);
                     c.stdout(std::process::Stdio::piped());
