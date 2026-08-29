@@ -572,7 +572,7 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
 pub struct CameraStreamState {
     pub is_running: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub last_requested_at: std::sync::Arc<std::sync::atomic::AtomicI64>,
-    pub latest_frame: std::sync::Arc<tokio::sync::RwLock<Option<String>>>,
+    pub latest_frame: std::sync::Arc<tokio::sync::RwLock<Option<(String, std::time::Instant)>>>,
     pub child_handle: std::sync::Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>,
 }
 
@@ -601,8 +601,27 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
     let stream = get_camera_stream();
     stream.last_requested_at.store(chrono::Utc::now().timestamp(), Ordering::Relaxed);
 
-    // If stream is not already running, spawn persistent background streaming process
-    if !stream.is_running.swap(true, Ordering::SeqCst) {
+    // Watchdog check: If child exited or isn't running, mark for restart
+    let need_start = {
+        let mut lock = stream.child_handle.lock().await;
+        if let Some(ref mut child) = *lock {
+            match child.try_wait() {
+                Ok(Some(_)) => {
+                    *lock = None;
+                    stream.is_running.store(false, Ordering::SeqCst);
+                    true
+                }
+                Ok(None) => false,
+                Err(_) => true,
+            }
+        } else {
+            true
+        }
+    };
+
+    // If stream is not currently active, spawn persistent background streaming process
+    if need_start || !stream.is_running.load(Ordering::SeqCst) {
+        stream.is_running.store(true, Ordering::SeqCst);
         let is_running = stream.is_running.clone();
         let last_requested_at = stream.last_requested_at.clone();
         let latest_frame = stream.latest_frame.clone();
@@ -621,8 +640,6 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                             "-f", "avfoundation",
                             "-fflags", "nobuffer",
                             "-flags", "low_delay",
-                            "-probesize", "32",
-                            "-analyzeduration", "0",
                             "-framerate", "30",
                             "-video_size", "1280x720",
                             "-pixel_format", "nv12",
@@ -662,7 +679,6 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                 }
 
                 if let Some(bin) = found_bin {
-                    // Discover available DirectShow video device name dynamically
                     let mut detected_device = String::new();
                     if let Ok(dev_out) = tokio::process::Command::new(&bin)
                         .args(["-list_devices", "true", "-f", "dshow", "-i", "dummy"])
@@ -696,8 +712,6 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                         "-f", "dshow",
                         "-fflags", "nobuffer",
                         "-flags", "low_delay",
-                        "-probesize", "32",
-                        "-analyzeduration", "0",
                         "-i", &camera_input,
                         "-framerate", "30",
                         "-f", "image2pipe",
@@ -719,8 +733,6 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                         "-f", "v4l2",
                         "-fflags", "nobuffer",
                         "-flags", "low_delay",
-                        "-probesize", "32",
-                        "-analyzeduration", "0",
                         "-framerate", "30",
                         "-i", "/dev/video0",
                         "-f", "image2pipe",
@@ -739,7 +751,7 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                     if let Some(mut stdout) = child.stdout.take() {
                         *child_handle.lock().await = Some(child);
 
-                        let mut buffer = Vec::with_capacity(65536);
+                        let mut buffer = Vec::with_capacity(131072);
                         let mut chunk = [0u8; 8192];
 
                         loop {
@@ -758,16 +770,24 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                                         if soi > 0 {
                                             buffer.drain(..soi);
                                         }
-                                        if let Some(eoi) = buffer.windows(2).position(|w| w == [0xFF, 0xD9]) {
-                                            let frame_end = eoi + 2;
-                                            let frame_bytes = buffer[..frame_end].to_vec();
-                                            buffer.drain(..frame_end);
+                                        if buffer.len() > 4096 {
+                                            if let Some(rel_eoi) = buffer[2048..].windows(2).position(|w| w == [0xFF, 0xD9]) {
+                                                let frame_end = 2048 + rel_eoi + 2;
+                                                let frame_bytes = buffer[..frame_end].to_vec();
+                                                buffer.drain(..frame_end);
 
-                                            let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_bytes);
-                                            *latest_frame.write().await = Some(b64);
+                                                let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_bytes);
+                                                *latest_frame.write().await = Some((b64, std::time::Instant::now()));
+                                            } else {
+                                                break;
+                                            }
                                         } else {
                                             break;
                                         }
+                                    }
+
+                                    if buffer.len() > 1_000_000 {
+                                        buffer.clear();
                                     }
                                 }
                                 Ok(Err(_)) => break,
@@ -786,15 +806,17 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
         });
     }
 
-    // Return the latest cached frame from memory immediately (wait up to 600ms on initial start)
-    for _ in 0..12 {
-        if let Some(frame) = stream.latest_frame.read().await.as_ref() {
-            return Ok(Json(serde_json::json!({
-                "success": true,
-                "image_base64": frame,
-                "live": true,
-                "timestamp": chrono::Utc::now().to_rfc3339(),
-            })));
+    // Return the latest fresh frame from memory (wait up to 1000ms on startup)
+    for _ in 0..20 {
+        if let Some((ref frame, ref instant)) = *stream.latest_frame.read().await {
+            if instant.elapsed() < std::time::Duration::from_millis(2000) {
+                return Ok(Json(serde_json::json!({
+                    "success": true,
+                    "image_base64": frame,
+                    "live": true,
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                })));
+            }
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
