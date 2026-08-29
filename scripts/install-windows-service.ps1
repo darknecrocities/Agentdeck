@@ -46,12 +46,29 @@ if ($UserPath -notlike "*$InstallDir*") {
 $FfmpegExe = Join-Path $InstallDir "ffmpeg.exe"
 if (-not (Get-Command "ffmpeg" -ErrorAction SilentlyContinue) -and -not (Test-Path $FfmpegExe)) {
     Write-Host "Checking / Installing FFmpeg for live webcam and streaming..." -ForegroundColor Yellow
+    $Installed = $false
     try {
         if (Get-Command "winget" -ErrorAction SilentlyContinue) {
             Write-Host "Installing Gyan.FFmpeg via winget..." -ForegroundColor Cyan
             winget install --id Gyan.FFmpeg -e --silent --accept-source-agreements --accept-package-agreements | Out-Null
+            $Installed = $true
         }
     } catch {}
+    if (-not $Installed -and -not (Get-Command "ffmpeg" -ErrorAction SilentlyContinue)) {
+        try {
+            Write-Host "Downloading standalone portable FFmpeg..." -ForegroundColor Cyan
+            $ZipPath = Join-Path $env:TEMP "ffmpeg.zip"
+            Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile $ZipPath -UseBasicParsing
+            Expand-Archive -Path $ZipPath -DestinationPath (Join-Path $env:TEMP "ffmpeg_extracted") -Force
+            $FoundFfmpeg = Get-ChildItem -Path (Join-Path $env:TEMP "ffmpeg_extracted") -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+            if ($FoundFfmpeg) {
+                Copy-Item $FoundFfmpeg.FullName -Destination $FfmpegExe -Force
+                Write-Host "FFmpeg installed to $FfmpegExe" -ForegroundColor Green
+            }
+            Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
+            Remove-Item (Join-Path $env:TEMP "ffmpeg_extracted") -Recurse -Force -ErrorAction SilentlyContinue
+        } catch {}
+    }
 }
 
 # 3. Establish secure credentials & .env configuration

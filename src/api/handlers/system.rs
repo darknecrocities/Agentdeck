@@ -717,6 +717,50 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                 }
             }
         }
+
+        // 2. Native Windows WinRT MediaCapture API fallback (Zero external dependencies)
+        let ps_camera_script = r#"
+            $ErrorActionPreference = 'SilentlyContinue'
+            try {
+                [Windows.Media.Capture.MediaCapture, Windows.Media.Capture, ContentType=WindowsRuntime] | Out-Null
+                [Windows.Media.MediaProperties.ImageEncodingProperties, Windows.Media.MediaProperties, ContentType=WindowsRuntime] | Out-Null
+                $mc = New-Object Windows.Media.Capture.MediaCapture
+                $initTask = $mc.InitializeAsync().AsTask()
+                $initTask.Wait(3000)
+                $props = [Windows.Media.MediaProperties.ImageEncodingProperties]::CreateJpeg()
+                $memStream = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
+                $capTask = $mc.CapturePhotoToStreamAsync($props, $memStream).AsTask()
+                $capTask.Wait(3000)
+                $reader = New-Object Windows.Storage.Streams.DataReader($memStream.GetInputStreamAt(0))
+                $loadTask = $reader.LoadAsync($memStream.Size).AsTask()
+                $loadTask.Wait(2000)
+                $bytes = New-Object byte[] $memStream.Size
+                $reader.ReadBytes($bytes)
+                $b64 = [Convert]::ToBase64String($bytes)
+                if ($b64 -and $b64.Length -gt 100) {
+                    Write-Output $b64
+                    exit 0
+                }
+            } catch {}
+        "#;
+
+        if let Ok(ps_out) = tokio::process::Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", ps_camera_script])
+            .output()
+            .await
+        {
+            let b64 = String::from_utf8_lossy(&ps_out.stdout).trim().to_string();
+            if !b64.is_empty() && b64.len() > 100 {
+                let len = b64.len();
+                return Ok(Json(serde_json::json!({
+                    "success": true,
+                    "image_base64": b64,
+                    "size_bytes": len,
+                    "device": "winrt_mediacapture",
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                })));
+            }
+        }
     }
 
     #[cfg(target_os = "linux")]
