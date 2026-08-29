@@ -569,159 +569,228 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
     ))
 }
 
+pub struct CameraStreamState {
+    pub is_running: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub last_requested_at: std::sync::Arc<std::sync::atomic::AtomicI64>,
+    pub latest_frame: std::sync::Arc<tokio::sync::RwLock<Option<String>>>,
+    pub child_handle: std::sync::Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>,
+}
+
+impl CameraStreamState {
+    pub fn new() -> Self {
+        Self {
+            is_running: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            last_requested_at: std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0)),
+            latest_frame: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
+            child_handle: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+        }
+    }
+}
+
+static CAMERA_STREAM: std::sync::OnceLock<CameraStreamState> = std::sync::OnceLock::new();
+
+fn get_camera_stream() -> &'static CameraStreamState {
+    CAMERA_STREAM.get_or_init(CameraStreamState::new)
+}
+
 pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
     use base64::Engine;
+    use std::sync::atomic::Ordering;
+    use tokio::io::AsyncReadExt;
 
-    #[cfg(target_os = "macos")]
-    {
-        let ffmpeg_candidates = ["/opt/homebrew/bin/ffmpeg", "ffmpeg", "/usr/local/bin/ffmpeg"];
-        for bin in ffmpeg_candidates {
-            if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
-                let res = tokio::process::Command::new(bin)
-                    .args([
-                        "-f", "avfoundation",
-                        "-framerate", "30",
-                        "-video_size", "1280x720",
-                        "-i", "0:none",
-                        "-vframes", "1",
-                        "-pix_fmt", "yuv420p",
-                        "-f", "image2pipe",
-                        "-vcodec", "mjpeg",
-                        "-",
-                    ])
-                    .output()
-                    .await;
+    let stream = get_camera_stream();
+    stream.last_requested_at.store(chrono::Utc::now().timestamp(), Ordering::Relaxed);
 
-                if let Ok(out) = res {
-                    if out.status.success() && !out.stdout.is_empty() {
-                        let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
-                        return Ok(Json(serde_json::json!({
-                            "success": true,
-                            "image_base64": b64,
-                            "size_bytes": out.stdout.len(),
-                            "timestamp": chrono::Utc::now().to_rfc3339(),
-                        })));
+    // If stream is not already running, spawn persistent background streaming process
+    if !stream.is_running.swap(true, Ordering::SeqCst) {
+        let is_running = stream.is_running.clone();
+        let last_requested_at = stream.last_requested_at.clone();
+        let latest_frame = stream.latest_frame.clone();
+        let child_handle = stream.child_handle.clone();
+
+        tokio::spawn(async move {
+            let mut cmd = None;
+
+            #[cfg(target_os = "macos")]
+            {
+                let ffmpeg_candidates = ["/opt/homebrew/bin/ffmpeg", "ffmpeg", "/usr/local/bin/ffmpeg"];
+                for bin in ffmpeg_candidates {
+                    if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
+                        let mut c = tokio::process::Command::new(bin);
+                        c.args([
+                            "-f", "avfoundation",
+                            "-framerate", "30",
+                            "-video_size", "1280x720",
+                            "-i", "0:none",
+                            "-pix_fmt", "yuv420p",
+                            "-f", "image2pipe",
+                            "-vcodec", "mjpeg",
+                            "-q:v", "5",
+                            "-",
+                        ]);
+                        c.stdout(std::process::Stdio::piped());
+                        c.stderr(std::process::Stdio::null());
+                        cmd = Some(c);
+                        break;
                     }
                 }
             }
-        }
-    }
 
-    #[cfg(target_os = "windows")]
-    {
-        let user_profile = std::env::var("USERPROFILE").unwrap_or_default();
-        let local_app_data = std::env::var("LOCALAPPDATA").unwrap_or_default();
-        let ffmpeg_candidates = [
-            "ffmpeg".to_string(),
-            format!("{}\\.agentdeck\\bin\\ffmpeg.exe", user_profile),
-            format!("{}\\Microsoft\\WinGet\\Links\\ffmpeg.exe", local_app_data),
-            "C:\\ffmpeg\\bin\\ffmpeg.exe".to_string(),
-            "C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe".to_string(),
-            "C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe".to_string(),
-        ];
-
-        let mut found_bin = None;
-        for bin in &ffmpeg_candidates {
-            if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
-                found_bin = Some(bin.clone());
-                break;
-            }
-        }
-
-        if let Some(bin) = found_bin {
-            // 1. Discover available DirectShow video device name dynamically
-            let mut detected_device = String::new();
-            if let Ok(dev_out) = tokio::process::Command::new(&bin)
-                .args(["-list_devices", "true", "-f", "dshow", "-i", "dummy"])
-                .output()
-                .await
+            #[cfg(target_os = "windows")]
             {
-                let stderr_str = String::from_utf8_lossy(&dev_out.stderr);
-                for line in stderr_str.lines() {
-                    if line.contains("(video)") && line.contains("\"") {
-                        if let Some(start) = line.find('\"') {
-                            if let Some(end) = line[start + 1..].find('\"') {
-                                let name = &line[start + 1..start + 1 + end];
-                                if !name.is_empty() {
-                                    detected_device = name.to_string();
-                                    break;
+                let user_profile = std::env::var("USERPROFILE").unwrap_or_default();
+                let local_app_data = std::env::var("LOCALAPPDATA").unwrap_or_default();
+                let ffmpeg_candidates = [
+                    "ffmpeg".to_string(),
+                    format!("{}\\.agentdeck\\bin\\ffmpeg.exe", user_profile),
+                    format!("{}\\Microsoft\\WinGet\\Links\\ffmpeg.exe", local_app_data),
+                    "C:\\ffmpeg\\bin\\ffmpeg.exe".to_string(),
+                    "C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe".to_string(),
+                    "C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe".to_string(),
+                ];
+
+                let mut found_bin = None;
+                for bin in &ffmpeg_candidates {
+                    if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
+                        found_bin = Some(bin.clone());
+                        break;
+                    }
+                }
+
+                if let Some(bin) = found_bin {
+                    // Discover available DirectShow video device name dynamically
+                    let mut detected_device = String::new();
+                    if let Ok(dev_out) = tokio::process::Command::new(&bin)
+                        .args(["-list_devices", "true", "-f", "dshow", "-i", "dummy"])
+                        .output()
+                        .await
+                    {
+                        let stderr_str = String::from_utf8_lossy(&dev_out.stderr);
+                        for line in stderr_str.lines() {
+                            if line.contains("(video)") && line.contains("\"") {
+                                if let Some(start) = line.find('\"') {
+                                    if let Some(end) = line[start + 1..].find('\"') {
+                                        let name = &line[start + 1..start + 1 + end];
+                                        if !name.is_empty() {
+                                            detected_device = name.to_string();
+                                            break;
+                                        }
+                                    }
                                 }
                             }
+                        }
+                    }
+
+                    let camera_input = if !detected_device.is_empty() {
+                        format!("video={}", detected_device)
+                    } else {
+                        "video=Integrated Camera".to_string()
+                    };
+
+                    let mut c = tokio::process::Command::new(&bin);
+                    c.args([
+                        "-f", "dshow",
+                        "-i", &camera_input,
+                        "-framerate", "30",
+                        "-pix_fmt", "yuv420p",
+                        "-f", "image2pipe",
+                        "-vcodec", "mjpeg",
+                        "-q:v", "5",
+                        "-",
+                    ]);
+                    c.stdout(std::process::Stdio::piped());
+                    c.stderr(std::process::Stdio::null());
+                    cmd = Some(c);
+                }
+            }
+
+            #[cfg(target_os = "linux")]
+            {
+                if which::which("ffmpeg").is_ok() {
+                    let mut c = tokio::process::Command::new("ffmpeg");
+                    c.args([
+                        "-f", "v4l2",
+                        "-framerate", "30",
+                        "-i", "/dev/video0",
+                        "-f", "image2pipe",
+                        "-vcodec", "mjpeg",
+                        "-q:v", "5",
+                        "-",
+                    ]);
+                    c.stdout(std::process::Stdio::piped());
+                    c.stderr(std::process::Stdio::null());
+                    cmd = Some(c);
+                }
+            }
+
+            if let Some(mut c) = cmd {
+                if let Ok(mut child) = c.spawn() {
+                    if let Some(mut stdout) = child.stdout.take() {
+                        *child_handle.lock().await = Some(child);
+
+                        let mut buffer = Vec::with_capacity(65536);
+                        let mut chunk = [0u8; 8192];
+
+                        loop {
+                            let now = chrono::Utc::now().timestamp();
+                            if now - last_requested_at.load(Ordering::Relaxed) > 15 || !is_running.load(Ordering::Relaxed) {
+                                tracing::info!("Webcam stream idle timeout, shutting down hardware camera sensor");
+                                break;
+                            }
+
+                            match tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read(&mut chunk)).await {
+                                Ok(Ok(n)) => {
+                                    if n == 0 { break; }
+                                    buffer.extend_from_slice(&chunk[..n]);
+
+                                    while let Some(soi) = buffer.windows(2).position(|w| w == [0xFF, 0xD8]) {
+                                        if soi > 0 {
+                                            buffer.drain(..soi);
+                                        }
+                                        if let Some(eoi) = buffer.windows(2).position(|w| w == [0xFF, 0xD9]) {
+                                            let frame_end = eoi + 2;
+                                            let frame_bytes = buffer[..frame_end].to_vec();
+                                            buffer.drain(..frame_end);
+
+                                            let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_bytes);
+                                            *latest_frame.write().await = Some(b64);
+                                        } else {
+                                            break;
+                                        }
+                                    }
+                                }
+                                Ok(Err(_)) => break,
+                                Err(_) => continue,
+                            }
+                        }
+
+                        if let Some(mut proc) = child_handle.lock().await.take() {
+                            let _ = proc.kill().await;
                         }
                     }
                 }
             }
 
-            let mut try_names = Vec::new();
-            if !detected_device.is_empty() {
-                try_names.push(detected_device.clone());
-            }
-            try_names.extend(vec![
-                "Integrated Camera".to_string(),
-                "HD WebCam".to_string(),
-                "HD Camera".to_string(),
-                "USB Camera".to_string(),
-                "Camera".to_string(),
-                "Integrated Webcam".to_string(),
-                "OBS Virtual Camera".to_string(),
-            ]);
+            is_running.store(false, Ordering::SeqCst);
+        });
+    }
 
-            for cam in try_names {
-                let res = tokio::process::Command::new(&bin)
-                    .args([
-                        "-f", "dshow",
-                        "-i", &format!("video={}", cam),
-                        "-vframes", "1",
-                        "-pix_fmt", "yuv420p",
-                        "-f", "image2pipe",
-                        "-vcodec", "mjpeg",
-                        "-",
-                    ])
-                    .output()
-                    .await;
-
-                if let Ok(out) = res {
-                    if out.status.success() && !out.stdout.is_empty() {
-                        let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
-                        return Ok(Json(serde_json::json!({
-                            "success": true,
-                            "image_base64": b64,
-                            "size_bytes": out.stdout.len(),
-                            "device": cam,
-                            "timestamp": chrono::Utc::now().to_rfc3339(),
-                        })));
-                    }
-                }
-            }
-
-            // Fallback: device index 0 via vfwcap
-            let res2 = tokio::process::Command::new(&bin)
-                .args([
-                    "-f", "vfwcap",
-                    "-i", "0",
-                    "-vframes", "1",
-                    "-f", "image2pipe",
-                    "-vcodec", "mjpeg",
-                    "-",
-                ])
-                .output()
-                .await;
-
-            if let Ok(out) = res2 {
-                if out.status.success() && !out.stdout.is_empty() {
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
-                    return Ok(Json(serde_json::json!({
-                        "success": true,
-                        "image_base64": b64,
-                        "size_bytes": out.stdout.len(),
-                        "device": "vfwcap:0",
-                        "timestamp": chrono::Utc::now().to_rfc3339(),
-                    })));
-                }
-            }
+    // Return the latest cached frame from memory immediately (wait up to 600ms on initial start)
+    for _ in 0..12 {
+        if let Some(frame) = stream.latest_frame.read().await.as_ref() {
+            return Ok(Json(serde_json::json!({
+                "success": true,
+                "image_base64": frame,
+                "live": true,
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+            })));
         }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
 
-        // 2. Native Windows WinRT MediaCapture API fallback (Zero external dependencies)
+    // Windows fallback: native WinRT MediaCapture if FFmpeg is absent
+    #[cfg(target_os = "windows")]
+    {
         let ps_camera_script = r#"
             $ErrorActionPreference = 'SilentlyContinue'
             try {
@@ -766,34 +835,6 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
         }
     }
 
-    #[cfg(target_os = "linux")]
-    {
-        if which::which("ffmpeg").is_ok() {
-            let res = tokio::process::Command::new("ffmpeg")
-                .args([
-                    "-f", "v4l2",
-                    "-i", "/dev/video0",
-                    "-vframes", "1",
-                    "-f", "image2pipe",
-                    "-vcodec", "mjpeg",
-                    "-",
-                ])
-                .output()
-                .await;
-            if let Ok(out) = res {
-                if out.status.success() && !out.stdout.is_empty() {
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
-                    return Ok(Json(serde_json::json!({
-                        "success": true,
-                        "image_base64": b64,
-                        "size_bytes": out.stdout.len(),
-                        "timestamp": chrono::Utc::now().to_rfc3339(),
-                    })));
-                }
-            }
-        }
-    }
-
     Err((
         axum::http::StatusCode::SERVICE_UNAVAILABLE,
         Json(serde_json::json!({
@@ -804,13 +845,22 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
 }
 
 pub async fn stop_camera_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    use std::sync::atomic::Ordering;
+
+    let stream = get_camera_stream();
+    stream.is_running.store(false, Ordering::SeqCst);
+    stream.last_requested_at.store(0, Ordering::Relaxed);
+    if let Some(mut proc) = stream.child_handle.lock().await.take() {
+        let _ = proc.kill().await;
+    }
+    *stream.latest_frame.write().await = None;
+
     #[cfg(target_os = "macos")]
     {
         let _ = tokio::process::Command::new("pkill")
             .args(["-9", "-f", "ffmpeg"])
             .output()
             .await;
-        let _ = std::fs::remove_file("/tmp/agentdeck_cam_live.jpg");
     }
 
     #[cfg(target_os = "windows")]
