@@ -186,6 +186,12 @@ impl AgentAdapter for ClaudeCodeAdapter {
             unsafe {
                 libc::kill(pid as i32, libc::SIGTERM);
             }
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/F", "/PID", &pid.to_string()])
+                    .spawn();
+            }
         }
         Ok(())
     }
@@ -196,6 +202,12 @@ impl AgentAdapter for ClaudeCodeAdapter {
             #[cfg(unix)]
             unsafe {
                 libc::kill(pid as i32, libc::SIGKILL);
+            }
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/F", "/PID", &pid.to_string()])
+                    .spawn();
             }
         }
         Ok(())

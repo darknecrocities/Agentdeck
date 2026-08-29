@@ -18,6 +18,12 @@ if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 }
 
+# 0. Trust repository directory and terminate any existing daemon processes
+try { git config --global --add safe.directory * } catch {}
+Stop-Process -Name "agentdeckd" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "agentdeck" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 600
+
 # 1. Build optimized release binaries
 Write-Host "[1/6] Building release binaries (agentdeckd + agentdeck)..." -ForegroundColor Yellow
 if (Get-Command "cargo" -ErrorAction SilentlyContinue) {
@@ -30,6 +36,9 @@ if (Get-Command "cargo" -ErrorAction SilentlyContinue) {
 
 # 2. Copy binaries to ~/.agentdeck/bin
 Write-Host "[2/6] Installing binaries to $InstallDir..." -ForegroundColor Yellow
+Stop-Process -Name "agentdeckd" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "agentdeck" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 500
 Copy-Item "target\release\agentdeckd.exe" -Destination (Join-Path $InstallDir "agentdeckd.exe") -Force
 Copy-Item "target\release\agentdeck.exe" -Destination (Join-Path $InstallDir "agentdeck.exe") -Force
 
