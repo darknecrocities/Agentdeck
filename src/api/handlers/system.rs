@@ -899,30 +899,6 @@ pub async fn stop_camera_handler() -> Result<Json<serde_json::Value>, (axum::htt
     }
     *stream.latest_frame.write().await = None;
 
-    #[cfg(target_os = "macos")]
-    {
-        let _ = tokio::process::Command::new("pkill")
-            .args(["-9", "-f", "ffmpeg"])
-            .output()
-            .await;
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let _ = tokio::process::Command::new("taskkill")
-            .args(["/F", "/IM", "ffmpeg.exe"])
-            .output()
-            .await;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        let _ = tokio::process::Command::new("pkill")
-            .args(["-9", "-f", "ffmpeg"])
-            .output()
-            .await;
-    }
-
     Ok(Json(serde_json::json!({
         "success": true,
         "message": "Webcam background stream terminated and camera hardware released."
