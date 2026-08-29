@@ -415,67 +415,113 @@ pub async fn launch_app_handler(
     })))
 }
 
+pub struct ScreenStreamState {
+    pub latest_frame: std::sync::Arc<tokio::sync::RwLock<Option<(String, usize, std::time::Instant)>>>,
+    pub capture_mutex: std::sync::Arc<tokio::sync::Mutex<()>>,
+}
+
+impl ScreenStreamState {
+    pub fn new() -> Self {
+        Self {
+            latest_frame: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
+            capture_mutex: std::sync::Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
+}
+
+static SCREEN_STREAM: std::sync::OnceLock<ScreenStreamState> = std::sync::OnceLock::new();
+
+fn get_screen_stream() -> &'static ScreenStreamState {
+    SCREEN_STREAM.get_or_init(ScreenStreamState::new)
+}
+
 pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
     use base64::Engine;
-    #[cfg(target_os = "macos")]
+
+    let stream = get_screen_stream();
+
+    // 1. Return cached frame if captured recently (< 80ms)
     {
-        // 1. Fast in-memory hardware screen capture via FFmpeg AVFoundation
-        let ffmpeg_candidates = ["/opt/homebrew/bin/ffmpeg", "ffmpeg", "/usr/local/bin/ffmpeg"];
-        for bin in ffmpeg_candidates {
-            if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
-                let res = tokio::process::Command::new(bin)
-                    .args([
-                        "-f", "avfoundation",
-                        "-pixel_format", "bgr0",
-                        "-i", "1:none",
-                        "-vframes", "1",
-                        "-vf", "scale=1280:-1",
-                        "-f", "image2pipe",
-                        "-vcodec", "mjpeg",
-                        "-q:v", "5",
-                        "-",
-                    ])
-                    .output()
-                    .await;
-                if let Ok(out) = res {
-                    if out.status.success() && !out.stdout.is_empty() {
-                        let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
-                        return Ok(Json(serde_json::json!({
-                            "success": true,
-                            "image_base64": b64,
-                            "size_bytes": out.stdout.len(),
-                            "timestamp": chrono::Utc::now().to_rfc3339(),
-                        })));
-                    }
-                }
-                break;
+        let read = stream.latest_frame.read().await;
+        if let Some((ref b64, size_bytes, ref instant)) = *read {
+            if instant.elapsed() < std::time::Duration::from_millis(80) {
+                return Ok(Json(serde_json::json!({
+                    "success": true,
+                    "image_base64": b64,
+                    "size_bytes": size_bytes,
+                    "cached": true,
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                })));
             }
         }
+    }
 
-        // 2. Fallback to native macOS screencapture
+    // 2. Coalesce concurrent captures so multiple fast requests don't spawn duplicate processes
+    let _lock = stream.capture_mutex.lock().await;
+
+    // Double-check cache after obtaining lock
+    {
+        let read = stream.latest_frame.read().await;
+        if let Some((ref b64, size_bytes, ref instant)) = *read {
+            if instant.elapsed() < std::time::Duration::from_millis(80) {
+                return Ok(Json(serde_json::json!({
+                    "success": true,
+                    "image_base64": b64,
+                    "size_bytes": size_bytes,
+                    "cached": true,
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                })));
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // 1. Native macOS screencapture (Apple system binary, avoids AVFoundation TCC permission spam)
         let target_path = {
             let temp_dir = std::env::temp_dir();
-            let file_name = format!("agentdeck_screen_{}.jpg", chrono::Utc::now().timestamp_millis());
+            let file_name = format!("agentdeck_screen_{}_{}.jpg", std::process::id(), chrono::Utc::now().timestamp_millis());
             temp_dir.join(&file_name)
         };
 
-        let output = tokio::process::Command::new("screencapture")
-            .args(["-x", "-t", "jpg", target_path.to_str().unwrap_or("/tmp/screenshot.jpg")])
+        let screencapture_bin = if std::path::Path::new("/usr/sbin/screencapture").exists() {
+            "/usr/sbin/screencapture"
+        } else {
+            "screencapture"
+        };
+
+        let output = tokio::process::Command::new(screencapture_bin)
+            .args(["-x", "-t", "jpg", "-m", target_path.to_str().unwrap_or("/tmp/agentdeck_screen.jpg")])
             .output()
             .await;
 
-        if let Ok(out) = output {
-            if out.status.success() && target_path.exists() {
-                if let Ok(bytes) = std::fs::read(&target_path) {
-                    let _ = std::fs::remove_file(&target_path);
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                    return Ok(Json(serde_json::json!({
-                        "success": true,
-                        "image_base64": b64,
-                        "size_bytes": bytes.len(),
-                        "timestamp": chrono::Utc::now().to_rfc3339(),
-                    })));
+        match output {
+            Ok(out) => {
+                if out.status.success() && target_path.exists() {
+                    if let Ok(bytes) = std::fs::read(&target_path) {
+                        let _ = std::fs::remove_file(&target_path);
+                        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                        let size = bytes.len();
+                        *stream.latest_frame.write().await = Some((b64.clone(), size, std::time::Instant::now()));
+                        return Ok(Json(serde_json::json!({
+                            "success": true,
+                            "image_base64": b64,
+                            "size_bytes": size,
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                        })));
+                    }
+                } else {
+                    tracing::error!(
+                        "screencapture failed: status={:?}, exists={}, stdout={}, stderr={}",
+                        out.status,
+                        target_path.exists(),
+                        String::from_utf8_lossy(&out.stdout),
+                        String::from_utf8_lossy(&out.stderr)
+                    );
                 }
+            }
+            Err(e) => {
+                tracing::error!("Failed to execute screencapture: {:?}", e);
             }
         }
     }
