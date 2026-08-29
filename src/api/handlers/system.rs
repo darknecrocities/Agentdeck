@@ -301,6 +301,7 @@ pub async fn launch_app_handler(
     Json(payload): Json<LaunchAppRequest>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
     let app_target = payload.app.to_lowercase();
+    #[allow(unused_assignments)]
     let mut cmd_str = String::new();
 
     #[cfg(target_os = "windows")]
@@ -452,24 +453,22 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
                         "-f", "avfoundation",
                         "-i", "1:none",
                         "-vframes", "1",
-                        "-update", "1",
-                        "-y",
-                        target_path.to_str().unwrap_or("/tmp/screenshot.png"),
+                        "-pix_fmt", "yuv420p",
+                        "-f", "image2pipe",
+                        "-vcodec", "mjpeg",
+                        "-",
                     ])
                     .output()
                     .await;
                 if let Ok(out) = res {
-                    if out.status.success() && target_path.exists() {
-                        if let Ok(bytes) = std::fs::read(&target_path) {
-                            let _ = std::fs::remove_file(&target_path);
-                            let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                            return Ok(Json(serde_json::json!({
-                                "success": true,
-                                "image_base64": b64,
-                                "size_bytes": bytes.len(),
-                                "timestamp": chrono::Utc::now().to_rfc3339(),
-                            })));
-                        }
+                    if out.status.success() && !out.stdout.is_empty() {
+                        let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
+                        return Ok(Json(serde_json::json!({
+                            "success": true,
+                            "image_base64": b64,
+                            "size_bytes": out.stdout.len(),
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                        })));
                     }
                 }
                 break;
@@ -479,33 +478,79 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
 
     #[cfg(target_os = "windows")]
     {
-        let ps_script = format!(
-            r#"Add-Type -AssemblyName System.Windows.Forms;
-               Add-Type -AssemblyName System.Drawing;
-               $screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds;
-               $bitmap = New-Object System.Drawing.Bitmap $screen.Width, $screen.Height;
-               $graphics = [System.Drawing.Graphics]::FromImage($bitmap);
-               $graphics.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size);
-               $bitmap.Save('{}', [System.Drawing.Imaging.ImageFormat]::Png);
-               $graphics.Dispose();
-               $bitmap.Dispose();"#,
-            target_path.to_string_lossy().replace('\\', "\\\\")
-        );
+        // 1. Fast direct stdout capture with ffmpeg gdigrab if available
+        if which::which("ffmpeg").is_ok() {
+            let res = tokio::process::Command::new("ffmpeg")
+                .args([
+                    "-f", "gdigrab",
+                    "-framerate", "30",
+                    "-i", "desktop",
+                    "-vframes", "1",
+                    "-pix_fmt", "yuv420p",
+                    "-f", "image2pipe",
+                    "-vcodec", "mjpeg",
+                    "-",
+                ])
+                .output()
+                .await;
+            if let Ok(out) = res {
+                if out.status.success() && !out.stdout.is_empty() {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
+                    return Ok(Json(serde_json::json!({
+                        "success": true,
+                        "image_base64": b64,
+                        "size_bytes": out.stdout.len(),
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    })));
+                }
+            }
+        }
+
+        // 2. High-speed in-memory PowerShell GDI screen grab without disk IO
+        let ps_script = r#"Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height; $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size); $ms = New-Object System.IO.MemoryStream; $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Jpeg); [System.Convert]::ToBase64String($ms.ToArray()); $g.Dispose(); $bmp.Dispose(); $ms.Dispose();"#;
 
         let output = tokio::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", &ps_script])
+            .args(["-NoProfile", "-Command", ps_script])
             .output()
             .await;
 
         if let Ok(out) = output {
-            if out.status.success() && target_path.exists() {
-                if let Ok(bytes) = std::fs::read(&target_path) {
-                    let _ = std::fs::remove_file(&target_path);
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            if out.status.success() {
+                let b64 = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !b64.is_empty() {
+                    let len = b64.len();
                     return Ok(Json(serde_json::json!({
                         "success": true,
                         "image_base64": b64,
-                        "size_bytes": bytes.len(),
+                        "size_bytes": len,
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    })));
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if which::which("ffmpeg").is_ok() {
+            let res = tokio::process::Command::new("ffmpeg")
+                .args([
+                    "-f", "x11grab",
+                    "-i", ":0.0",
+                    "-vframes", "1",
+                    "-f", "image2pipe",
+                    "-vcodec", "mjpeg",
+                    "-",
+                ])
+                .output()
+                .await;
+            if let Ok(out) = res {
+                if out.status.success() && !out.stdout.is_empty() {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
+                    return Ok(Json(serde_json::json!({
+                        "success": true,
+                        "image_base64": b64,
+                        "size_bytes": out.stdout.len(),
                         "timestamp": chrono::Utc::now().to_rfc3339(),
                     })));
                 }
@@ -563,28 +608,82 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
     #[cfg(target_os = "windows")]
     {
         if which::which("ffmpeg").is_ok() {
+            // Try standard DirectShow video capture
             let res = tokio::process::Command::new("ffmpeg")
                 .args([
                     "-f", "dshow",
                     "-i", "video=Integrated Camera",
                     "-vframes", "1",
-                    "-y",
-                    &target_path.to_string_lossy(),
+                    "-pix_fmt", "yuv420p",
+                    "-f", "image2pipe",
+                    "-vcodec", "mjpeg",
+                    "-",
+                ])
+                .output()
+                .await;
+
+            if let Ok(out) = res {
+                if out.status.success() && !out.stdout.is_empty() {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
+                    return Ok(Json(serde_json::json!({
+                        "success": true,
+                        "image_base64": b64,
+                        "size_bytes": out.stdout.len(),
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    })));
+                }
+            }
+
+            // Fallback: device index 0 via vfwcap
+            let res2 = tokio::process::Command::new("ffmpeg")
+                .args([
+                    "-f", "vfwcap",
+                    "-i", "0",
+                    "-vframes", "1",
+                    "-f", "image2pipe",
+                    "-vcodec", "mjpeg",
+                    "-",
+                ])
+                .output()
+                .await;
+
+            if let Ok(out) = res2 {
+                if out.status.success() && !out.stdout.is_empty() {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
+                    return Ok(Json(serde_json::json!({
+                        "success": true,
+                        "image_base64": b64,
+                        "size_bytes": out.stdout.len(),
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    })));
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if which::which("ffmpeg").is_ok() {
+            let res = tokio::process::Command::new("ffmpeg")
+                .args([
+                    "-f", "v4l2",
+                    "-i", "/dev/video0",
+                    "-vframes", "1",
+                    "-f", "image2pipe",
+                    "-vcodec", "mjpeg",
+                    "-",
                 ])
                 .output()
                 .await;
             if let Ok(out) = res {
-                if out.status.success() && target_path.exists() {
-                    if let Ok(bytes) = std::fs::read(&target_path) {
-                        let _ = std::fs::remove_file(&target_path);
-                        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                        return Ok(Json(serde_json::json!({
-                            "success": true,
-                            "image_base64": b64,
-                            "size_bytes": bytes.len(),
-                            "timestamp": chrono::Utc::now().to_rfc3339(),
-                        })));
-                    }
+                if out.status.success() && !out.stdout.is_empty() {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
+                    return Ok(Json(serde_json::json!({
+                        "success": true,
+                        "image_base64": b64,
+                        "size_bytes": out.stdout.len(),
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    })));
                 }
             }
         }
@@ -594,7 +693,7 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
         axum::http::StatusCode::SERVICE_UNAVAILABLE,
         Json(serde_json::json!({
             "success": false,
-            "error": "Workstation webcam capture requires camera permission or imagesnap/ffmpeg."
+            "error": "Workstation webcam capture requires camera permission or ffmpeg installed."
         })),
     ))
 }
@@ -613,6 +712,14 @@ pub async fn stop_camera_handler() -> Result<Json<serde_json::Value>, (axum::htt
     {
         let _ = tokio::process::Command::new("taskkill")
             .args(["/F", "/IM", "ffmpeg.exe"])
+            .output()
+            .await;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let _ = tokio::process::Command::new("pkill")
+            .args(["-9", "-f", "ffmpeg"])
             .output()
             .await;
     }
@@ -638,9 +745,91 @@ pub async fn play_sound_handler() -> Result<Json<serde_json::Value>, (axum::http
             .spawn();
     }
 
+    #[cfg(target_os = "linux")]
+    {
+        let _ = tokio::process::Command::new("paplay")
+            .arg("/usr/share/sounds/freedesktop/stereo/complete.oga")
+            .spawn();
+    }
+
     Ok(Json(serde_json::json!({
         "success": true,
         "message": "Sound alert played on workstation for Find Deck locating."
+    })))
+}
+
+#[derive(serde::Deserialize)]
+pub struct SpeakRequest {
+    pub text: String,
+    pub voice: Option<String>,
+    pub action: Option<String>, // "speak" (default), "prompt_active", "both"
+}
+
+pub async fn speak_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<SpeakRequest>,
+) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    let clean_text = payload.text.trim().to_string();
+    if clean_text.is_empty() {
+        return Err((
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Speech text cannot be empty" })),
+        ));
+    }
+
+    // 1. If action is prompt_active or both, dispatch voice prompt to active session
+    let mut dispatched_session_id = None;
+    if payload.action.as_deref() == Some("prompt_active") || payload.action.as_deref() == Some("both") {
+        if let Ok(sessions) = state.event_bus.db().list_sessions() {
+            if let Some(active) = sessions.iter().find(|s| s.status == crate::models::AgentStatus::Running) {
+                let _ = state.agent_manager.send_prompt(&active.agent, &active.id, &clean_text).await;
+                dispatched_session_id = Some(active.id.clone());
+            }
+        }
+    }
+
+    // 2. Play / Speak text on Workstation hardware speakers
+    if payload.action.as_deref() != Some("prompt_active") {
+        #[cfg(target_os = "macos")]
+        {
+            let voice_arg = payload.voice.as_deref().unwrap_or("Daniel");
+            let _ = tokio::process::Command::new("say")
+                .args(["-v", voice_arg, &clean_text])
+                .spawn();
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            let escaped_text = clean_text.replace('\'', "''");
+            let ps_script = format!(
+                r#"Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; $s.Rate = 0; $s.Speak('{}');"#,
+                escaped_text
+            );
+            let _ = tokio::process::Command::new("powershell")
+                .args(["-NoProfile", "-Command", &ps_script])
+                .spawn();
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if which::which("spd-say").is_ok() {
+                let _ = tokio::process::Command::new("spd-say")
+                    .arg(&clean_text)
+                    .spawn();
+            } else if which::which("espeak").is_ok() {
+                let _ = tokio::process::Command::new("espeak")
+                    .arg(&clean_text)
+                    .spawn();
+            }
+        }
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "text": clean_text,
+        "action": payload.action.unwrap_or_else(|| "speak".to_string()),
+        "dispatched_to_session": dispatched_session_id,
+        "message": "Voice command successfully processed on workstation"
     })))
 }
 

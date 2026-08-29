@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
+import '../services/voice_service.dart';
 import '../services/workstation_manager.dart';
 import '../theme/terminal_theme.dart';
 import 'file_viewer_modal.dart';
@@ -15,7 +16,7 @@ class RemoteMachineModal extends StatefulWidget {
   State<RemoteMachineModal> createState() => _RemoteMachineModalState();
 }
 
-class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTickerProviderStateMixin {
+class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProviderStateMixin {
   final ApiService _api = ApiService();
   final WorkstationManager _wsMgr = WorkstationManager();
 
@@ -28,7 +29,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   String? _screenError;
   int _screenFrameCount = 0;
   Timer? _screenStreamTimer;
-  int _screenIntervalMs = 250; // ~4 FPS live desktop stream
+  int _screenIntervalMs = 120; // Fast ~8 FPS smooth live desktop stream
   final TransformationController _screenTransformCtrl = TransformationController();
   double _screenZoomLevel = 1.0;
 
@@ -39,9 +40,18 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
   String? _camError;
   int _camFrameCount = 0;
   Timer? _camStreamTimer;
-  int _camIntervalMs = 150; // ~7 FPS smooth live webcam stream
+  int _camIntervalMs = 100; // Fast ~10 FPS live continuous webcam stream
   final TransformationController _camTransformCtrl = TransformationController();
   double _camZoomLevel = 1.0;
+
+  // Voice Walkie-Talkie State
+  final VoiceService _voice = VoiceService();
+  final TextEditingController _voiceTextCtrl = TextEditingController();
+  bool _isVoiceRecording = false;
+  bool _isTransmittingVoice = false;
+  String _voiceTargetMode = 'speak'; // 'speak' (Workstation Speakers) or 'prompt_active' (Active AI)
+  String? _voiceStatusFeedback;
+  late AnimationController _voicePulseAnim;
 
   // Launch App State
   bool _launching = false;
@@ -52,6 +62,13 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
     super.initState();
     _tabCtrl = TabController(length: 3, vsync: this);
     _tabCtrl.addListener(_onTabChanged);
+
+    _voicePulseAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+
+    _voice.init();
 
     _screenTransformCtrl.addListener(() {
       final scale = _screenTransformCtrl.value.getMaxScaleOnAxis();
@@ -119,11 +136,109 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
     _stopScreenStream();
     _stopCamStream();
     _api.stopCamera();
+    _voice.stopListening();
+    _voicePulseAnim.dispose();
+    _voiceTextCtrl.dispose();
     _screenTransformCtrl.dispose();
     _camTransformCtrl.dispose();
     _tabCtrl.removeListener(_onTabChanged);
     _tabCtrl.dispose();
     super.dispose();
+  }
+
+  // --- Voice Walkie-Talkie Engine ---
+  Future<void> _startVoiceRecording() async {
+    setState(() {
+      _isVoiceRecording = true;
+      _voiceStatusFeedback = 'Listening to your voice...';
+    });
+
+    final started = await _voice.startListening(
+      onResult: (text, isFinal) {
+        if (mounted) {
+          setState(() {
+            _voiceTextCtrl.text = text;
+            if (isFinal && text.trim().isNotEmpty) {
+              _voiceStatusFeedback = 'Captured speech. Ready to transmit.';
+            }
+          });
+        }
+      },
+    );
+
+    if (!started && mounted) {
+      setState(() {
+        _isVoiceRecording = false;
+        _voiceStatusFeedback = 'Microphone unavailable. You can type below.';
+      });
+    }
+  }
+
+  Future<void> _stopVoiceRecording() async {
+    await _voice.stopListening();
+    if (mounted) {
+      setState(() {
+        _isVoiceRecording = false;
+        if (_voiceTextCtrl.text.isNotEmpty) {
+          _voiceStatusFeedback = 'Voice captured. Tap TRANSMIT.';
+        }
+      });
+    }
+  }
+
+  Future<void> _transmitVoiceToWorkstation({String? explicitText}) async {
+    final text = (explicitText ?? _voiceTextCtrl.text).trim();
+    if (text.isEmpty) return;
+
+    if (_isVoiceRecording) {
+      await _stopVoiceRecording();
+    }
+
+    setState(() {
+      _isTransmittingVoice = true;
+      _voiceStatusFeedback = _voiceTargetMode == 'prompt_active'
+          ? 'Dispatching prompt to Active AI Agent...'
+          : 'Transmitting speech to Workstation Speakers...';
+    });
+
+    try {
+      final res = await _api.speakOnWorkstation(
+        text: text,
+        action: _voiceTargetMode,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isTransmittingVoice = false;
+          if (res['success'] == true) {
+            _voiceStatusFeedback = _voiceTargetMode == 'prompt_active'
+                ? '✅ Dispatched voice prompt to active agent!'
+                : '📢 Spoken on Workstation speakers!';
+            _voiceTextCtrl.clear();
+          } else {
+            _voiceStatusFeedback = '⚠️ ${res['error'] ?? "Failed to transmit voice"}';
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF171717),
+            content: Text(
+              _voiceStatusFeedback ?? 'Voice command executed',
+              style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isTransmittingVoice = false;
+          _voiceStatusFeedback = 'Failed to transmit voice: $e';
+        });
+      }
+    }
   }
 
   // --- Screen Live Streaming Engine ---
@@ -874,6 +989,8 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                   ),
           ),
         ),
+        // Live Voice to Workstation Walkie-Talkie Bar
+        _buildVoiceWalkieTalkieBar(),
       ],
     );
   }
@@ -1082,7 +1199,231 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with SingleTick
                   ),
           ),
         ),
+        // Live Voice to Workstation Walkie-Talkie Bar
+        _buildVoiceWalkieTalkieBar(),
       ],
+    );
+  }
+
+  // --- Voice Walkie-Talkie Control Bar ---
+  Widget _buildVoiceWalkieTalkieBar() {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF262626)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header: Walkie-Talkie Badge & Mode Switcher
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.record_voice_over_rounded, size: 13, color: TerminalColors.pureWhite),
+                  const SizedBox(width: 6),
+                  Text(
+                    'VOICE TO WORKSTATION',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      color: TerminalColors.pureWhite,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              // Target Mode Switcher (Speakers vs Active AI)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFF333333)),
+                ),
+                child: Row(
+                  children: [
+                    _buildVoiceModeBtn('speak', '📢 SPEAKERS'),
+                    _buildVoiceModeBtn('prompt_active', '⚡ ACTIVE AI'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Speech Preview Input Field & Pulsing Mic Trigger
+          Row(
+            children: [
+              // Pulsing / Glowing Microphone Push-To-Talk Button
+              GestureDetector(
+                onTap: () {
+                  if (_isVoiceRecording) {
+                    _stopVoiceRecording();
+                  } else {
+                    _startVoiceRecording();
+                  }
+                },
+                child: AnimatedBuilder(
+                  animation: _voicePulseAnim,
+                  builder: (context, child) {
+                    final scale = _isVoiceRecording ? 1.0 + (_voicePulseAnim.value * 0.12) : 1.0;
+                    return Transform.scale(
+                      scale: scale,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isVoiceRecording ? const Color(0xFF2E2E2E) : const Color(0xFF1E1E1E),
+                          border: Border.all(
+                            color: _isVoiceRecording ? TerminalColors.pureWhite : const Color(0xFF404040),
+                            width: _isVoiceRecording ? 2.0 : 1.0,
+                          ),
+                          boxShadow: _isVoiceRecording
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Icon(
+                          _isVoiceRecording ? Icons.mic : Icons.mic_none,
+                          color: TerminalColors.pureWhite,
+                          size: 18,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Captured Voice Text Field
+              Expanded(
+                child: TextField(
+                  controller: _voiceTextCtrl,
+                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: TerminalColors.pureWhite),
+                  decoration: InputDecoration(
+                    hintText: _isVoiceRecording ? 'Listening to voice...' : 'Speak or type voice command...',
+                    hintStyle: GoogleFonts.jetBrainsMono(fontSize: 9.5, color: TerminalColors.zinc),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+                    filled: true,
+                    fillColor: Colors.black,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(5),
+                      borderSide: const BorderSide(color: Color(0xFF333333)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(5),
+                      borderSide: const BorderSide(color: TerminalColors.pureWhite),
+                    ),
+                  ),
+                  onSubmitted: (val) => _transmitVoiceToWorkstation(),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Transmit Button
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: TerminalColors.pureWhite,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  minimumSize: const Size(0, 36),
+                ),
+                icon: _isTransmittingVoice
+                    ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                    : const Icon(Icons.send_rounded, size: 13),
+                label: Text(
+                  _voiceTargetMode == 'prompt_active' ? 'PROMPT' : 'SPEAK',
+                  style: GoogleFonts.jetBrainsMono(fontSize: 9.5, fontWeight: FontWeight.w900),
+                ),
+                onPressed: _isTransmittingVoice ? null : () => _transmitVoiceToWorkstation(),
+              ),
+            ],
+          ),
+
+          // Status & Preset Quick Phrases
+          if (_voiceStatusFeedback != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _voiceStatusFeedback!,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                color: _voiceStatusFeedback!.startsWith('✅') || _voiceStatusFeedback!.startsWith('📢')
+                    ? TerminalColors.pureWhite
+                    : TerminalColors.zinc,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildQuickVoiceChip('🔊 Sound Alert', () => _api.playSound()),
+                _buildQuickVoiceChip('💬 "Hello Workstation"', () => _transmitVoiceToWorkstation(explicitText: 'Hello from AgentDeck mobile!')),
+                _buildQuickVoiceChip('⚡ "Run Tests"', () => _transmitVoiceToWorkstation(explicitText: 'Run tests for this project')),
+                _buildQuickVoiceChip('📊 "Status Update"', () => _transmitVoiceToWorkstation(explicitText: 'What is the current status?')),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVoiceModeBtn(String mode, String label) {
+    final isSelected = _voiceTargetMode == mode;
+    return GestureDetector(
+      onTap: () => setState(() => _voiceTargetMode = mode),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+        decoration: BoxDecoration(
+          color: isSelected ? TerminalColors.pureWhite : Colors.transparent,
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 8,
+            fontWeight: FontWeight.w900,
+            color: isSelected ? Colors.black : TerminalColors.zinc,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickVoiceChip(String label, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: const Color(0xFF333333)),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(fontSize: 8, color: TerminalColors.zinc),
+          ),
+        ),
+      ),
     );
   }
 }

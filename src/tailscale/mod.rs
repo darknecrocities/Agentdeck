@@ -11,10 +11,25 @@ pub struct TailscaleManager;
 
 impl TailscaleManager {
     pub async fn detect() -> TailscaleInfo {
-        let binary_candidates = vec!["tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale", "/usr/local/bin/tailscale", "/opt/homebrew/bin/tailscale"];
-        let mut found_bin = None;
+        let mut binary_candidates = vec![
+            "tailscale",
+            "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
+            "/usr/local/bin/tailscale",
+            "/opt/homebrew/bin/tailscale",
+            "C:\\Program Files\\Tailscale\\tailscale.exe",
+            "C:\\Program Files (x86)\\Tailscale\\tailscale.exe",
+        ];
 
-        for b in binary_candidates {
+        // Check localappdata on Windows
+        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+            let win_path = format!("{}\\Tailscale\\tailscale.exe", local_app_data);
+            if std::path::Path::new(&win_path).exists() {
+                binary_candidates.insert(0, Box::leak(win_path.into_boxed_str()));
+            }
+        }
+
+        let mut found_bin = None;
+        for b in &binary_candidates {
             if which::which(b).is_ok() || std::path::Path::new(b).exists() {
                 found_bin = Some(b.to_string());
                 break;
@@ -22,15 +37,45 @@ impl TailscaleManager {
         }
 
         if found_bin.is_none() {
-            // Check if tailscale interface exists via ifconfig
-            if let Ok(out) = Command::new("ifconfig").arg("utun").output().await {
-                let text = String::from_utf8_lossy(&out.stdout);
-                if text.contains("100.") {
-                    return TailscaleInfo {
-                        installed: true,
-                        ip: Self::extract_ip_from_text(&text),
-                        status: "online (interface detected)".to_string(),
-                    };
+            // Check if tailscale interface exists on Unix via ifconfig
+            #[cfg(not(target_os = "windows"))]
+            {
+                if let Ok(out) = Command::new("ifconfig").arg("utun").output().await {
+                    let text = String::from_utf8_lossy(&out.stdout);
+                    if text.contains("100.") {
+                        return TailscaleInfo {
+                            installed: true,
+                            ip: Self::extract_ip_from_text(&text),
+                            status: "online (interface detected)".to_string(),
+                        };
+                    }
+                }
+            }
+
+            // Check if tailscale interface exists on Windows via PowerShell / ipconfig
+            #[cfg(target_os = "windows")]
+            {
+                let ps_script = r#"(Get-NetIPAddress -InterfaceAlias "*Tailscale*" -AddressFamily IPv4 -ErrorAction SilentlyContinue).IPAddress"#;
+                if let Ok(out) = Command::new("powershell").args(["-NoProfile", "-Command", ps_script]).output().await {
+                    let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if text.starts_with("100.") {
+                        return TailscaleInfo {
+                            installed: true,
+                            ip: Some(text),
+                            status: "online (Tailscale IPv4 detected)".to_string(),
+                        };
+                    }
+                }
+
+                if let Ok(out) = Command::new("ipconfig").output().await {
+                    let text = String::from_utf8_lossy(&out.stdout);
+                    if text.contains("100.") {
+                        return TailscaleInfo {
+                            installed: true,
+                            ip: Self::extract_ip_from_text(&text),
+                            status: "online (ipconfig detected)".to_string(),
+                        };
+                    }
                 }
             }
 
@@ -72,8 +117,9 @@ impl TailscaleManager {
 
     fn extract_ip_from_text(text: &str) -> Option<String> {
         for word in text.split_whitespace() {
-            if word.starts_with("100.") && word.split('.').count() == 4 {
-                return Some(word.to_string());
+            let clean = word.trim_matches(|c: char| !c.is_ascii_digit() && c != '.');
+            if clean.starts_with("100.") && clean.split('.').count() == 4 {
+                return Some(clean.to_string());
             }
         }
         None

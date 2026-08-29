@@ -441,6 +441,19 @@ class ApiService {
     return data is Map<String, dynamic> ? data : {};
   }
 
+  Future<Map<String, dynamic>> speakOnWorkstation({
+    required String text,
+    String action = 'speak',
+    String? voice,
+  }) async {
+    final data = await _post('/api/system/speak', {
+      'text': text,
+      'action': action,
+      if (voice != null) 'voice': voice,
+    });
+    return data is Map<String, dynamic> ? data : {};
+  }
+
   Future<Map<String, dynamic>?> readSystemFile(String path) async {
     try {
       final data = await _get('/api/system/file', query: {'path': path});

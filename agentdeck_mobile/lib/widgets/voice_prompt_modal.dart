@@ -92,6 +92,34 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
     }
   }
 
+  Future<void> _speakOnWorkstation() async {
+    final prompt = _promptCtrl.text.trim();
+    if (prompt.isEmpty) return;
+
+    await _voice.stopListening();
+    setState(() {
+      _isDispatching = true;
+      _statusText = 'Speaking on workstation speakers...';
+    });
+
+    try {
+      final res = await _api.speakOnWorkstation(text: prompt, action: 'speak');
+      if (mounted) {
+        setState(() {
+          _isDispatching = false;
+          _statusText = res['success'] == true ? '📢 Spoken on workstation speakers!' : '⚠️ Failed to speak';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isDispatching = false;
+          _statusText = 'Failed to speak on workstation: $e';
+        });
+      }
+    }
+  }
+
   Future<void> _dispatchPrompt() async {
     final prompt = _promptCtrl.text.trim();
     if (prompt.isEmpty) return;
@@ -311,7 +339,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   icon: Icon(_isListening ? Icons.stop : Icons.mic, size: 16),
-                  label: Text(_isListening ? 'STOP MIC' : 'SPEAK AGAIN', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold)),
+                  label: Text(_isListening ? 'STOP MIC' : 'SPEAK AGAIN', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.bold)),
                   onPressed: () {
                     if (_isListening) {
                       _stopVoiceInput();
@@ -321,7 +349,18 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
                   },
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: TerminalColors.pureWhite,
+                  side: const BorderSide(color: TerminalColors.cardBorderLight),
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                ),
+                icon: const Icon(Icons.volume_up_rounded, size: 15),
+                label: Text('SPEAK', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.w900)),
+                onPressed: _isDispatching ? null : _speakOnWorkstation,
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
@@ -333,7 +372,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
                   icon: _isDispatching
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                       : const Icon(Icons.auto_awesome, size: 16),
-                  label: Text('DISPATCH VIBE PROMPT', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.w900)),
+                  label: Text('DISPATCH PROMPT', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.w900)),
                   onPressed: _isDispatching ? null : _dispatchPrompt,
                 ),
               ),

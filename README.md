@@ -99,7 +99,15 @@ flowchart TB
 - Path traversal protection (rejection of unauthorized workspace paths).
 - Risk classifier intercepts dangerous operations (`rm -rf`, `git push --force`, `drop database`) and holds them in an approval queue until confirmed on mobile.
 
-### 6. Minimalist Black & White Monochrome Aesthetics
+### 6. Voice-to-Workstation Walkie-Talkie & Host Speech Synthesis
+- Speak into your mobile phone to broadcast voice directly through your computer's speakers via native OS Speech Synthesis (PowerShell SAPI / `.NET System.Speech` on Windows, `say` on macOS, `espeak` on Linux).
+- Dispatch spoken voice instructions directly to active AI agent sessions from the webcam/screenshare view.
+
+### 7. Smooth Live Video Streaming for Webcam & Screenshare
+- Low-latency continuous video streaming with in-memory frame buffering.
+- Real-time workstation desktop view with double-tap pinch zoom and live camera feed.
+
+### 8. Minimalist Black & White Monochrome Aesthetics
 - High-contrast OLED pure black (`#000000`) and razor white (`#FFFFFF`) palette.
 - Monospace typography via JetBrains Mono and ASCII progress bars (`████████░░░░ 75%`).
 
@@ -108,42 +116,41 @@ flowchart TB
 ## 🚀 Quick Start Guide
 
 ### Prerequisites
-- macOS Workstation (Apple Silicon or Intel)
-- Rust 1.80+ (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` or `brew install rust`)
+- **macOS** or **Windows** Workstation
+- Rust 1.80+ (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` on macOS/Linux, or [rustup.rs](https://rustup.rs) on Windows)
 - Flutter 3.24+ (optional for building mobile client)
-- [Tailscale](https://tailscale.com) (free account for remote access)
+- [Tailscale](https://tailscale.com) (free mesh VPN for secure remote phone access)
 
 ---
 
-### Step 1: Clone & Configure
+### Step 1: Clone Repository
 
 ```bash
 git clone https://github.com/darknecrocities/Agentdeck.git
 cd Agentdeck
-
-# Copy environment template
-cp .env.example .env
-```
-
-Edit `.env` to configure your settings and optional API keys:
-```bash
-AGENTDECK_HOST=0.0.0.0
-AGENTDECK_PORT=8765
-AGENTDECK_REQUIRE_AUTH=false
-AGENTDECK_AUTH_TOKEN=your-custom-secure-token
 ```
 
 ---
 
-### Step 2: Automated 24/7 Installation
+### Step 2: Automated 24/7 Background Service Installation
 
-Run the one-click setup script to build release binaries, install the `launchd` background service, and verify system agents:
-
+#### 🍏 On macOS:
+Run the one-click setup script to build release binaries, install the `launchd` background service (auto-starts on boot), and verify system agents:
 ```bash
 ./scripts/setup-all.sh
 ```
 
-This installs `agentdeckd` as a persistent background daemon that starts automatically on Mac boot and auto-restarts if stopped.
+#### 🪟 On Windows:
+Run the automated PowerShell installer or double-click `scripts\setup-windows.bat`:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-windows-service.ps1
+```
+This automatically:
+- Builds release binaries (`agentdeckd.exe` and `agentdeck.exe`).
+- Adds `~/.agentdeck/bin` to your User PATH.
+- Configures `.env` and detects your Windows Tailscale IP (`100.x.x.x`).
+- Registers a Windows Scheduled Task (`AgentDeckDaemon`) that auto-starts `agentdeckd` on login silently in the background without needing manual `cargo run`.
+- Configures Windows Firewall for port 3000.
 
 ---
 
@@ -152,7 +159,11 @@ This installs `agentdeckd` as a persistent background daemon that starts automat
 Verify all agents and subsystems:
 
 ```bash
+# macOS
 ./target/release/agentdeck doctor
+
+# Windows
+.\target\release\agentdeck.exe doctor
 ```
 
 Output:
@@ -160,14 +171,14 @@ Output:
 ═══════════════════════════════════════════════════
            AGENTDECK SYSTEM DOCTOR REPORT          
 ═══════════════════════════════════════════════════
-Checking AgentDeck Daemon (http://127.0.0.1:8765) ... [OK]
+Checking AgentDeck Daemon (http://127.0.0.1:3000) ... [OK]
 Checking Antigravity CLI (`agy`) ... [FOUND]
 Checking Claude Code CLI (`claude`) ... [FOUND]
 Checking Gemini CLI (`gemini`) ... [FOUND]
 Checking Ollama (`ollama`) ... [FOUND]
 Checking Git (`git`) ... [FOUND]
 Checking GitHub CLI (`gh`) ... [FOUND]
-Checking Tailscale ... [FOUND] (127.0.0.1)
+Checking Tailscale ... [FOUND] (100.x.x.x)
 Checking Local Storage & Permissions ... [OK]
 ═══════════════════════════════════════════════════
 System is READY for AgentDeck mobile connections!
@@ -175,26 +186,13 @@ System is READY for AgentDeck mobile connections!
 
 ---
 
-### Step 4: Launch Mobile Command Center
+### Step 4: Connect Mobile App via Tailscale
 
-#### Option A: Install Pre-Built Android APK
-Transfer `~/Desktop/AgentDeck.apk` or `agentdeck_mobile/build/app/outputs/flutter-apk/app-release.apk` to your phone and install.
-
-#### Option B: Run via Flutter
-```bash
-cd agentdeck_mobile
-flutter run
-```
-
----
-
-### Step 5: Connect Mobile App via Tailscale
-
-1. Ensure **Tailscale** is connected on both your Mac and your Phone under the same account.
-2. In the **AgentDeck Mobile App**, navigate to **Settings**.
-3. Set the **Daemon Endpoint** to your Mac's Tailscale IP:
+1. Ensure **Tailscale** is running on both your machine and your phone under the same Tailscale network.
+2. In the **AgentDeck Mobile App**, navigate to **Settings** or **Workstations**.
+3. Set the **Daemon Endpoint** to your machine's Tailscale IP:
    ```
-   http://127.0.0.1:8765
+   http://100.x.x.x:3000
    ```
 4. Tap **"Test Ping"** and **"Save Config"**.
 
@@ -208,6 +206,11 @@ flutter run
 | `/api/device` | `GET` | CPU, RAM, Disk, and Host telemetry |
 | `/api/status` | `GET` | Active sessions, approvals, and Tailscale info |
 | `/api/diagnostics` | `GET` | Comprehensive system & agent doctor diagnostics |
+| `/api/system/speak` | `POST` | Speak text on workstation speakers / dispatch voice prompt |
+| `/api/system/play-sound` | `POST` | Play workstation locating audio alert |
+| `/api/system/screenshot` | `GET` | Capture high-speed workstation screen |
+| `/api/system/camera` | `GET` | Capture workstation webcam snapshot / stream frame |
+| `/api/system/camera/stop` | `POST` | Terminate webcam stream and release hardware LED |
 | `/api/projects` | `GET`, `POST` | List and register workspace directories |
 | `/api/projects/:id/files` | `GET` | File browser and contents inspection |
 | `/api/projects/:id/git/status` | `GET` | Repository branch and modified files |
