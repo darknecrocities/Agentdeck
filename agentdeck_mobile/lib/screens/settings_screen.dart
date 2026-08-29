@@ -94,7 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   obscureText: _obscureUrl,
                   style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'http://127.0.0.1:8765 or http://127.0.0.1:8765',
+                    hintText: 'http://100.x.y.z:8765 or http://192.168.1.x:8765',
                     filled: true,
                     fillColor: Colors.black,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -326,8 +326,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               SnackBar(
                                 content: Text(
                                   VoiceService().isPluginAvailable.value
-                                      ? '🔊 Speaking: "$testMsg"'
-                                      : '⚠️ Native audio plugin requires restarting "flutter run" to link Android bindings.',
+                                      ? 'Speaking: "$testMsg"'
+                                      : 'Native audio plugin requires restarting "flutter run" to link Android bindings.',
                                   style: GoogleFonts.jetBrainsMono(fontSize: 11),
                                 ),
                                 duration: const Duration(seconds: 3),

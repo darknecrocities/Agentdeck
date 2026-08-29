@@ -416,71 +416,228 @@ pub async fn launch_app_handler(
 }
 
 pub struct ScreenStreamState {
+    pub is_running: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub last_requested_at: std::sync::Arc<std::sync::atomic::AtomicI64>,
     pub latest_frame: std::sync::Arc<tokio::sync::RwLock<Option<(String, usize, std::time::Instant)>>>,
-    pub capture_mutex: std::sync::Arc<tokio::sync::Mutex<()>>,
+    pub raw_latest_frame: std::sync::Arc<tokio::sync::RwLock<Option<(axum::body::Bytes, std::time::Instant)>>>,
+    pub frame_tx: tokio::sync::broadcast::Sender<axum::body::Bytes>,
+    pub child_handle: std::sync::Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>,
 }
 
 impl ScreenStreamState {
     pub fn new() -> Self {
+        let (frame_tx, _) = tokio::sync::broadcast::channel(64);
         Self {
+            is_running: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            last_requested_at: std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0)),
             latest_frame: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            capture_mutex: std::sync::Arc::new(tokio::sync::Mutex::new(())),
+            raw_latest_frame: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
+            frame_tx,
+            child_handle: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
         }
     }
 }
 
 static SCREEN_STREAM: std::sync::OnceLock<ScreenStreamState> = std::sync::OnceLock::new();
 
-fn get_screen_stream() -> &'static ScreenStreamState {
+pub fn get_screen_stream() -> &'static ScreenStreamState {
     SCREEN_STREAM.get_or_init(ScreenStreamState::new)
+}
+
+pub async fn ensure_screen_stream_running() {
+    use base64::Engine;
+    use std::sync::atomic::Ordering;
+    use tokio::io::AsyncReadExt;
+
+    let stream = get_screen_stream();
+    stream.last_requested_at.store(chrono::Utc::now().timestamp(), Ordering::Relaxed);
+
+    if !stream.is_running.load(Ordering::SeqCst) {
+        stream.is_running.store(true, Ordering::SeqCst);
+        let is_running = stream.is_running.clone();
+        let last_requested_at = stream.last_requested_at.clone();
+        let latest_frame = stream.latest_frame.clone();
+        let raw_latest_frame = stream.raw_latest_frame.clone();
+        let frame_tx = stream.frame_tx.clone();
+        let child_handle = stream.child_handle.clone();
+
+        tokio::spawn(async move {
+            #[cfg(target_os = "macos")]
+            {
+                let helper_paths = [
+                    "/Users/arronkianparejas/.local/bin/agentdeck-screen-streamer",
+                    "agentdeck-screen-streamer",
+                    "scripts/agentdeck-screen-streamer",
+                ];
+
+                let mut helper_bin = None;
+                for p in helper_paths {
+                    if std::path::Path::new(p).exists() || which::which(p).is_ok() {
+                        helper_bin = Some(p);
+                        break;
+                    }
+                }
+
+                if let Some(bin) = helper_bin {
+                    let mut cmd = tokio::process::Command::new(bin);
+                    cmd.args(["960", "30", "0.40"]);
+                    cmd.stdout(std::process::Stdio::piped());
+                    cmd.stderr(std::process::Stdio::null());
+
+                    if let Ok(mut child) = cmd.spawn() {
+                        if let Some(mut stdout) = child.stdout.take() {
+                            *child_handle.lock().await = Some(child);
+
+                            let mut len_buf = [0u8; 4];
+                            while is_running.load(Ordering::Relaxed) {
+                                let now = chrono::Utc::now().timestamp();
+                                if now - last_requested_at.load(Ordering::Relaxed) > 20 {
+                                    tracing::info!("Screen stream idle timeout, shutting down background hardware screen worker");
+                                    break;
+                                }
+
+                                if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut len_buf)).await {
+                                    let frame_len = u32::from_be_bytes(len_buf) as usize;
+                                    if frame_len > 0 && frame_len < 5_000_000 {
+                                        let mut frame_data = vec![0u8; frame_len];
+                                        if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut frame_data)).await {
+                                            let frame_bytes_arc = axum::body::Bytes::from(frame_data);
+                                            let size = frame_bytes_arc.len();
+                                            let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_bytes_arc);
+                                            let now_inst = std::time::Instant::now();
+                                            *latest_frame.write().await = Some((b64, size, now_inst));
+                                            *raw_latest_frame.write().await = Some((frame_bytes_arc.clone(), now_inst));
+                                            let _ = frame_tx.send(frame_bytes_arc);
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if let Some(mut proc) = child_handle.lock().await.take() {
+                                let _ = proc.kill().await;
+                            }
+                        }
+                    }
+                }
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                if which::which("ffmpeg").is_ok() {
+                    let mut c = tokio::process::Command::new("ffmpeg");
+                    c.args([
+                        "-f", "gdigrab",
+                        "-fflags", "nobuffer",
+                        "-flags", "low_delay",
+                        "-framerate", "30",
+                        "-i", "desktop",
+                        "-vf", "scale=1024:-1",
+                        "-pix_fmt", "yuv420p",
+                        "-f", "image2pipe",
+                        "-vcodec", "mjpeg",
+                        "-q:v", "8",
+                        "-",
+                    ]);
+                    c.stdout(std::process::Stdio::piped());
+                    c.stderr(std::process::Stdio::null());
+                    if let Ok(mut child) = c.spawn() {
+                        if let Some(mut stdout) = child.stdout.take() {
+                            *child_handle.lock().await = Some(child);
+                            let mut buffer = Vec::with_capacity(262144);
+                            let mut chunk = [0u8; 16384];
+
+                            while is_running.load(Ordering::Relaxed) {
+                                let now = chrono::Utc::now().timestamp();
+                                if now - last_requested_at.load(Ordering::Relaxed) > 25 {
+                                    break;
+                                }
+
+                                if let Ok(Ok(n)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read(&mut chunk)).await {
+                                    if n == 0 { break; }
+                                    buffer.extend_from_slice(&chunk[..n]);
+                                    // Parse frames
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            #[cfg(target_os = "linux")]
+            {
+                if which::which("ffmpeg").is_ok() {
+                    let mut c = tokio::process::Command::new("ffmpeg");
+                    c.args([
+                        "-f", "x11grab",
+                        "-fflags", "nobuffer",
+                        "-flags", "low_delay",
+                        "-framerate", "30",
+                        "-i", ":0.0",
+                        "-vf", "scale=1024:-1",
+                        "-pix_fmt", "yuv420p",
+                        "-f", "image2pipe",
+                        "-vcodec", "mjpeg",
+                        "-q:v", "8",
+                        "-",
+                    ]);
+                    c.stdout(std::process::Stdio::piped());
+                    c.stderr(std::process::Stdio::null());
+                    if let Ok(mut child) = c.spawn() {
+                        if let Some(mut stdout) = child.stdout.take() {
+                            *child_handle.lock().await = Some(child);
+                            let mut buffer = Vec::with_capacity(262144);
+                            let mut chunk = [0u8; 16384];
+
+                            while is_running.load(Ordering::Relaxed) {
+                                let now = chrono::Utc::now().timestamp();
+                                if now - last_requested_at.load(Ordering::Relaxed) > 25 {
+                                    break;
+                                }
+
+                                if let Ok(Ok(n)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read(&mut chunk)).await {
+                                    if n == 0 { break; }
+                                    buffer.extend_from_slice(&chunk[..n]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            is_running.store(false, Ordering::SeqCst);
+        });
+    }
 }
 
 pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
     use base64::Engine;
 
     let stream = get_screen_stream();
+    ensure_screen_stream_running().await;
 
-    // 1. Return cached frame if captured recently (< 80ms)
-    {
-        let read = stream.latest_frame.read().await;
-        if let Some((ref b64, size_bytes, ref instant)) = *read {
-            if instant.elapsed() < std::time::Duration::from_millis(80) {
+    // Fast-path: return cached stream frame from memory (wait up to 400ms on initial cold start)
+    for _ in 0..10 {
+        if let Some((ref frame, size, ref instant)) = *stream.latest_frame.read().await {
+            if instant.elapsed() < std::time::Duration::from_millis(3000) {
                 return Ok(Json(serde_json::json!({
                     "success": true,
-                    "image_base64": b64,
-                    "size_bytes": size_bytes,
-                    "cached": true,
+                    "image_base64": frame,
+                    "size_bytes": size,
+                    "live": true,
                     "timestamp": chrono::Utc::now().to_rfc3339(),
                 })));
             }
         }
+        tokio::time::sleep(std::time::Duration::from_millis(35)).await;
     }
 
-    // 2. Coalesce concurrent captures so multiple fast requests don't spawn duplicate processes
-    let _lock = stream.capture_mutex.lock().await;
-
-    // Double-check cache after obtaining lock
-    {
-        let read = stream.latest_frame.read().await;
-        if let Some((ref b64, size_bytes, ref instant)) = *read {
-            if instant.elapsed() < std::time::Duration::from_millis(80) {
-                return Ok(Json(serde_json::json!({
-                    "success": true,
-                    "image_base64": b64,
-                    "size_bytes": size_bytes,
-                    "cached": true,
-                    "timestamp": chrono::Utc::now().to_rfc3339(),
-                })));
-            }
-        }
-    }
-
+    // Direct native capture fallback
     #[cfg(target_os = "macos")]
     {
-        // 1. Native macOS screencapture (Apple system binary, avoids AVFoundation TCC permission spam)
         let target_path = {
             let temp_dir = std::env::temp_dir();
-            let file_name = format!("agentdeck_screen_{}_{}.jpg", std::process::id(), chrono::Utc::now().timestamp_millis());
+            let file_name = format!("agentdeck_screen_direct_{}_{}.jpg", std::process::id(), chrono::Utc::now().timestamp_millis());
             temp_dir.join(&file_name)
         };
 
@@ -491,72 +648,28 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
         };
 
         let output = tokio::process::Command::new(screencapture_bin)
-            .args(["-x", "-t", "jpg", "-m", target_path.to_str().unwrap_or("/tmp/agentdeck_screen.jpg")])
+            .args(["-x", "-t", "jpg", "-m", "-r", target_path.to_str().unwrap_or("/tmp/agentdeck_screen.jpg")])
             .output()
             .await;
 
-        match output {
-            Ok(out) => {
-                if out.status.success() && target_path.exists() {
-                    if let Ok(bytes) = std::fs::read(&target_path) {
-                        let _ = std::fs::remove_file(&target_path);
-                        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                        let size = bytes.len();
-                        *stream.latest_frame.write().await = Some((b64.clone(), size, std::time::Instant::now()));
-                        return Ok(Json(serde_json::json!({
-                            "success": true,
-                            "image_base64": b64,
-                            "size_bytes": size,
-                            "timestamp": chrono::Utc::now().to_rfc3339(),
-                        })));
-                    }
-                } else {
-                    tracing::error!(
-                        "screencapture failed: status={:?}, exists={}, stdout={}, stderr={}",
-                        out.status,
-                        target_path.exists(),
-                        String::from_utf8_lossy(&out.stdout),
-                        String::from_utf8_lossy(&out.stderr)
-                    );
+        if let Ok(out) = output {
+            if out.status.success() && target_path.exists() {
+                if let Ok(image_data) = tokio::fs::read(&target_path).await {
+                    let _ = tokio::fs::remove_file(&target_path).await;
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&image_data);
+                    return Ok(Json(serde_json::json!({
+                        "success": true,
+                        "image_base64": b64,
+                        "size_bytes": image_data.len(),
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    })));
                 }
-            }
-            Err(e) => {
-                tracing::error!("Failed to execute screencapture: {:?}", e);
             }
         }
     }
 
     #[cfg(target_os = "windows")]
     {
-        // 1. Fast direct stdout capture with ffmpeg gdigrab if available
-        if which::which("ffmpeg").is_ok() {
-            let res = tokio::process::Command::new("ffmpeg")
-                .args([
-                    "-f", "gdigrab",
-                    "-framerate", "30",
-                    "-i", "desktop",
-                    "-vframes", "1",
-                    "-pix_fmt", "yuv420p",
-                    "-f", "image2pipe",
-                    "-vcodec", "mjpeg",
-                    "-",
-                ])
-                .output()
-                .await;
-            if let Ok(out) = res {
-                if out.status.success() && !out.stdout.is_empty() {
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
-                    return Ok(Json(serde_json::json!({
-                        "success": true,
-                        "image_base64": b64,
-                        "size_bytes": out.stdout.len(),
-                        "timestamp": chrono::Utc::now().to_rfc3339(),
-                    })));
-                }
-            }
-        }
-
-        // 2. High-speed in-memory PowerShell GDI screen grab without disk IO
         let ps_script = r#"Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height; $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size); $ms = New-Object System.IO.MemoryStream; $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Jpeg); [System.Convert]::ToBase64String($ms.ToArray()); $g.Dispose(); $bmp.Dispose(); $ms.Dispose();"#;
 
         let output = tokio::process::Command::new("powershell")
@@ -615,6 +728,19 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
             "error": "Failed to capture workstation screen. Make sure screen recording permissions are allowed."
         })),
     ))
+}
+
+pub async fn stop_screen_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    use std::sync::atomic::Ordering;
+    let stream = get_screen_stream();
+    stream.is_running.store(false, Ordering::SeqCst);
+    if let Some(mut proc) = stream.child_handle.lock().await.take() {
+        let _ = proc.kill().await;
+    }
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Screen stream stopped"
+    })))
 }
 
 pub struct CameraStreamState {
@@ -676,31 +802,57 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
         let child_handle = stream.child_handle.clone();
 
         tokio::spawn(async move {
-            let mut cmd = None;
-
             #[cfg(target_os = "macos")]
             {
-                let ffmpeg_candidates = ["/opt/homebrew/bin/ffmpeg", "ffmpeg", "/usr/local/bin/ffmpeg"];
-                for bin in ffmpeg_candidates {
-                    if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
-                        let mut c = tokio::process::Command::new(bin);
-                        c.args([
-                            "-f", "avfoundation",
-                            "-fflags", "nobuffer",
-                            "-flags", "low_delay",
-                            "-framerate", "30",
-                            "-video_size", "1280x720",
-                            "-pixel_format", "nv12",
-                            "-i", "0:none",
-                            "-f", "image2pipe",
-                            "-vcodec", "mjpeg",
-                            "-q:v", "4",
-                            "-",
-                        ]);
-                        c.stdout(std::process::Stdio::piped());
-                        c.stderr(std::process::Stdio::null());
-                        cmd = Some(c);
+                let helper_paths = [
+                    "/Users/arronkianparejas/.local/bin/agentdeck-camera-streamer",
+                    "agentdeck-camera-streamer",
+                    "scripts/agentdeck-camera-streamer",
+                ];
+
+                let mut helper_bin = None;
+                for p in helper_paths {
+                    if std::path::Path::new(p).exists() || which::which(p).is_ok() {
+                        helper_bin = Some(p);
                         break;
+                    }
+                }
+
+                if let Some(bin) = helper_bin {
+                    let mut c = tokio::process::Command::new(bin);
+                    c.args(["0.40"]);
+                    c.stdout(std::process::Stdio::piped());
+                    c.stderr(std::process::Stdio::null());
+
+                    if let Ok(mut child) = c.spawn() {
+                        if let Some(mut stdout) = child.stdout.take() {
+                            *child_handle.lock().await = Some(child);
+
+                            let mut len_buf = [0u8; 4];
+                            while is_running.load(Ordering::Relaxed) {
+                                let now = chrono::Utc::now().timestamp();
+                                if now - last_requested_at.load(Ordering::Relaxed) > 15 {
+                                    tracing::info!("Webcam stream idle timeout, shutting down hardware camera sensor");
+                                    break;
+                                }
+
+                                if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut len_buf)).await {
+                                    let frame_len = u32::from_be_bytes(len_buf) as usize;
+                                    if frame_len > 0 && frame_len < 5_000_000 {
+                                        let mut frame_data = vec![0u8; frame_len];
+                                        if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut frame_data)).await {
+                                            let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_data);
+                                            *latest_frame.write().await = Some((b64, std::time::Instant::now()));
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if let Some(mut proc) = child_handle.lock().await.take() {
+                                let _ = proc.kill().await;
+                            }
+                        }
                     }
                 }
             }
@@ -769,7 +921,21 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                     ]);
                     c.stdout(std::process::Stdio::piped());
                     c.stderr(std::process::Stdio::null());
-                    cmd = Some(c);
+                    if let Ok(mut child) = c.spawn() {
+                        if let Some(mut stdout) = child.stdout.take() {
+                            *child_handle.lock().await = Some(child);
+                            let mut buffer = Vec::with_capacity(131072);
+                            let mut chunk = [0u8; 8192];
+                            while is_running.load(Ordering::Relaxed) {
+                                let now = chrono::Utc::now().timestamp();
+                                if now - last_requested_at.load(Ordering::Relaxed) > 15 { break; }
+                                if let Ok(Ok(n)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read(&mut chunk)).await {
+                                    if n == 0 { break; }
+                                    buffer.extend_from_slice(&chunk[..n]);
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -790,72 +956,19 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                     ]);
                     c.stdout(std::process::Stdio::piped());
                     c.stderr(std::process::Stdio::null());
-                    cmd = Some(c);
-                }
-            }
-
-            if let Some(mut c) = cmd {
-                c.stderr(std::process::Stdio::piped());
-                if let Ok(mut child) = c.spawn() {
-                    if let Some(stderr) = child.stderr.take() {
-                        tokio::spawn(async move {
-                            use tokio::io::AsyncBufReadExt;
-                            let mut lines = tokio::io::BufReader::new(stderr).lines();
-                            while let Ok(Some(line)) = lines.next_line().await {
-                                tracing::warn!("FFmpeg stream stderr: {}", line);
-                            }
-                        });
-                    }
-
-                    if let Some(mut stdout) = child.stdout.take() {
-                        *child_handle.lock().await = Some(child);
-
-                        let mut buffer = Vec::with_capacity(131072);
-                        let mut chunk = [0u8; 8192];
-
-                        loop {
-                            let now = chrono::Utc::now().timestamp();
-                            if now - last_requested_at.load(Ordering::Relaxed) > 15 || !is_running.load(Ordering::Relaxed) {
-                                tracing::info!("Webcam stream idle timeout, shutting down hardware camera sensor");
-                                break;
-                            }
-
-                            match tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read(&mut chunk)).await {
-                                Ok(Ok(n)) => {
+                    if let Ok(mut child) = c.spawn() {
+                        if let Some(mut stdout) = child.stdout.take() {
+                            *child_handle.lock().await = Some(child);
+                            let mut buffer = Vec::with_capacity(131072);
+                            let mut chunk = [0u8; 8192];
+                            while is_running.load(Ordering::Relaxed) {
+                                let now = chrono::Utc::now().timestamp();
+                                if now - last_requested_at.load(Ordering::Relaxed) > 15 { break; }
+                                if let Ok(Ok(n)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read(&mut chunk)).await {
                                     if n == 0 { break; }
                                     buffer.extend_from_slice(&chunk[..n]);
-
-                                    while let Some(soi) = buffer.windows(3).position(|w| w == [0xFF, 0xD8, 0xFF]) {
-                                        if soi > 0 {
-                                            buffer.drain(..soi);
-                                        }
-                                        if let Some(eoi) = buffer.windows(2).position(|w| w == [0xFF, 0xD9]) {
-                                            if eoi > 500 {
-                                                let frame_end = eoi + 2;
-                                                let frame_bytes = buffer[..frame_end].to_vec();
-                                                buffer.drain(..frame_end);
-
-                                                let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_bytes);
-                                                *latest_frame.write().await = Some((b64, std::time::Instant::now()));
-                                            } else {
-                                                buffer.drain(..eoi + 2);
-                                            }
-                                        } else {
-                                            break;
-                                        }
-                                    }
-
-                                    if buffer.len() > 1_000_000 {
-                                        buffer.clear();
-                                    }
                                 }
-                                Ok(Err(_)) => break,
-                                Err(_) => continue,
                             }
-                        }
-
-                        if let Some(mut proc) = child_handle.lock().await.take() {
-                            let _ = proc.kill().await;
                         }
                     }
                 }

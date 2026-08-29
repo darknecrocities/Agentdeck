@@ -107,7 +107,7 @@ class _VoicePromptModalState extends State<VoicePromptModal> with SingleTickerPr
       if (mounted) {
         setState(() {
           _isDispatching = false;
-          _statusText = res['success'] == true ? '📢 Spoken on workstation speakers!' : '⚠️ Failed to speak';
+          _statusText = res['success'] == true ? 'Spoken on workstation speakers.' : 'Failed to speak.';
         });
       }
     } catch (e) {

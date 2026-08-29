@@ -46,6 +46,23 @@ enum Commands {
     },
     /// Show active configuration
     Config,
+    /// Manage the AgentDeck background daemon (start, stop, restart, status)
+    Daemon {
+        #[command(subcommand)]
+        action: DaemonAction,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum DaemonAction {
+    /// Start the daemon in the background
+    Start,
+    /// Stop the running daemon
+    Stop,
+    /// Restart the daemon
+    Restart,
+    /// Show daemon status
+    Status,
 }
 
 #[derive(Subcommand, Debug)]
@@ -282,6 +299,66 @@ async fn main() -> anyhow::Result<()> {
         Commands::Config => {
             println!("Configuration loaded from `agentdeck.toml` or defaults.");
         }
+        Commands::Daemon { action } => match action {
+            DaemonAction::Start => {
+                println!("{}", "Starting AgentDeck daemon in user session...".cyan());
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+                let log_dir = format!("{}/.gemini/agentdeck/logs", home);
+                let _ = std::fs::create_dir_all(&log_dir);
+                let script_path = format!("{}/agentdeck/scripts/start-daemon.sh", home);
+                if std::path::Path::new(&script_path).exists() {
+                    let _ = std::process::Command::new("bash").arg(&script_path).status();
+                } else {
+                    let _ = std::process::Command::new("bash")
+                        .arg("-c")
+                        .arg(format!("nohup ~/.local/bin/agentdeckd > {}/daemon.log 2>&1 &", log_dir))
+                        .status();
+                    println!("{}", "Daemon started.".green());
+                }
+            }
+            DaemonAction::Stop => {
+                println!("{}", "Stopping AgentDeck daemon...".yellow());
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+                let script_path = format!("{}/agentdeck/scripts/stop-daemon.sh", home);
+                if std::path::Path::new(&script_path).exists() {
+                    let _ = std::process::Command::new("bash").arg(&script_path).status();
+                } else {
+                    let _ = std::process::Command::new("pkill").arg("-f").arg("agentdeckd").status();
+                    println!("{}", "Daemon stopped.".green());
+                }
+            }
+            DaemonAction::Restart => {
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+                let stop_path = format!("{}/agentdeck/scripts/stop-daemon.sh", home);
+                let start_path = format!("{}/agentdeck/scripts/start-daemon.sh", home);
+                if std::path::Path::new(&stop_path).exists() {
+                    let _ = std::process::Command::new("bash").arg(&stop_path).status();
+                } else {
+                    let _ = std::process::Command::new("pkill").arg("-f").arg("agentdeckd").status();
+                }
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                if std::path::Path::new(&start_path).exists() {
+                    let _ = std::process::Command::new("bash").arg(&start_path).status();
+                }
+            }
+            DaemonAction::Status => {
+                let resp = client.get(format!("{}/api/status", cli.url)).send().await;
+                match resp {
+                    Ok(r) if r.status().is_success() => {
+                        let data: Value = r.json().await?;
+                        println!("Daemon Status: {}", "ONLINE".bold().green());
+                        if let Some(ts) = data.get("tailscale") {
+                            let ip = ts.get("ip").and_then(|v| v.as_str()).unwrap_or("N/A");
+                            let status = ts.get("status").and_then(|v| v.as_str()).unwrap_or("unknown");
+                            println!("Tailscale: {} (IP: {})", status.yellow(), ip.bold());
+                        }
+                    }
+                    _ => {
+                        println!("Daemon Status: {}", "OFFLINE".bold().red());
+                    }
+                }
+            }
+        },
     }
     Ok(())
 }

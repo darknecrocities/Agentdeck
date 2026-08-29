@@ -351,7 +351,7 @@ class _CensoredEndpointBadgeState extends State<CensoredEndpointBadge> {
 
   String _censorText(String raw) {
     if (raw.isEmpty) return raw;
-    // Censor IP address e.g. 127.0.0.1 -> 100.•••.•••.27 or http://127.0.0.1:8765 -> http://100.•••.•••.27:8765
+    // Censor IP address e.g. 100.64.0.1 -> 100.•••.•••.1 or http://100.64.0.1:8765 -> http://100.•••.•••.1:8765
     return raw.replaceAllMapped(
       RegExp(r'(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})'),
       (match) => '${match[1]}.•••.•••.${match[4]}',

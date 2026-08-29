@@ -436,6 +436,15 @@ class ApiService {
     }
   }
 
+  Future<bool> stopScreenStream() async {
+    try {
+      final data = await _post('/api/system/screenshot/stop', {});
+      return data is Map && data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>> playSound() async {
     final data = await _post('/api/system/play-sound', {});
     return data is Map<String, dynamic> ? data : {};

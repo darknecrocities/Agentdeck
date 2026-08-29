@@ -67,7 +67,8 @@ agentdeck_mobile/windows/flutter/ephemeral/
 .idea/
 *.iml
 .vscode/
-.history/
-
 Users/
 
+# ── Compiled Helper Binaries ───────────────────────────────────
+scripts/agentdeck-camera-streamer
+scripts/agentdeck-screen-streamer

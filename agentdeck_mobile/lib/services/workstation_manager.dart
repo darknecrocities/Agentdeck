@@ -8,7 +8,7 @@ class Workstation {
   final String id;
   final String name;
   final String os; // 'macOS', 'Windows', 'Linux'
-  final String endpoint; // e.g. 'http://127.0.0.1:8765'
+  final String endpoint; // e.g. 'http://100.64.0.1:8765' or 'http://127.0.0.1:8765'
   final String? authToken;
   final bool isCurrent;
 
@@ -79,39 +79,20 @@ class WorkstationManager extends ChangeNotifier {
             .toList();
       }
 
-      // Default real fleet machines
+      // Default workstation when list is empty
       if (_workstations.isEmpty) {
         _workstations = [
           Workstation(
-            id: 'mac-main',
-            name: 'MacBook Air (Primary)',
-            os: 'macOS',
+            id: 'local-primary',
+            name: 'Local Workstation (Primary)',
+            os: defaultTargetPlatform == TargetPlatform.macOS
+                ? 'macOS'
+                : (defaultTargetPlatform == TargetPlatform.windows ? 'Windows' : 'Linux'),
             endpoint: 'http://127.0.0.1:8765',
             isCurrent: true,
           ),
-          Workstation(
-            id: 'win-darknecrocities',
-            name: 'Windows PC (darknecrocities)',
-            os: 'Windows',
-            endpoint: 'http://127.0.0.1:8765',
-            isCurrent: false,
-          ),
         ];
         await _persist();
-      } else {
-        // Ensure Windows PC darknecrocities is present
-        if (!_workstations.any((w) => w.endpoint.contains('127.0.0.1'))) {
-          _workstations.add(
-            Workstation(
-              id: 'win-darknecrocities',
-              name: 'Windows PC (darknecrocities)',
-              os: 'Windows',
-              endpoint: 'http://127.0.0.1:8765',
-              isCurrent: false,
-            ),
-          );
-          await _persist();
-        }
       }
 
       final active = currentWorkstation;
@@ -133,6 +114,7 @@ class WorkstationManager extends ChangeNotifier {
   }
 
   Future<void> addWorkstation(Workstation ws) async {
+    _workstations.removeWhere((w) => w.id == ws.id);
     _workstations.add(ws);
     await _persist();
     notifyListeners();
@@ -162,7 +144,6 @@ class WorkstationManager extends ChangeNotifier {
       // 2. Ask the primary daemon / current host to ping over Tailscale mesh (ICMP network probe)
       final hostCandidates = [
         ApiService().baseUrl,
-        'http://127.0.0.1:8765',
       ];
 
       for (final host in hostCandidates) {

@@ -29,7 +29,10 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
   String? _screenError;
   int _screenFrameCount = 0;
   Timer? _screenStreamTimer;
-  int _screenIntervalMs = 120; // Fast ~8 FPS smooth live desktop stream
+  int _screenIntervalMs = 40; // Fluid live desktop stream
+  double _currentScreenFps = 0.0;
+  DateTime? _lastFpsCalcTime;
+  int _framesSinceLastCalc = 0;
   final TransformationController _screenTransformCtrl = TransformationController();
   double _screenZoomLevel = 1.0;
 
@@ -40,7 +43,10 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
   String? _camError;
   int _camFrameCount = 0;
   Timer? _camStreamTimer;
-  int _camIntervalMs = 40; // Fluid 25-30 FPS live continuous webcam stream
+  int _camIntervalMs = 33; // Fluid 30 FPS live continuous webcam stream
+  double _currentCamFps = 0.0;
+  DateTime? _lastCamFpsCalcTime;
+  int _camFramesSinceLastCalc = 0;
   final TransformationController _camTransformCtrl = TransformationController();
   double _camZoomLevel = 1.0;
 
@@ -212,11 +218,11 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
           _isTransmittingVoice = false;
           if (res['success'] == true) {
             _voiceStatusFeedback = _voiceTargetMode == 'prompt_active'
-                ? '✅ Dispatched voice prompt to active agent!'
-                : '📢 Spoken on Workstation speakers!';
+                ? 'Dispatched voice prompt to active agent.'
+                : 'Spoken on Workstation speakers.';
             _voiceTextCtrl.clear();
           } else {
-            _voiceStatusFeedback = '⚠️ ${res['error'] ?? "Failed to transmit voice"}';
+            _voiceStatusFeedback = res['error'] != null ? 'Error: ${res['error']}' : 'Failed to transmit voice.';
           }
         });
 
@@ -247,47 +253,77 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
     setState(() {
       _isStreamingScreen = true;
       _screenError = null;
+      _lastFpsCalcTime = null;
+      _framesSinceLastCalc = 0;
     });
+
     _fetchScreenFrameLoop();
   }
 
   void _stopScreenStream({bool updateState = true}) {
     _screenStreamTimer?.cancel();
     _screenStreamTimer = null;
+    _api.stopScreenStream();
     if (updateState && mounted && _isStreamingScreen) {
-      setState(() => _isStreamingScreen = false);
+      setState(() {
+        _isStreamingScreen = false;
+        _currentScreenFps = 0.0;
+      });
     } else {
       _isStreamingScreen = false;
+      _currentScreenFps = 0.0;
     }
   }
 
   Future<void> _fetchScreenFrameLoop() async {
     if (!_isStreamingScreen || !mounted) return;
-    if (_fetchingScreen) return;
-
-    _fetchingScreen = true;
-    final b64 = await _api.takeScreenshot();
-    _fetchingScreen = false;
-
-    if (!mounted || !_isStreamingScreen) return;
-
-    if (b64 != null && b64.isNotEmpty) {
-      try {
-        final bytes = base64Decode(b64);
-        setState(() {
-          _screenBytes = bytes;
-          _screenFrameCount++;
-          _screenError = null;
-        });
-      } catch (_) {
-        setState(() => _screenError = 'Failed to decode screen stream frame.');
-      }
-    } else if (_screenBytes == null) {
-      setState(() => _screenError = 'Workstation screen stream unavailable. Ensure permissions are granted.');
+    if (_fetchingScreen) {
+      _screenStreamTimer?.cancel();
+      _screenStreamTimer = Timer(Duration(milliseconds: _screenIntervalMs), _fetchScreenFrameLoop);
+      return;
     }
 
-    if (_isStreamingScreen && mounted) {
-      _screenStreamTimer = Timer(Duration(milliseconds: _screenIntervalMs), _fetchScreenFrameLoop);
+    _fetchingScreen = true;
+    try {
+      final b64 = await _api.takeScreenshot();
+      if (!mounted || !_isStreamingScreen) return;
+
+      if (b64 != null && b64.isNotEmpty) {
+        try {
+          final bytes = base64Decode(b64);
+
+          _framesSinceLastCalc++;
+          final now = DateTime.now();
+          if (_lastFpsCalcTime == null) {
+            _lastFpsCalcTime = now;
+          } else {
+            final diff = now.difference(_lastFpsCalcTime!).inMilliseconds;
+            if (diff >= 1000) {
+              _currentScreenFps = (_framesSinceLastCalc * 1000.0) / diff;
+              _framesSinceLastCalc = 0;
+              _lastFpsCalcTime = now;
+            }
+          }
+
+          setState(() {
+            _screenBytes = bytes;
+            _screenFrameCount++;
+            _screenError = null;
+          });
+        } catch (_) {
+          setState(() => _screenError = 'Failed to decode screen stream frame.');
+        }
+      } else if (_screenBytes == null) {
+        setState(() => _screenError = 'Workstation screen stream unavailable. Ensure permissions are granted.');
+      }
+    } catch (_) {
+      // Keep stream alive despite temporary transport errors
+    } finally {
+      _fetchingScreen = false;
+      if (_isStreamingScreen && mounted) {
+        _screenStreamTimer?.cancel();
+        _screenStreamTimer = Timer(Duration(milliseconds: _screenIntervalMs), _fetchScreenFrameLoop);
+      }
     }
   }
 
@@ -297,6 +333,8 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
     setState(() {
       _isStreamingCam = true;
       _camError = null;
+      _lastCamFpsCalcTime = null;
+      _camFramesSinceLastCalc = 0;
     });
     _fetchCamFrameLoop();
   }
@@ -306,39 +344,65 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
     _camStreamTimer = null;
     _api.stopCamera();
     if (updateState && mounted && _isStreamingCam) {
-      setState(() => _isStreamingCam = false);
+      setState(() {
+        _isStreamingCam = false;
+        _currentCamFps = 0.0;
+      });
     } else {
       _isStreamingCam = false;
+      _currentCamFps = 0.0;
     }
   }
 
   Future<void> _fetchCamFrameLoop() async {
     if (!_isStreamingCam || !mounted) return;
-    if (_fetchingCam) return;
-
-    _fetchingCam = true;
-    final b64 = await _api.takeCameraSnapshot();
-    _fetchingCam = false;
-
-    if (!mounted || !_isStreamingCam) return;
-
-    if (b64 != null && b64.isNotEmpty) {
-      try {
-        final bytes = base64Decode(b64);
-        setState(() {
-          _camBytes = bytes;
-          _camFrameCount++;
-          _camError = null;
-        });
-      } catch (_) {
-        setState(() => _camError = 'Failed to decode webcam stream frame.');
-      }
-    } else if (_camBytes == null) {
-      setState(() => _camError = 'Workstation webcam capture unavailable or requires camera permissions/ffmpeg.');
+    if (_fetchingCam) {
+      _camStreamTimer?.cancel();
+      _camStreamTimer = Timer(Duration(milliseconds: _camIntervalMs), _fetchCamFrameLoop);
+      return;
     }
 
-    if (_isStreamingCam && mounted) {
-      _camStreamTimer = Timer(Duration(milliseconds: _camIntervalMs), _fetchCamFrameLoop);
+    _fetchingCam = true;
+    try {
+      final b64 = await _api.takeCameraSnapshot();
+      if (!mounted || !_isStreamingCam) return;
+
+      if (b64 != null && b64.isNotEmpty) {
+        try {
+          final bytes = base64Decode(b64);
+
+          _camFramesSinceLastCalc++;
+          final now = DateTime.now();
+          if (_lastCamFpsCalcTime == null) {
+            _lastCamFpsCalcTime = now;
+          } else {
+            final diff = now.difference(_lastCamFpsCalcTime!).inMilliseconds;
+            if (diff >= 1000) {
+              _currentCamFps = (_camFramesSinceLastCalc * 1000.0) / diff;
+              _camFramesSinceLastCalc = 0;
+              _lastCamFpsCalcTime = now;
+            }
+          }
+
+          setState(() {
+            _camBytes = bytes;
+            _camFrameCount++;
+            _camError = null;
+          });
+        } catch (_) {
+          setState(() => _camError = 'Failed to decode webcam stream frame.');
+        }
+      } else if (_camBytes == null) {
+        setState(() => _camError = 'Workstation webcam capture unavailable or requires camera permissions.');
+      }
+    } catch (_) {
+      // Keep stream alive despite temporary transport errors
+    } finally {
+      _fetchingCam = false;
+      if (_isStreamingCam && mounted) {
+        _camStreamTimer?.cancel();
+        _camStreamTimer = Timer(Duration(milliseconds: _camIntervalMs), _fetchCamFrameLoop);
+      }
     }
   }
 
@@ -354,9 +418,9 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
       setState(() {
         _launching = false;
         if (res['success'] == true) {
-          _launchStatus = '✅ Successfully launched $appName on workstation!';
+          _launchStatus = 'Successfully launched $appName on workstation.';
         } else {
-          _launchStatus = '⚠️ ${res['error'] ?? "Failed to launch $appName"}';
+          _launchStatus = res['error'] != null ? 'Error: ${res['error']}' : 'Failed to launch $appName.';
         }
       });
 
@@ -761,7 +825,54 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
+
+        // High FPS Mode Selector & Realtime Performance Metrics Bar
+        if (_isStreamingScreen)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F0F0F),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFF262626)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _currentScreenFps > 20 ? const Color(0xFF10B981) : Colors.amber,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${_currentScreenFps > 0 ? _currentScreenFps.toStringAsFixed(1) : "30.0"} FPS',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w900,
+                        color: _currentScreenFps > 20 ? const Color(0xFF10B981) : Colors.amber,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    _buildFpsChip(Icons.speed_rounded, '30 FPS', 33),
+                    const SizedBox(width: 4),
+                    _buildFpsChip(Icons.flash_on_rounded, '60 FPS', 16),
+                    const SizedBox(width: 4),
+                    _buildFpsChip(Icons.battery_saver_rounded, '15 FPS', 66),
+                  ],
+                ),
+              ],
+            ),
+          ),
 
         // Live Screen Viewport (Interactive Zoom & Pan)
         Expanded(
@@ -805,7 +916,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.8),
+                              color: Colors.black.withValues(alpha: 0.85),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(color: const Color(0xFF404040)),
                             ),
@@ -817,12 +928,12 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
                                   height: 6,
                                   decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: TerminalColors.pureWhite,
+                                    color: Color(0xFF10B981),
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'SCREEN LIVE',
+                                  'HIGH-FPS SCREEN LIVE',
                                   style: GoogleFonts.jetBrainsMono(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.bold,
@@ -999,6 +1110,90 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
     );
   }
 
+  Widget _buildFpsChip(IconData icon, String label, int intervalMs) {
+    final isSelected = _screenIntervalMs == intervalMs;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _screenIntervalMs = intervalMs;
+        });
+      },
+      borderRadius: BorderRadius.circular(3),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+        decoration: BoxDecoration(
+          color: isSelected ? TerminalColors.pureWhite : const Color(0xFF171717),
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(
+            color: isSelected ? TerminalColors.pureWhite : const Color(0xFF333333),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 10.5,
+              color: isSelected ? Colors.black : TerminalColors.zinc,
+            ),
+            const SizedBox(width: 3.5),
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 8.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.black : TerminalColors.zinc,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCamFpsChip(IconData icon, String label, int intervalMs) {
+    final isSelected = _camIntervalMs == intervalMs;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _camIntervalMs = intervalMs;
+        });
+      },
+      borderRadius: BorderRadius.circular(3),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+        decoration: BoxDecoration(
+          color: isSelected ? TerminalColors.pureWhite : const Color(0xFF171717),
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(
+            color: isSelected ? TerminalColors.pureWhite : const Color(0xFF333333),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 10.5,
+              color: isSelected ? Colors.black : TerminalColors.zinc,
+            ),
+            const SizedBox(width: 3.5),
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 8.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.black : TerminalColors.zinc,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCameraTab() {
     return Column(
       children: [
@@ -1087,6 +1282,52 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
             ),
           ],
         ),
+        const SizedBox(height: 8),
+
+        // Quality / FPS Presets Row for Webcam
+        Row(
+          children: [
+            Text(
+              'TARGET FPS:',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: TerminalColors.zinc,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildCamFpsChip(Icons.flash_on_rounded, '60 FPS', 16),
+            const SizedBox(width: 5),
+            _buildCamFpsChip(Icons.speed_rounded, '30 FPS', 33),
+            const SizedBox(width: 5),
+            _buildCamFpsChip(Icons.battery_saver_rounded, '15 FPS', 66),
+            const Spacer(),
+            if (_isStreamingCam && _currentCamFps > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF171717),
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: const Color(0xFF333333)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.show_chart_rounded, size: 10, color: TerminalColors.pureWhite),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${_currentCamFps.toStringAsFixed(1)} FPS',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: TerminalColors.pureWhite,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 10),
 
         // Live Webcam Viewport
@@ -1134,7 +1375,9 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'WEBCAM LIVE',
+                                  _currentCamFps > 0
+                                      ? 'WEBCAM LIVE  ${_currentCamFps.toStringAsFixed(1)} FPS'
+                                      : 'WEBCAM LIVE',
                                   style: GoogleFonts.jetBrainsMono(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.bold,
@@ -1251,8 +1494,8 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
                 ),
                 child: Row(
                   children: [
-                    _buildVoiceModeBtn('speak', '📢 SPEAKERS'),
-                    _buildVoiceModeBtn('prompt_active', '⚡ ACTIVE AI'),
+                    _buildVoiceModeBtn('speak', Icons.volume_up_rounded, 'SPEAKERS'),
+                    _buildVoiceModeBtn('prompt_active', Icons.auto_awesome, 'ACTIVE AI'),
                   ],
                 ),
               ),
@@ -1363,9 +1606,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
               _voiceStatusFeedback!,
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 9,
-                color: _voiceStatusFeedback!.startsWith('✅') || _voiceStatusFeedback!.startsWith('📢')
-                    ? TerminalColors.pureWhite
-                    : TerminalColors.zinc,
+                color: TerminalColors.pureWhite,
               ),
             ),
           ],
@@ -1375,10 +1616,10 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildQuickVoiceChip('🔊 Sound Alert', () => _api.playSound()),
-                _buildQuickVoiceChip('💬 "Hello Workstation"', () => _transmitVoiceToWorkstation(explicitText: 'Hello from AgentDeck mobile!')),
-                _buildQuickVoiceChip('⚡ "Run Tests"', () => _transmitVoiceToWorkstation(explicitText: 'Run tests for this project')),
-                _buildQuickVoiceChip('📊 "Status Update"', () => _transmitVoiceToWorkstation(explicitText: 'What is the current status?')),
+                _buildQuickVoiceChip(Icons.notifications_active_outlined, 'Sound Alert', () => _api.playSound()),
+                _buildQuickVoiceChip(Icons.chat_bubble_outline_rounded, '"Hello Workstation"', () => _transmitVoiceToWorkstation(explicitText: 'Hello from AgentDeck mobile!')),
+                _buildQuickVoiceChip(Icons.play_circle_outline_rounded, '"Run Tests"', () => _transmitVoiceToWorkstation(explicitText: 'Run tests for this project')),
+                _buildQuickVoiceChip(Icons.analytics_outlined, '"Status Update"', () => _transmitVoiceToWorkstation(explicitText: 'What is the current status?')),
               ],
             ),
           ),
@@ -1387,7 +1628,7 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
     );
   }
 
-  Widget _buildVoiceModeBtn(String mode, String label) {
+  Widget _buildVoiceModeBtn(String mode, IconData icon, String label) {
     final isSelected = _voiceTargetMode == mode;
     return GestureDetector(
       onTap: () => setState(() => _voiceTargetMode = mode),
@@ -1397,19 +1638,30 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
           color: isSelected ? TerminalColors.pureWhite : Colors.transparent,
           borderRadius: BorderRadius.circular(3),
         ),
-        child: Text(
-          label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 8,
-            fontWeight: FontWeight.w900,
-            color: isSelected ? Colors.black : TerminalColors.zinc,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 10,
+              color: isSelected ? Colors.black : TerminalColors.zinc,
+            ),
+            const SizedBox(width: 3.5),
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+                color: isSelected ? Colors.black : TerminalColors.zinc,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildQuickVoiceChip(String label, VoidCallback onTap) {
+  Widget _buildQuickVoiceChip(IconData icon, String label, VoidCallback onTap) {
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: InkWell(
@@ -1422,9 +1674,16 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: const Color(0xFF333333)),
           ),
-          child: Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(fontSize: 8, color: TerminalColors.zinc),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 10, color: TerminalColors.zinc),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: GoogleFonts.jetBrainsMono(fontSize: 8, color: TerminalColors.zinc),
+              ),
+            ],
           ),
         ),
       ),

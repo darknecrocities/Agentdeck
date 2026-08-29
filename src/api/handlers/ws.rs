@@ -186,3 +186,54 @@ async fn handle_terminal_socket(socket: WebSocket, state: Arc<AppState>, termina
         _ = (&mut recv_task) => send_task.abort(),
     }
 }
+
+pub async fn ws_screen_stream_handler(
+    ws: WebSocketUpgrade,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_screen_stream_socket(socket))
+}
+
+async fn handle_screen_stream_socket(mut socket: WebSocket) {
+    use std::sync::atomic::Ordering;
+    use crate::api::handlers::system::{ensure_screen_stream_running, get_screen_stream};
+
+    ensure_screen_stream_running().await;
+    let stream = get_screen_stream();
+    let mut rx = stream.frame_tx.subscribe();
+
+    // Send latest cached frame immediately on connect if fresh
+    if let Some((ref raw, ref inst)) = *stream.raw_latest_frame.read().await {
+        if inst.elapsed() < std::time::Duration::from_millis(3000) {
+            let _ = socket.send(Message::Binary(raw.to_vec())).await;
+        }
+    }
+
+    loop {
+        tokio::select! {
+            frame_res = rx.recv() => {
+                match frame_res {
+                    Ok(frame_bytes) => {
+                        stream.last_requested_at.store(chrono::Utc::now().timestamp(), Ordering::Relaxed);
+                        if socket.send(Message::Binary(frame_bytes.to_vec())).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                        // Drop lagged frames to keep stream real-time
+                        continue;
+                    }
+                    Err(_) => break,
+                }
+            }
+            msg = socket.recv() => {
+                match msg {
+                    Some(Ok(Message::Close(_))) | None => break,
+                    Some(Ok(Message::Ping(p))) => {
+                        let _ = socket.send(Message::Pong(p)).await;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}
