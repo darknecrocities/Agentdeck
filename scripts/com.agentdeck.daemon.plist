@@ -16,6 +16,12 @@
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>LimitLoadToSessionType</key>
+    <array>
+        <string>Aqua</string>
+    </array>
+    <key>ProcessType</key>
+    <string>Interactive</string>
     <key>StandardOutPath</key>
     <string>/Users/arronkianparejas/.gemini/agentdeck/logs/daemon.log</string>
     <key>StandardErrorPath</key>
