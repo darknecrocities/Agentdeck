@@ -418,14 +418,47 @@ pub async fn launch_app_handler(
 pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
     use base64::Engine;
     #[cfg(target_os = "macos")]
-    let target_path = {
-        let temp_dir = std::env::temp_dir();
-        let file_name = format!("agentdeck_screen_{}.jpg", chrono::Utc::now().timestamp_millis());
-        temp_dir.join(&file_name)
-    };
-
-    #[cfg(target_os = "macos")]
     {
+        // 1. Fast in-memory hardware screen capture via FFmpeg AVFoundation
+        let ffmpeg_candidates = ["/opt/homebrew/bin/ffmpeg", "ffmpeg", "/usr/local/bin/ffmpeg"];
+        for bin in ffmpeg_candidates {
+            if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
+                let res = tokio::process::Command::new(bin)
+                    .args([
+                        "-f", "avfoundation",
+                        "-pixel_format", "bgr0",
+                        "-i", "1:none",
+                        "-vframes", "1",
+                        "-vf", "scale=1280:-1",
+                        "-f", "image2pipe",
+                        "-vcodec", "mjpeg",
+                        "-q:v", "5",
+                        "-",
+                    ])
+                    .output()
+                    .await;
+                if let Ok(out) = res {
+                    if out.status.success() && !out.stdout.is_empty() {
+                        let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
+                        return Ok(Json(serde_json::json!({
+                            "success": true,
+                            "image_base64": b64,
+                            "size_bytes": out.stdout.len(),
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                        })));
+                    }
+                }
+                break;
+            }
+        }
+
+        // 2. Fallback to native macOS screencapture
+        let target_path = {
+            let temp_dir = std::env::temp_dir();
+            let file_name = format!("agentdeck_screen_{}.jpg", chrono::Utc::now().timestamp_millis());
+            temp_dir.join(&file_name)
+        };
+
         let output = tokio::process::Command::new("screencapture")
             .args(["-x", "-t", "jpg", target_path.to_str().unwrap_or("/tmp/screenshot.jpg")])
             .output()
@@ -443,37 +476,6 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
                         "timestamp": chrono::Utc::now().to_rfc3339(),
                     })));
                 }
-            }
-        }
-
-        // Fallback to ffmpeg screen capture on macOS
-        let ffmpeg_candidates = ["ffmpeg", "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"];
-        for bin in ffmpeg_candidates {
-            if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
-                let res = tokio::process::Command::new(bin)
-                    .args([
-                        "-f", "avfoundation",
-                        "-i", "1:none",
-                        "-vframes", "1",
-                        "-pix_fmt", "yuv420p",
-                        "-f", "image2pipe",
-                        "-vcodec", "mjpeg",
-                        "-",
-                    ])
-                    .output()
-                    .await;
-                if let Ok(out) = res {
-                    if out.status.success() && !out.stdout.is_empty() {
-                        let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
-                        return Ok(Json(serde_json::json!({
-                            "success": true,
-                            "image_base64": b64,
-                            "size_bytes": out.stdout.len(),
-                            "timestamp": chrono::Utc::now().to_rfc3339(),
-                        })));
-                    }
-                }
-                break;
             }
         }
     }

@@ -133,8 +133,8 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
 
   @override
   void dispose() {
-    _stopScreenStream();
-    _stopCamStream();
+    _stopScreenStream(updateState: false);
+    _stopCamStream(updateState: false);
     _api.stopCamera();
     _voice.stopListening();
     _voicePulseAnim.dispose();
@@ -251,11 +251,13 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
     _fetchScreenFrameLoop();
   }
 
-  void _stopScreenStream() {
+  void _stopScreenStream({bool updateState = true}) {
     _screenStreamTimer?.cancel();
     _screenStreamTimer = null;
-    if (mounted && _isStreamingScreen) {
+    if (updateState && mounted && _isStreamingScreen) {
       setState(() => _isStreamingScreen = false);
+    } else {
+      _isStreamingScreen = false;
     }
   }
 
@@ -267,25 +269,25 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
     final b64 = await _api.takeScreenshot();
     _fetchingScreen = false;
 
-    if (mounted) {
-      if (b64 != null && b64.isNotEmpty) {
-        try {
-          final bytes = base64Decode(b64);
-          setState(() {
-            _screenBytes = bytes;
-            _screenFrameCount++;
-            _screenError = null;
-          });
-        } catch (_) {
-          setState(() => _screenError = 'Failed to decode screen stream frame.');
-        }
-      } else if (_screenBytes == null) {
-        setState(() => _screenError = 'Workstation screen stream unavailable. Ensure permissions are granted.');
-      }
+    if (!mounted || !_isStreamingScreen) return;
 
-      if (_isStreamingScreen) {
-        _screenStreamTimer = Timer(Duration(milliseconds: _screenIntervalMs), _fetchScreenFrameLoop);
+    if (b64 != null && b64.isNotEmpty) {
+      try {
+        final bytes = base64Decode(b64);
+        setState(() {
+          _screenBytes = bytes;
+          _screenFrameCount++;
+          _screenError = null;
+        });
+      } catch (_) {
+        setState(() => _screenError = 'Failed to decode screen stream frame.');
       }
+    } else if (_screenBytes == null) {
+      setState(() => _screenError = 'Workstation screen stream unavailable. Ensure permissions are granted.');
+    }
+
+    if (_isStreamingScreen && mounted) {
+      _screenStreamTimer = Timer(Duration(milliseconds: _screenIntervalMs), _fetchScreenFrameLoop);
     }
   }
 
@@ -299,12 +301,14 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
     _fetchCamFrameLoop();
   }
 
-  void _stopCamStream() {
+  void _stopCamStream({bool updateState = true}) {
     _camStreamTimer?.cancel();
     _camStreamTimer = null;
     _api.stopCamera();
-    if (mounted && _isStreamingCam) {
+    if (updateState && mounted && _isStreamingCam) {
       setState(() => _isStreamingCam = false);
+    } else {
+      _isStreamingCam = false;
     }
   }
 
@@ -316,25 +320,25 @@ class _RemoteMachineModalState extends State<RemoteMachineModal> with TickerProv
     final b64 = await _api.takeCameraSnapshot();
     _fetchingCam = false;
 
-    if (mounted) {
-      if (b64 != null && b64.isNotEmpty) {
-        try {
-          final bytes = base64Decode(b64);
-          setState(() {
-            _camBytes = bytes;
-            _camFrameCount++;
-            _camError = null;
-          });
-        } catch (_) {
-          setState(() => _camError = 'Failed to decode webcam stream frame.');
-        }
-      } else if (_camBytes == null) {
-        setState(() => _camError = 'Workstation webcam capture unavailable or requires camera permissions/ffmpeg.');
-      }
+    if (!mounted || !_isStreamingCam) return;
 
-      if (_isStreamingCam) {
-        _camStreamTimer = Timer(Duration(milliseconds: _camIntervalMs), _fetchCamFrameLoop);
+    if (b64 != null && b64.isNotEmpty) {
+      try {
+        final bytes = base64Decode(b64);
+        setState(() {
+          _camBytes = bytes;
+          _camFrameCount++;
+          _camError = null;
+        });
+      } catch (_) {
+        setState(() => _camError = 'Failed to decode webcam stream frame.');
       }
+    } else if (_camBytes == null) {
+      setState(() => _camError = 'Workstation webcam capture unavailable or requires camera permissions/ffmpeg.');
+    }
+
+    if (_isStreamingCam && mounted) {
+      _camStreamTimer = Timer(Duration(milliseconds: _camIntervalMs), _fetchCamFrameLoop);
     }
   }
 
