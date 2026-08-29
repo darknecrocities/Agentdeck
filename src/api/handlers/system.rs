@@ -747,7 +747,18 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
             }
 
             if let Some(mut c) = cmd {
+                c.stderr(std::process::Stdio::piped());
                 if let Ok(mut child) = c.spawn() {
+                    if let Some(stderr) = child.stderr.take() {
+                        tokio::spawn(async move {
+                            use tokio::io::AsyncBufReadExt;
+                            let mut lines = tokio::io::BufReader::new(stderr).lines();
+                            while let Ok(Some(line)) = lines.next_line().await {
+                                tracing::warn!("FFmpeg stream stderr: {}", line);
+                            }
+                        });
+                    }
+
                     if let Some(mut stdout) = child.stdout.take() {
                         *child_handle.lock().await = Some(child);
 
@@ -766,20 +777,20 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                                     if n == 0 { break; }
                                     buffer.extend_from_slice(&chunk[..n]);
 
-                                    while let Some(soi) = buffer.windows(2).position(|w| w == [0xFF, 0xD8]) {
+                                    while let Some(soi) = buffer.windows(3).position(|w| w == [0xFF, 0xD8, 0xFF]) {
                                         if soi > 0 {
                                             buffer.drain(..soi);
                                         }
-                                        if buffer.len() > 4096 {
-                                            if let Some(rel_eoi) = buffer[2048..].windows(2).position(|w| w == [0xFF, 0xD9]) {
-                                                let frame_end = 2048 + rel_eoi + 2;
+                                        if let Some(eoi) = buffer.windows(2).position(|w| w == [0xFF, 0xD9]) {
+                                            if eoi > 500 {
+                                                let frame_end = eoi + 2;
                                                 let frame_bytes = buffer[..frame_end].to_vec();
                                                 buffer.drain(..frame_end);
 
                                                 let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_bytes);
                                                 *latest_frame.write().await = Some((b64, std::time::Instant::now()));
                                             } else {
-                                                break;
+                                                buffer.drain(..eoi + 2);
                                             }
                                         } else {
                                             break;
@@ -806,10 +817,10 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
         });
     }
 
-    // Return the latest fresh frame from memory (wait up to 1000ms on startup)
-    for _ in 0..20 {
+    // Return the latest fresh frame from memory (wait up to 5000ms on initial hardware cold start)
+    for _ in 0..100 {
         if let Some((ref frame, ref instant)) = *stream.latest_frame.read().await {
-            if instant.elapsed() < std::time::Duration::from_millis(2000) {
+            if instant.elapsed() < std::time::Duration::from_millis(3000) {
                 return Ok(Json(serde_json::json!({
                     "success": true,
                     "image_base64": frame,
