@@ -1,15 +1,12 @@
 # ══════════════════════════════════════════════════════════════════
 # AgentDeck Automated Windows Setup & Background Service Provisioning
 # ══════════════════════════════════════════════════════════════════
-# Run in PowerShell (as Administrator for Firewall rules, or Standard User for user task)
-# Usage: powershell -ExecutionPolicy Bypass -File .\scripts\install-windows-service.ps1
-
 $ErrorActionPreference = "Stop"
 
 Write-Host ""
-Write-Host "╔═══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║       AGENTDECK WINDOWS AUTOMATED PROVISIONING & SERVICE      ║" -ForegroundColor Cyan
-Write-Host "╚═══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
+Write-Host "       AGENTDECK WINDOWS AUTOMATED PROVISIONING AND SERVICE    " -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host ""
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -17,7 +14,7 @@ $RootDir = Split-Path -Parent $ScriptDir
 Set-Location $RootDir
 
 $InstallDir = Join-Path $env:USERPROFILE ".agentdeck\bin"
-if (!(Test-Path $InstallDir)) {
+if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 }
 
@@ -33,13 +30,14 @@ if (Get-Command "cargo" -ErrorAction SilentlyContinue) {
 
 # 2. Copy binaries to ~/.agentdeck/bin
 Write-Host "[2/6] Installing binaries to $InstallDir..." -ForegroundColor Yellow
-Copy-Item "target\release\agentdeckd.exe" -Destination "$InstallDir\agentdeckd.exe" -Force
-Copy-Item "target\release\agentdeck.exe" -Destination "$InstallDir\agentdeck.exe" -Force
+Copy-Item "target\release\agentdeckd.exe" -Destination (Join-Path $InstallDir "agentdeckd.exe") -Force
+Copy-Item "target\release\agentdeck.exe" -Destination (Join-Path $InstallDir "agentdeck.exe") -Force
 
 # Add ~/.agentdeck/bin to User PATH if not already present
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($UserPath -notlike "*$InstallDir*") {
-    [Environment]::SetEnvironmentVariable("Path", "$UserPath;$InstallDir", "User")
+    $NewUserPath = "$UserPath;$InstallDir"
+    [Environment]::SetEnvironmentVariable("Path", $NewUserPath, "User")
     $env:Path = "$env:Path;$InstallDir"
     Write-Host "Added $InstallDir to User PATH environment variable." -ForegroundColor Green
 }
@@ -47,7 +45,7 @@ if ($UserPath -notlike "*$InstallDir*") {
 # 3. Establish secure credentials & .env configuration
 Write-Host "[3/6] Configuring .env environment variables..." -ForegroundColor Yellow
 $EnvFile = Join-Path $RootDir ".env"
-if (!(Test-Path $EnvFile)) {
+if (-not (Test-Path $EnvFile)) {
     $RandomBytes = New-Object byte[] 16
     (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($RandomBytes)
     $AuthToken = -join ($RandomBytes | ForEach-Object { "{0:x2}" -f $_ })
@@ -56,12 +54,8 @@ if (!(Test-Path $EnvFile)) {
         Copy-Item ".env.example" -Destination $EnvFile
         (Get-Content $EnvFile) -replace "agentdeck-dev-token-change-me", $AuthToken | Set-Content $EnvFile
     } else {
-        @"
-AGENTDECK_SERVER_HOST=0.0.0.0
-AGENTDECK_SERVER_PORT=8765
-AGENTDECK_SECURITY_REQUIRE_AUTH=false
-AGENTDECK_SECURITY_AUTH_TOKEN=$AuthToken
-"@ | Set-Content $EnvFile
+        $EnvContent = "AGENTDECK_HOST=0.0.0.0`nAGENTDECK_PORT=8765`nAGENTDECK_REQUIRE_AUTH=false`nAGENTDECK_AUTH_TOKEN=$AuthToken"
+        Set-Content -Path $EnvFile -Value $EnvContent
     }
     Write-Host "Generated new secure auth token in .env" -ForegroundColor Green
 }
@@ -70,9 +64,8 @@ AGENTDECK_SECURITY_AUTH_TOKEN=$AuthToken
 Write-Host "[4/6] Checking Tailscale for Private Mesh Remote Access..." -ForegroundColor Yellow
 $TailscaleIP = $null
 
-# Check if Tailscale CLI is available
 $TsCmd = Get-Command "tailscale.exe" -ErrorAction SilentlyContinue
-if (!$TsCmd) {
+if (-not $TsCmd) {
     $TsDefaultPath = "C:\Program Files\Tailscale\tailscale.exe"
     if (Test-Path $TsDefaultPath) {
         $TsCmd = $TsDefaultPath
@@ -88,8 +81,7 @@ if ($TsCmd) {
     } catch {}
 }
 
-# Fallback: Query network interface
-if (!$TailscaleIP) {
+if (-not $TailscaleIP) {
     $NetAdapter = Get-NetIPAddress -InterfaceAlias "*Tailscale*" -AddressFamily IPv4 -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($NetAdapter) {
         $TailscaleIP = $NetAdapter.IPAddress
@@ -118,27 +110,20 @@ try {
 # 6. Register Windows Scheduled Task for 24/7 background auto-start on logon
 Write-Host "[6/6] Registering Windows Auto-Start Background Service (Scheduled Task)..." -ForegroundColor Yellow
 $TaskName = "AgentDeckDaemon"
-$DaemonExe = "$InstallDir\agentdeckd.exe"
+$DaemonExe = Join-Path $InstallDir "agentdeckd.exe"
 
-# Stop existing instance if running
 Stop-Process -Name "agentdeckd" -Force -ErrorAction SilentlyContinue
 
-# Create scheduled task running under current user without popping up a console window
 $Action = New-ScheduledTaskAction -Execute "$DaemonExe" -WorkingDirectory "$RootDir"
 $Trigger = New-ScheduledTaskTrigger -AtLogOn
 $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Days 365) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 
-# Unregister old task if present
 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
-
-# Register new task
 Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Settings $Settings -Description "AgentDeck Control Plane Background Daemon" | Out-Null
 
-# Start the background task now
 Start-ScheduledTask -TaskName $TaskName
 Start-Sleep -Seconds 2
 
-# Verify Health
 $Healthy = $false
 try {
     $res = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -TimeoutSec 3 -ErrorAction SilentlyContinue
@@ -148,17 +133,21 @@ try {
 } catch {}
 
 Write-Host ""
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
-Write-Host "     AGENTDECK WINDOWS SERVICE INSTALLED & STARTED!            " -ForegroundColor Green
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "===============================================================" -ForegroundColor Green
+Write-Host "     AGENTDECK WINDOWS SERVICE INSTALLED AND STARTED!          " -ForegroundColor Green
+Write-Host "===============================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "• Daemon Binary:    $DaemonExe" -ForegroundColor White
-Write-Host "• Status:           $([string]::Concat($(if ($Healthy) {'[RUNNING - HEALTHY]'} else {'[STARTING]'})))" -ForegroundColor $(if ($Healthy) {'Green'} else {'Yellow'})
-Write-Host "• Local URL:        http://127.0.0.1:8765" -ForegroundColor Cyan
-if ($TailscaleIP) {
-    Write-Host "• Phone Connect:    http://$($TailscaleIP):8765" -ForegroundColor Green
+Write-Host "Daemon Binary:    $DaemonExe" -ForegroundColor White
+if ($Healthy) {
+    Write-Host "Status:           [RUNNING - HEALTHY]" -ForegroundColor Green
 } else {
-    Write-Host "• Phone Connect:    http://<tailscale-ip>:8765" -ForegroundColor Yellow
+    Write-Host "Status:           [STARTING]" -ForegroundColor Yellow
 }
-Write-Host "• Scheduled Task:   $TaskName (Auto-starts whenever you open your laptop)" -ForegroundColor White
+Write-Host "Local URL:        http://127.0.0.1:8765" -ForegroundColor Cyan
+if ($TailscaleIP) {
+    Write-Host "Phone Connect:    http://$TailscaleIP:8765" -ForegroundColor Green
+} else {
+    Write-Host "Phone Connect:    http://<tailscale-ip>:8765" -ForegroundColor Yellow
+}
+Write-Host "Scheduled Task:   $TaskName (Auto-starts whenever you open your laptop)" -ForegroundColor White
 Write-Host ""
