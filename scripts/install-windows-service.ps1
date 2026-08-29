@@ -58,7 +58,7 @@ if (!(Test-Path $EnvFile)) {
     } else {
         @"
 AGENTDECK_SERVER_HOST=0.0.0.0
-AGENTDECK_SERVER_PORT=3000
+AGENTDECK_SERVER_PORT=8765
 AGENTDECK_SECURITY_REQUIRE_AUTH=false
 AGENTDECK_SECURITY_AUTH_TOKEN=$AuthToken
 "@ | Set-Content $EnvFile
@@ -102,14 +102,14 @@ if ($TailscaleIP) {
     Write-Host "Tailscale not detected yet. You can install Tailscale for Windows from https://tailscale.com" -ForegroundColor Yellow
 }
 
-# 5. Configure Windows Firewall rule for TCP Port 3000
-Write-Host "[5/6] Configuring Windows Firewall rule for port 3000..." -ForegroundColor Yellow
+# 5. Configure Windows Firewall rule for TCP Port 8765
+Write-Host "[5/6] Configuring Windows Firewall rule for port 8765..." -ForegroundColor Yellow
 try {
     $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if ($IsAdmin) {
         netsh advfirewall firewall delete rule name="AgentDeck Daemon" >$null 2>&1
-        netsh advfirewall firewall add rule name="AgentDeck Daemon" dir=in action=allow protocol=TCP localport=3000 >$null 2>&1
-        Write-Host "Firewall rule created for port 3000." -ForegroundColor Green
+        netsh advfirewall firewall add rule name="AgentDeck Daemon" dir=in action=allow protocol=TCP localport=8765 >$null 2>&1
+        Write-Host "Firewall rule created for port 8765." -ForegroundColor Green
     } else {
         Write-Host "Skipping Firewall rule (run as Admin if external devices cannot connect)." -ForegroundColor DarkGray
     }
@@ -141,7 +141,7 @@ Start-Sleep -Seconds 2
 # Verify Health
 $Healthy = $false
 try {
-    $res = Invoke-RestMethod -Uri "http://127.0.0.1:3000/health" -TimeoutSec 3 -ErrorAction SilentlyContinue
+    $res = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -TimeoutSec 3 -ErrorAction SilentlyContinue
     if ($res.status -eq "ok") {
         $Healthy = $true
     }
@@ -154,11 +154,11 @@ Write-Host "══════════════════════�
 Write-Host ""
 Write-Host "• Daemon Binary:    $DaemonExe" -ForegroundColor White
 Write-Host "• Status:           $([string]::Concat($(if ($Healthy) {'[RUNNING - HEALTHY]'} else {'[STARTING]'})))" -ForegroundColor $(if ($Healthy) {'Green'} else {'Yellow'})
-Write-Host "• Local URL:        http://127.0.0.1:3000" -ForegroundColor Cyan
+Write-Host "• Local URL:        http://127.0.0.1:8765" -ForegroundColor Cyan
 if ($TailscaleIP) {
-    Write-Host "• Phone Connect:    http://$($TailscaleIP):3000" -ForegroundColor Green
+    Write-Host "• Phone Connect:    http://$($TailscaleIP):8765" -ForegroundColor Green
 } else {
-    Write-Host "• Phone Connect:    http://<tailscale-ip>:3000" -ForegroundColor Yellow
+    Write-Host "• Phone Connect:    http://<tailscale-ip>:8765" -ForegroundColor Yellow
 }
 Write-Host "• Scheduled Task:   $TaskName (Auto-starts whenever you open your laptop)" -ForegroundColor White
 Write-Host ""

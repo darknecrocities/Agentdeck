@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,20 +19,32 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
   bool _testingPings = false;
   bool _showGuide = false;
   String _guideSelectedOs = 'Windows';
+  Timer? _autoPingTimer;
 
   @override
   void initState() {
     super.initState();
     _refreshPings();
+    _autoPingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted && !_testingPings) {
+        _refreshPings(silent: true);
+      }
+    });
   }
 
-  Future<void> _refreshPings() async {
-    setState(() => _testingPings = true);
+  @override
+  void dispose() {
+    _autoPingTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshPings({bool silent = false}) async {
+    if (!silent) setState(() => _testingPings = true);
     final results = await _mgr.pingAll();
     if (mounted) {
       setState(() {
         _pingResults = results;
-        _testingPings = false;
+        if (!silent) _testingPings = false;
       });
     }
   }

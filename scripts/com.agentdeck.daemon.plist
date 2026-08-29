@@ -6,10 +6,12 @@
     <string>com.agentdeck.daemon</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/agentdeckd</string>
+        <string>/Users/arronkianparejas/.local/bin/agentdeckd</string>
         <string>--config</string>
         <string>/path/to/your/projects/agentdeck.toml</string>
     </array>
+    <key>WorkingDirectory</key>
+    <string>/path/to/your/projects</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
