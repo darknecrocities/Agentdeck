@@ -42,6 +42,18 @@ if ($UserPath -notlike "*$InstallDir*") {
     Write-Host "Added $InstallDir to User PATH environment variable." -ForegroundColor Green
 }
 
+# Auto-check and provision FFmpeg for Camera & Media Streaming
+$FfmpegExe = Join-Path $InstallDir "ffmpeg.exe"
+if (-not (Get-Command "ffmpeg" -ErrorAction SilentlyContinue) -and -not (Test-Path $FfmpegExe)) {
+    Write-Host "Checking / Installing FFmpeg for live webcam and streaming..." -ForegroundColor Yellow
+    try {
+        if (Get-Command "winget" -ErrorAction SilentlyContinue) {
+            Write-Host "Installing Gyan.FFmpeg via winget..." -ForegroundColor Cyan
+            winget install --id Gyan.FFmpeg -e --silent --accept-source-agreements --accept-package-agreements | Out-Null
+        }
+    } catch {}
+}
+
 # 3. Establish secure credentials & .env configuration
 Write-Host "[3/6] Configuring .env environment variables..." -ForegroundColor Yellow
 $EnvFile = Join-Path $RootDir ".env"

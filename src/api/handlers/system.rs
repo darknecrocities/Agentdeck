@@ -306,36 +306,35 @@ pub async fn launch_app_handler(
 
     #[cfg(target_os = "windows")]
     {
+        let p = payload.path.as_deref().unwrap_or(".");
         match app_target.as_str() {
             "vscode" | "code" => {
-                let p = payload.path.as_deref().unwrap_or(".");
-                cmd_str = format!("cmd.exe /c start code \"{}\"", p);
+                cmd_str = format!("Start-Process code -ArgumentList '\"{}\"' -ErrorAction SilentlyContinue; if (-not $?) {{ Start-Process cmd.exe -ArgumentList '/c code \"{}\"' }}", p, p);
             }
-            "antigravity" | "ide" => {
-                let p = payload.path.as_deref().unwrap_or(".");
-                cmd_str = format!("cmd.exe /c start agy \"{}\"", p);
+            "antigravity" | "ide" | "agy" => {
+                // Try launching agy in Windows Terminal or PowerShell interactive window
+                cmd_str = format!("Start-Process wt.exe -ArgumentList '-d', '\"{}\"', 'powershell', '-NoExit', '-Command', 'agy' -ErrorAction SilentlyContinue; if (-not $?) {{ Start-Process powershell.exe -ArgumentList '-NoExit', '-Command', 'Set-Location \"{}\"; agy' }}", p, p);
             }
             "terminal" | "powershell" => {
-                cmd_str = "cmd.exe /c start wt.exe || cmd.exe /c start powershell.exe".to_string();
+                cmd_str = format!("Start-Process wt.exe -ArgumentList '-d', '\"{}\"' -ErrorAction SilentlyContinue; if (-not $?) {{ Start-Process powershell.exe -ArgumentList '-NoExit', '-Command', 'Set-Location \"{}\"' }}", p, p);
             }
             "explorer" => {
-                let p = payload.path.as_deref().unwrap_or(".");
-                cmd_str = format!("cmd.exe /c start explorer.exe \"{}\"", p);
+                cmd_str = format!("Start-Process explorer.exe -ArgumentList '\"{}\"'", p);
             }
             "taskmgr" | "taskmanager" => {
-                cmd_str = "cmd.exe /c start taskmgr.exe".to_string();
+                cmd_str = "Start-Process taskmgr.exe".to_string();
             }
             "browser" | "url" => {
                 let u = payload.url.as_deref().unwrap_or("https://google.com");
-                cmd_str = format!("cmd.exe /c start \"\" \"{}\"", u);
+                cmd_str = format!("Start-Process '\"{}\"'", u);
             }
             _ => {
-                if let Some(url) = payload.url {
-                    cmd_str = format!("cmd.exe /c start \"\" \"{}\"", url);
-                } else if let Some(path) = payload.path {
-                    cmd_str = format!("cmd.exe /c start \"\" \"{}\"", path);
+                if let Some(url) = &payload.url {
+                    cmd_str = format!("Start-Process '\"{}\"'", url);
+                } else if let Some(path) = &payload.path {
+                    cmd_str = format!("Start-Process '\"{}\"'", path);
                 } else {
-                    cmd_str = format!("cmd.exe /c start {}", payload.app);
+                    cmd_str = format!("Start-Process \"{}\" -ErrorAction SilentlyContinue; if (-not $?) {{ Start-Process cmd.exe -ArgumentList '/c start {}' }}", payload.app, payload.app);
                 }
             }
         }
@@ -607,35 +606,93 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
 
     #[cfg(target_os = "windows")]
     {
-        if which::which("ffmpeg").is_ok() {
-            // Try standard DirectShow video capture
-            let res = tokio::process::Command::new("ffmpeg")
-                .args([
-                    "-f", "dshow",
-                    "-i", "video=Integrated Camera",
-                    "-vframes", "1",
-                    "-pix_fmt", "yuv420p",
-                    "-f", "image2pipe",
-                    "-vcodec", "mjpeg",
-                    "-",
-                ])
-                .output()
-                .await;
+        let user_profile = std::env::var("USERPROFILE").unwrap_or_default();
+        let local_app_data = std::env::var("LOCALAPPDATA").unwrap_or_default();
+        let ffmpeg_candidates = [
+            "ffmpeg".to_string(),
+            format!("{}\\.agentdeck\\bin\\ffmpeg.exe", user_profile),
+            format!("{}\\Microsoft\\WinGet\\Links\\ffmpeg.exe", local_app_data),
+            "C:\\ffmpeg\\bin\\ffmpeg.exe".to_string(),
+            "C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe".to_string(),
+            "C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe".to_string(),
+        ];
 
-            if let Ok(out) = res {
-                if out.status.success() && !out.stdout.is_empty() {
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
-                    return Ok(Json(serde_json::json!({
-                        "success": true,
-                        "image_base64": b64,
-                        "size_bytes": out.stdout.len(),
-                        "timestamp": chrono::Utc::now().to_rfc3339(),
-                    })));
+        let mut found_bin = None;
+        for bin in &ffmpeg_candidates {
+            if which::which(bin).is_ok() || std::path::Path::new(bin).exists() {
+                found_bin = Some(bin.clone());
+                break;
+            }
+        }
+
+        if let Some(bin) = found_bin {
+            // 1. Discover available DirectShow video device name dynamically
+            let mut detected_device = String::new();
+            if let Ok(dev_out) = tokio::process::Command::new(&bin)
+                .args(["-list_devices", "true", "-f", "dshow", "-i", "dummy"])
+                .output()
+                .await
+            {
+                let stderr_str = String::from_utf8_lossy(&dev_out.stderr);
+                for line in stderr_str.lines() {
+                    if line.contains("(video)") && line.contains("\"") {
+                        if let Some(start) = line.find('\"') {
+                            if let Some(end) = line[start + 1..].find('\"') {
+                                let name = &line[start + 1..start + 1 + end];
+                                if !name.is_empty() {
+                                    detected_device = name.to_string();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            let mut try_names = Vec::new();
+            if !detected_device.is_empty() {
+                try_names.push(detected_device.clone());
+            }
+            try_names.extend(vec![
+                "Integrated Camera".to_string(),
+                "HD WebCam".to_string(),
+                "HD Camera".to_string(),
+                "USB Camera".to_string(),
+                "Camera".to_string(),
+                "Integrated Webcam".to_string(),
+                "OBS Virtual Camera".to_string(),
+            ]);
+
+            for cam in try_names {
+                let res = tokio::process::Command::new(&bin)
+                    .args([
+                        "-f", "dshow",
+                        "-i", &format!("video={}", cam),
+                        "-vframes", "1",
+                        "-pix_fmt", "yuv420p",
+                        "-f", "image2pipe",
+                        "-vcodec", "mjpeg",
+                        "-",
+                    ])
+                    .output()
+                    .await;
+
+                if let Ok(out) = res {
+                    if out.status.success() && !out.stdout.is_empty() {
+                        let b64 = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
+                        return Ok(Json(serde_json::json!({
+                            "success": true,
+                            "image_base64": b64,
+                            "size_bytes": out.stdout.len(),
+                            "device": cam,
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                        })));
+                    }
                 }
             }
 
             // Fallback: device index 0 via vfwcap
-            let res2 = tokio::process::Command::new("ffmpeg")
+            let res2 = tokio::process::Command::new(&bin)
                 .args([
                     "-f", "vfwcap",
                     "-i", "0",
@@ -654,6 +711,7 @@ pub async fn take_camera_snapshot_handler() -> Result<Json<serde_json::Value>, (
                         "success": true,
                         "image_base64": b64,
                         "size_bytes": out.stdout.len(),
+                        "device": "vfwcap:0",
                         "timestamp": chrono::Utc::now().to_rfc3339(),
                     })));
                 }
