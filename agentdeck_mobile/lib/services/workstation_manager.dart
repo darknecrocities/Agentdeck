@@ -11,6 +11,7 @@ class Workstation {
   final String endpoint; // e.g. 'http://100.64.0.1:8765' or 'http://127.0.0.1:8765'
   final String? authToken;
   final bool isCurrent;
+  final bool isPrimary; // pinned as the default/startup workstation
 
   Workstation({
     required this.id,
@@ -19,6 +20,7 @@ class Workstation {
     required this.endpoint,
     this.authToken,
     this.isCurrent = false,
+    this.isPrimary = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +30,7 @@ class Workstation {
         'endpoint': endpoint,
         'authToken': authToken,
         'isCurrent': isCurrent,
+        'isPrimary': isPrimary,
       };
 
   factory Workstation.fromJson(Map<String, dynamic> json) => Workstation(
@@ -37,9 +40,17 @@ class Workstation {
         endpoint: json['endpoint'] ?? 'http://127.0.0.1:8765',
         authToken: json['authToken'],
         isCurrent: json['isCurrent'] == true,
+        isPrimary: json['isPrimary'] == true,
       );
 
-  Workstation copyWith({bool? isCurrent, String? name, String? os, String? endpoint, String? authToken}) {
+  Workstation copyWith({
+    bool? isCurrent,
+    bool? isPrimary,
+    String? name,
+    String? os,
+    String? endpoint,
+    String? authToken,
+  }) {
     return Workstation(
       id: id,
       name: name ?? this.name,
@@ -47,6 +58,7 @@ class Workstation {
       endpoint: endpoint ?? this.endpoint,
       authToken: authToken ?? this.authToken,
       isCurrent: isCurrent ?? this.isCurrent,
+      isPrimary: isPrimary ?? this.isPrimary,
     );
   }
 }
@@ -162,6 +174,21 @@ class WorkstationManager extends ChangeNotifier {
     _workstations.add(ws);
     await _persist();
     notifyListeners();
+  }
+
+  Future<void> updateWorkstation(Workstation updated) async {
+    final idx = _workstations.indexWhere((w) => w.id == updated.id);
+    if (idx != -1) {
+      _workstations[idx] = updated;
+      await _persist();
+      notifyListeners();
+    }
+  }
+
+  Future<void> setPrimary(String id) async {
+    _workstations = _workstations.map((w) => w.copyWith(isPrimary: w.id == id)).toList();
+    // Also switch active connection to the primary
+    await switchTo(id);
   }
 
   Future<void> removeWorkstation(String id) async {

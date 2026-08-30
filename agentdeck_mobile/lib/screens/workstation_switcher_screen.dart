@@ -272,6 +272,208 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
     );
   }
 
+  void _showEditMachineDialog(Workstation ws) {
+    final nameCtrl = TextEditingController(text: ws.name);
+    final endpointCtrl = TextEditingController(text: ws.endpoint);
+    String selectedOs = ws.os;
+    String? pingStatus;
+    bool obscureEndpoint = true;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                top: 16,
+                left: 16,
+                right: 16,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 20,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFF0C0C0C),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                border: Border(top: BorderSide(color: TerminalColors.cardBorderLight, width: 1.5)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.edit_outlined, color: TerminalColors.pureWhite, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'EDIT WORKSTATION',
+                            style: GoogleFonts.jetBrainsMono(
+                              color: TerminalColors.pureWhite,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: TerminalColors.zinc, size: 18),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // OS Dropdown
+                  Text(
+                    'OPERATING SYSTEM',
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: TerminalColors.zinc),
+                  ),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedOs,
+                    dropdownColor: TerminalColors.surface,
+                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.black,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: 'Windows',
+                        child: Row(children: [const Icon(Icons.desktop_windows, size: 16, color: TerminalColors.pureWhite), const SizedBox(width: 8), Text('Windows', style: GoogleFonts.jetBrainsMono())]),
+                      ),
+                      DropdownMenuItem(
+                        value: 'macOS',
+                        child: Row(children: [const Icon(Icons.laptop_mac, size: 16, color: TerminalColors.pureWhite), const SizedBox(width: 8), Text('macOS', style: GoogleFonts.jetBrainsMono())]),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Linux',
+                        child: Row(children: [const Icon(Icons.developer_board, size: 16, color: TerminalColors.pureWhite), const SizedBox(width: 8), Text('Linux', style: GoogleFonts.jetBrainsMono())]),
+                      ),
+                    ],
+                    onChanged: (v) => setModalState(() => selectedOs = v ?? 'Windows'),
+                  ),
+                  const SizedBox(height: 12),
+
+                  TextField(
+                    controller: nameCtrl,
+                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'WORKSTATION NAME',
+                      labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
+                      filled: true,
+                      fillColor: Colors.black,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  TextField(
+                    controller: endpointCtrl,
+                    obscureText: obscureEndpoint,
+                    style: GoogleFonts.jetBrainsMono(color: TerminalColors.pureWhite, fontSize: 12),
+                    decoration: InputDecoration(
+                      labelText: 'TAILSCALE ENDPOINT (HOST:PORT)',
+                      hintText: 'http://100.x.y.z:8765',
+                      labelStyle: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11),
+                      filled: true,
+                      fillColor: Colors.black,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: TerminalColors.cardBorder)),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureEndpoint ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: obscureEndpoint ? TerminalColors.zinc : TerminalColors.pureWhite,
+                          size: 18,
+                        ),
+                        onPressed: () => setModalState(() => obscureEndpoint = !obscureEndpoint),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  if (pingStatus != null) ...[  
+                    Row(
+                      children: [
+                        Icon(
+                          pingStatus!.contains('ONLINE') ? Icons.check_circle : Icons.error_outline,
+                          size: 14,
+                          color: pingStatus!.contains('ONLINE') ? const Color(0xFF51CF66) : const Color(0xFFFF6B6B),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          pingStatus!,
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            color: pingStatus!.contains('ONLINE') ? const Color(0xFF51CF66) : const Color(0xFFFF6B6B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: TerminalColors.pureWhite,
+                            side: const BorderSide(color: TerminalColors.cardBorderLight),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: const Icon(Icons.network_ping, size: 14),
+                          label: Text('TEST PING', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, fontSize: 11)),
+                          onPressed: () async {
+                            setModalState(() => pingStatus = 'Testing ping...');
+                            final ok = await _mgr.pingWorkstation(endpointCtrl.text.trim());
+                            setModalState(() {
+                              pingStatus = ok ? 'ONLINE & REACHABLE' : 'UNREACHABLE (Check Tailscale)';
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: TerminalColors.pureWhite,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: const Icon(Icons.save, size: 15),
+                          label: Text('SAVE CHANGES', style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w900, fontSize: 11)),
+                          onPressed: () async {
+                            if (nameCtrl.text.isNotEmpty && endpointCtrl.text.isNotEmpty) {
+                              final updated = ws.copyWith(
+                                name: nameCtrl.text.trim(),
+                                os: selectedOs,
+                                endpoint: endpointCtrl.text.trim(),
+                              );
+                              await _mgr.updateWorkstation(updated);
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              setState(() {});
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final workstations = _mgr.workstations;
@@ -435,9 +637,64 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  // --- Action Row ---
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Set as Primary star button
+                      Tooltip(
+                        message: ws.isPrimary ? 'Primary Workstation' : 'Set as Primary',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(4),
+                          onTap: ws.isPrimary
+                              ? null
+                              : () async {
+                                  await _mgr.setPrimary(ws.id);
+                                  if (!mounted) return;
+                                  setState(() {});
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '⭐ ${ws.name} set as primary workstation',
+                                        style: GoogleFonts.jetBrainsMono(fontSize: 11),
+                                      ),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: ws.isPrimary ? const Color(0xFF2B2400) : Colors.black,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: ws.isPrimary ? const Color(0xFFFFD43B) : TerminalColors.cardBorderLight,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  ws.isPrimary ? Icons.star_rounded : Icons.star_outline_rounded,
+                                  size: 13,
+                                  color: ws.isPrimary ? const Color(0xFFFFD43B) : TerminalColors.zinc,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  ws.isPrimary ? 'PRIMARY' : 'SET PRIMARY',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    color: ws.isPrimary ? const Color(0xFFFFD43B) : TerminalColors.zinc,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Connect / Currently Connected
                       if (isCurrent)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -451,9 +708,9 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                               const Icon(Icons.link, color: Colors.black, size: 13),
                               const SizedBox(width: 5),
                               Text(
-                                'CURRENTLY CONNECTED',
+                                'CONNECTED',
                                 style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.w900,
                                   color: Colors.black,
                                 ),
@@ -466,13 +723,13 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: TerminalColors.pureWhite,
                             foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            minimumSize: const Size(100, 32),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            minimumSize: const Size(80, 30),
                           ),
-                          icon: const Icon(Icons.swap_horiz, size: 14),
+                          icon: const Icon(Icons.swap_horiz, size: 13),
                           label: Text(
-                            'SWITCH TO THIS MACHINE',
-                            style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w900),
+                            'SWITCH',
+                            style: GoogleFonts.jetBrainsMono(fontSize: 9, fontWeight: FontWeight.w900),
                           ),
                           onPressed: () async {
                             final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -480,18 +737,36 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                             if (!mounted) return;
                             setState(() {});
                             scaffoldMessenger.showSnackBar(
-                              SnackBar(content: Text('Switched control plane to ${ws.name}')),
+                              SnackBar(content: Text('Switched to ${ws.name}')),
                             );
                           },
                         ),
-                      if (workstations.length > 1 && !isCurrent)
+
+                      const Spacer(),
+
+                      // Edit button
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, color: TerminalColors.zinc, size: 17),
+                        tooltip: 'Edit Workstation',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _showEditMachineDialog(ws),
+                      ),
+
+                      // Delete button (not shown for the only workstation)
+                      if (workstations.length > 1 && !isCurrent) ...[  
+                        const SizedBox(width: 6),
                         IconButton(
-                          icon: const Icon(Icons.delete_outline, color: TerminalColors.textMuted, size: 18),
+                          icon: const Icon(Icons.delete_outline, color: TerminalColors.textMuted, size: 17),
+                          tooltip: 'Remove Workstation',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           onPressed: () async {
                             await _mgr.removeWorkstation(ws.id);
                             setState(() {});
                           },
                         ),
+                      ],
                     ],
                   ),
                 ],
