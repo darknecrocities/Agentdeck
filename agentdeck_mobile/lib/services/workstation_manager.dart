@@ -59,8 +59,12 @@ class WorkstationManager extends ChangeNotifier {
   static const String _storageKey = 'agentdeck_saved_workstations_v2';
 
   List<Workstation> _workstations = [];
+  final Map<String, int> _latencies = {};
 
   List<Workstation> get workstations => List.unmodifiable(_workstations);
+  Map<String, int> get latencies => Map.unmodifiable(_latencies);
+
+  int? get activeLatency => currentWorkstation != null ? _latencies[currentWorkstation!.id] : null;
 
   Workstation? get currentWorkstation =>
       _workstations.isNotEmpty ? _workstations.firstWhere((w) => w.isCurrent, orElse: () => _workstations.first) : null;
@@ -79,27 +83,67 @@ class WorkstationManager extends ChangeNotifier {
             .toList();
       }
 
-      // Default workstation when list is empty
-      if (_workstations.isEmpty) {
-        _workstations = [
+      // Ensure standard default workstations are available
+      const envHost = String.fromEnvironment('AGENTDECK_HOST', defaultValue: '');
+      const envTailscale = String.fromEnvironment('TAILSCALE_HOST_IP', defaultValue: '');
+
+      if (envTailscale.isNotEmpty && !_workstations.any((w) => w.endpoint.contains(envTailscale))) {
+        _workstations.insert(
+          0,
+          Workstation(
+            id: 'tailscale-env',
+            name: 'Tailscale Mesh Node',
+            os: 'macOS',
+            endpoint: 'http://$envTailscale:8765',
+            isCurrent: true,
+          ),
+        );
+      } else if (envHost.isNotEmpty && !_workstations.any((w) => w.endpoint.contains(envHost))) {
+        _workstations.insert(
+          0,
+          Workstation(
+            id: 'env-host',
+            name: 'Configured Workstation',
+            os: 'macOS',
+            endpoint: envHost.startsWith('http') ? envHost : 'http://$envHost:8765',
+            isCurrent: true,
+          ),
+        );
+      }
+
+      final hasLocal = _workstations.any((w) => w.endpoint.contains('127.0.0.1'));
+      if (!hasLocal) {
+        _workstations.add(
           Workstation(
             id: 'local-primary',
-            name: 'Local Workstation (Primary)',
+            name: 'Local USB Bridge / Host',
             os: defaultTargetPlatform == TargetPlatform.macOS
                 ? 'macOS'
                 : (defaultTargetPlatform == TargetPlatform.windows ? 'Windows' : 'Linux'),
             endpoint: 'http://127.0.0.1:8765',
-            isCurrent: true,
+            isCurrent: _workstations.isEmpty,
           ),
-        ];
-        await _persist();
+        );
       }
+
+      await _persist();
 
       final active = currentWorkstation;
       if (active != null) {
         await ApiService().updateConfig(url: active.endpoint, token: active.authToken);
       }
       notifyListeners();
+
+      // Proactively probe endpoints to pick fastest responsive node
+      for (final ws in _workstations) {
+        try {
+          final res = await http.get(Uri.parse('${ws.endpoint}/health')).timeout(const Duration(milliseconds: 1200));
+          if (res.statusCode == 200) {
+            await switchTo(ws.id);
+            break;
+          }
+        } catch (_) {}
+      }
     } catch (_) {}
   }
 
@@ -129,47 +173,61 @@ class WorkstationManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> pingWorkstation(String endpoint) async {
+  Future<({bool online, int latencyMs})> pingWithLatency(String endpoint) async {
+    final sw = Stopwatch()..start();
     try {
       final clean = endpoint.endsWith('/') ? endpoint.substring(0, endpoint.length - 1) : endpoint;
 
       // 1. Direct HTTP probe to the workstation daemon
       try {
-        final res = await http.get(Uri.parse('$clean/health')).timeout(const Duration(milliseconds: 1500));
+        final res = await http.get(Uri.parse('$clean/health')).timeout(const Duration(milliseconds: 1800));
+        sw.stop();
         if (res.statusCode == 200) {
-          return true;
+          return (online: true, latencyMs: sw.elapsedMilliseconds);
         }
       } catch (_) {}
 
-      // 2. Ask the primary daemon / current host to ping over Tailscale mesh (ICMP network probe)
-      final hostCandidates = [
-        ApiService().baseUrl,
-      ];
-
+      // 2. Ask primary host daemon to ping over Tailscale mesh
+      final hostCandidates = [ApiService().baseUrl];
       for (final host in hostCandidates) {
         try {
           final probeUrl = Uri.parse('$host/api/system/ping_workstation?endpoint=${Uri.encodeComponent(clean)}');
           final probeRes = await http.get(probeUrl).timeout(const Duration(milliseconds: 2000));
+          sw.stop();
           if (probeRes.statusCode == 200) {
             final data = jsonDecode(probeRes.body);
             if (data['online'] == true) {
-              return true;
+              return (online: true, latencyMs: sw.elapsedMilliseconds);
             }
           }
         } catch (_) {}
       }
 
-      return false;
+      sw.stop();
+      return (online: false, latencyMs: 0);
     } catch (_) {
-      return false;
+      sw.stop();
+      return (online: false, latencyMs: 0);
     }
+  }
+
+  Future<bool> pingWorkstation(String endpoint) async {
+    final res = await pingWithLatency(endpoint);
+    return res.online;
   }
 
   Future<Map<String, bool>> pingAll() async {
     final Map<String, bool> results = {};
     for (final ws in _workstations) {
-      results[ws.id] = await pingWorkstation(ws.endpoint);
+      final res = await pingWithLatency(ws.endpoint);
+      results[ws.id] = res.online;
+      if (res.online) {
+        _latencies[ws.id] = res.latencyMs;
+      } else {
+        _latencies.remove(ws.id);
+      }
     }
+    notifyListeners();
     return results;
   }
 

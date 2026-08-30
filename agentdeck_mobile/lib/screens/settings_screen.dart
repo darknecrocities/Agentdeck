@@ -239,7 +239,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     Switch(
                       value: VoiceService().ttsEnabled,
-                      activeColor: const Color(0xFF51CF66),
+                      activeThumbColor: const Color(0xFF51CF66),
                       onChanged: (val) {
                         setState(() {
                           VoiceService().updateSettings(ttsEnabled: val);

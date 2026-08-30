@@ -155,6 +155,7 @@ class _SessionScreenState extends State<SessionScreen> {
 
   Future<void> _continueAgent() async {
     await _api.continueSession(widget.sessionId);
+    if (!mounted) return;
     setState(() => _status = 'running');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Agent conversation resumed with agy --continue')),

@@ -286,6 +286,9 @@ pub struct ModelTierQuota {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenSummaryResponse {
+    pub plan_name: Option<String>,
+    pub plan_tier: Option<String>,
+    pub credit_overages_enabled: Option<bool>,
     pub total_tokens_all_time: u64,
     pub total_tokens_today: u64,
     pub gemini_quota: ModelTierQuota,

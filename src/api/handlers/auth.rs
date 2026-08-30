@@ -99,7 +99,7 @@ pub struct SwitchAntigravityAccountRequest {
 pub async fn get_antigravity_account_handler() -> Json<serde_json::Value> {
     let home = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
-        .unwrap_or_else(|_| "/Users/arronkianparejas".to_string());
+        .unwrap_or_else(|_| "/tmp".to_string());
     
     let path = std::path::Path::new(&home).join(".gemini").join("google_accounts.json");
     
@@ -128,9 +128,13 @@ pub async fn get_antigravity_account_handler() -> Json<serde_json::Value> {
         }
     }
 
+    let env_account = std::env::var("GOOGLE_ACCOUNT_EMAIL")
+        .or_else(|_| std::env::var("AGENTDECK_GOOGLE_ACCOUNT"))
+        .unwrap_or_else(|_| "developer@example.com".to_string());
+
     Json(serde_json::json!({
-        "active_account": "developer@example.com",
-        "accounts": ["developer@example.com"],
+        "active_account": env_account,
+        "accounts": [env_account],
         "auth_type": "Google OAuth",
         "status": "authenticated"
     }))
@@ -141,7 +145,7 @@ pub async fn switch_antigravity_account_handler(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let home = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
-        .unwrap_or_else(|_| "/Users/arronkianparejas".to_string());
+        .unwrap_or_else(|_| "/tmp".to_string());
     
     let path = std::path::Path::new(&home).join(".gemini").join("google_accounts.json");
     let target_email = req.email.trim().to_string();
@@ -164,6 +168,13 @@ pub async fn switch_antigravity_account_handler(
     }
     old_list.retain(|e| e != &target_email);
 
+    let mut all_accounts = vec![target_email.clone()];
+    for item in &old_list {
+        if !all_accounts.contains(item) {
+            all_accounts.push(item.clone());
+        }
+    }
+
     let new_data = serde_json::json!({
         "active": target_email,
         "old": old_list
@@ -177,9 +188,87 @@ pub async fn switch_antigravity_account_handler(
         let _ = std::fs::write(&path, serialized);
     }
 
+    // Also update antigravity_quota.json
+    let quota_path = std::path::Path::new(&home).join(".gemini").join("antigravity_quota.json");
+    if quota_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&quota_path) {
+            if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(obj) = val.as_object_mut() {
+                    obj.insert("account_email".to_string(), serde_json::Value::String(target_email.clone()));
+                }
+                if let Ok(ser) = serde_json::to_string_pretty(&val) {
+                    let _ = std::fs::write(&quota_path, ser);
+                }
+            }
+        }
+    }
+
     Ok(Json(serde_json::json!({
         "success": true,
         "active_account": target_email,
-        "accounts": new_data
+        "accounts": all_accounts
     })))
 }
+
+#[derive(Deserialize)]
+pub struct RemoveAntigravityAccountRequest {
+    pub email: String,
+}
+
+pub async fn remove_antigravity_account_handler(
+    Json(req): Json<RemoveAntigravityAccountRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_else(|_| "/Users/arronkianparejas".to_string());
+    
+    let path = std::path::Path::new(&home).join(".gemini").join("google_accounts.json");
+    let target_email = req.email.trim().to_string();
+
+    let current_data = if let Ok(content) = std::fs::read_to_string(&path) {
+        serde_json::from_str::<serde_json::Value>(&content).unwrap_or_default()
+    } else {
+        serde_json::json!({ "active": "", "old": [] })
+    };
+
+    let mut active = current_data.get("active").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let mut old_list: Vec<String> = current_data
+        .get("old")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+        .unwrap_or_default();
+
+    old_list.retain(|e| e != &target_email);
+    if active == target_email {
+        active = old_list.first().cloned().unwrap_or_default();
+        if !active.is_empty() {
+            old_list.remove(0);
+        }
+    }
+
+    let mut all_accounts = Vec::new();
+    if !active.is_empty() {
+        all_accounts.push(active.clone());
+    }
+    for item in &old_list {
+        if !all_accounts.contains(item) {
+            all_accounts.push(item.clone());
+        }
+    }
+
+    let new_data = serde_json::json!({
+        "active": active,
+        "old": old_list
+    });
+
+    if let Ok(serialized) = serde_json::to_string_pretty(&new_data) {
+        let _ = std::fs::write(&path, serialized);
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "active_account": active,
+        "accounts": all_accounts
+    })))
+}
+

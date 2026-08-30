@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'services/api_service.dart';
-import 'services/workstation_manager.dart';
 import 'theme/terminal_theme.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/projects_screen.dart';
@@ -12,15 +10,12 @@ import 'screens/approvals_screen.dart';
 import 'screens/settings_screen.dart';
 import 'widgets/radial_bottom_nav.dart';
 
+import 'screens/splash_screen.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Parallel initialize workstations & saved daemon endpoint for fast startup
-  await Future.wait([
-    WorkstationManager().init(),
-    ApiService().initFromPrefs(),
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
-  ]);
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -44,7 +39,7 @@ class AgentDeckApp extends StatelessWidget {
       title: 'AgentDeck',
       debugShowCheckedModeBanner: false,
       theme: TerminalTheme.darkTheme,
-      home: const MainNavigationScreen(),
+      home: const SplashScreen(),
     );
   }
 }

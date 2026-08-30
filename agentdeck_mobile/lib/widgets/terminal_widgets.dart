@@ -391,3 +391,415 @@ class _CensoredEndpointBadgeState extends State<CensoredEndpointBadge> {
     );
   }
 }
+
+class AgentDeckMascotThinking extends StatefulWidget {
+  final String speechText;
+  final double size;
+  final VoidCallback? onTap;
+
+  const AgentDeckMascotThinking({
+    super.key,
+    this.speechText = 'Analyzing repository state & planning tasks...',
+    this.size = 110,
+    this.onTap,
+  });
+
+  @override
+  State<AgentDeckMascotThinking> createState() => _AgentDeckMascotThinkingState();
+}
+
+class _AgentDeckMascotThinkingState extends State<AgentDeckMascotThinking> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _floatAnim;
+  late Animation<double> _bulbPulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+
+    _floatAnim = Tween<double>(begin: 0, end: -6).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+
+    _bulbPulse = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D0D0D),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF262626)),
+        ),
+        child: Row(
+          children: [
+            AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, _floatAnim.value),
+                  child: Container(
+                    width: widget.size,
+                    height: widget.size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.08 * _bulbPulse.value),
+                          blurRadius: 16,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/images/agentdeck_thinking.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          'AI AGENT THINKING',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      AnimatedBuilder(
+                        animation: _bulbPulse,
+                        builder: (context, child) {
+                          return Opacity(
+                            opacity: _bulbPulse.value,
+                            child: const Icon(Icons.lightbulb, size: 13, color: Color(0xFFFFD43B)),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.speechText,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      color: TerminalColors.pureWhite,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AgentDeckMascotPointing extends StatefulWidget {
+  final String speechText;
+  final String buttonText;
+  final double size;
+  final VoidCallback? onButtonTap;
+
+  const AgentDeckMascotPointing({
+    super.key,
+    this.speechText = 'Autonomous mission control ready. Dispatch a prompt to begin!',
+    this.buttonText = 'PROMPT AGY',
+    this.size = 90,
+    this.onButtonTap,
+  });
+
+  @override
+  State<AgentDeckMascotPointing> createState() => _AgentDeckMascotPointingState();
+}
+
+class _AgentDeckMascotPointingState extends State<AgentDeckMascotPointing> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _bounceAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+
+    _bounceAnim = Tween<double>(begin: 0, end: -4).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C0C0C),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF262626)),
+      ),
+      child: Row(
+        children: [
+          AnimatedBuilder(
+            animation: _ctrl,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, _bounceAnim.value),
+                child: SizedBox(
+                  width: widget.size,
+                  height: widget.size,
+                  child: Image.asset(
+                    'assets/images/agentdeck_pointing.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.speechText,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11,
+                    color: TerminalColors.pureWhite,
+                    height: 1.35,
+                  ),
+                ),
+                if (widget.onButtonTap != null) ...[
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TerminalColors.pureWhite,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: const Size(80, 30),
+                    ),
+                    icon: const Icon(Icons.bolt, size: 14),
+                    label: Text(
+                      widget.buttonText,
+                      style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: widget.onButtonTap,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TailscaleRadarPulse extends StatefulWidget {
+  final bool isConnected;
+  final int? latencyMs;
+  final VoidCallback? onTap;
+
+  const TailscaleRadarPulse({
+    super.key,
+    required this.isConnected,
+    this.latencyMs,
+    this.onTap,
+  });
+
+  @override
+  State<TailscaleRadarPulse> createState() => _TailscaleRadarPulseState();
+}
+
+class _TailscaleRadarPulseState extends State<TailscaleRadarPulse> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+
+    _pulse = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF121212),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: widget.isConnected ? const Color(0xFF51CF66).withValues(alpha: 0.6) : const Color(0xFF404040),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                if (widget.isConnected)
+                  AnimatedBuilder(
+                    animation: _pulse,
+                    builder: (context, child) {
+                      return Container(
+                        width: 14 * _pulse.value,
+                        height: 14 * _pulse.value,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF51CF66).withValues(alpha: (1.0 - _pulse.value).clamp(0.0, 1.0) * 0.5),
+                        ),
+                      );
+                    },
+                  ),
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.isConnected ? const Color(0xFF51CF66) : TerminalColors.zinc,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 6),
+            Text(
+              widget.isConnected
+                  ? (widget.latencyMs != null ? '${widget.latencyMs}ms' : 'TS MESH')
+                  : 'TS OFFLINE',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w900,
+                color: widget.isConnected ? const Color(0xFF51CF66) : TerminalColors.zinc,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MetricBar extends StatelessWidget {
+  final String label;
+  final int percent;
+  final String? subtitle;
+
+  const MetricBar({
+    super.key,
+    required this.label,
+    required this.percent,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = percent.clamp(0, 100);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10,
+                color: TerminalColors.zinc,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              subtitle ?? '$clamped%',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10.5,
+                color: TerminalColors.pureWhite,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Container(
+          width: double.infinity,
+          height: 6,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: (clamped / 100.0).clamp(0.0, 1.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: clamped > 85
+                    ? const Color(0xFFFF6B6B)
+                    : (clamped > 60 ? const Color(0xFFFFD43B) : TerminalColors.pureWhite),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

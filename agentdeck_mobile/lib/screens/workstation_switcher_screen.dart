@@ -405,7 +405,9 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              isOnline ? 'ONLINE' : 'OFFLINE',
+                              isOnline
+                                  ? (_mgr.latencies[ws.id] != null ? 'ONLINE (${_mgr.latencies[ws.id]}ms)' : 'ONLINE')
+                                  : 'OFFLINE',
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w900,
@@ -473,13 +475,13 @@ class _WorkstationSwitcherScreenState extends State<WorkstationSwitcherScreen> {
                             style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w900),
                           ),
                           onPressed: () async {
+                            final scaffoldMessenger = ScaffoldMessenger.of(context);
                             await _mgr.switchTo(ws.id);
+                            if (!mounted) return;
                             setState(() {});
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Switched control plane to ${ws.name}')),
-                              );
-                            }
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(content: Text('Switched control plane to ${ws.name}')),
+                            );
                           },
                         ),
                       if (workstations.length > 1 && !isCurrent)

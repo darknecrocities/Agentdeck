@@ -447,7 +447,7 @@ pub fn get_screen_stream() -> &'static ScreenStreamState {
 pub async fn ensure_screen_stream_running() {
     use base64::Engine;
     use std::sync::atomic::Ordering;
-    use tokio::io::AsyncReadExt;
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 
     let stream = get_screen_stream();
     stream.last_requested_at.store(chrono::Utc::now().timestamp(), Ordering::Relaxed);
@@ -479,46 +479,68 @@ pub async fn ensure_screen_stream_running() {
                 }
 
                 if let Some(bin) = helper_bin {
+                    tracing::info!("Spawning hardware screen streamer binary: {}", bin);
                     let mut cmd = tokio::process::Command::new(bin);
                     cmd.args(["960", "30", "0.40"]);
                     cmd.stdout(std::process::Stdio::piped());
-                    cmd.stderr(std::process::Stdio::null());
+                    cmd.stderr(std::process::Stdio::piped());
 
-                    if let Ok(mut child) = cmd.spawn() {
-                        if let Some(mut stdout) = child.stdout.take() {
-                            *child_handle.lock().await = Some(child);
+                    match cmd.spawn() {
+                        Ok(mut child) => {
+                            let stderr = child.stderr.take();
+                            if let Some(err_reader) = stderr {
+                                tokio::spawn(async move {
+                                    let mut err_buf = String::new();
+                                    let mut reader = tokio::io::BufReader::new(err_reader);
+                                    while let Ok(n) = reader.read_line(&mut err_buf).await {
+                                        if n == 0 { break; }
+                                        tracing::warn!("Screen streamer output: {}", err_buf.trim());
+                                        err_buf.clear();
+                                    }
+                                });
+                            }
 
-                            let mut len_buf = [0u8; 4];
-                            while is_running.load(Ordering::Relaxed) {
-                                let now = chrono::Utc::now().timestamp();
-                                if now - last_requested_at.load(Ordering::Relaxed) > 20 {
-                                    tracing::info!("Screen stream idle timeout, shutting down background hardware screen worker");
-                                    break;
-                                }
+                            if let Some(mut stdout) = child.stdout.take() {
+                                *child_handle.lock().await = Some(child);
+                                tracing::info!("Screen streamer process successfully hooked into stdout stream");
 
-                                if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut len_buf)).await {
-                                    let frame_len = u32::from_be_bytes(len_buf) as usize;
-                                    if frame_len > 0 && frame_len < 5_000_000 {
-                                        let mut frame_data = vec![0u8; frame_len];
-                                        if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut frame_data)).await {
-                                            let frame_bytes_arc = axum::body::Bytes::from(frame_data);
-                                            let size = frame_bytes_arc.len();
-                                            let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_bytes_arc);
-                                            let now_inst = std::time::Instant::now();
-                                            *latest_frame.write().await = Some((b64, size, now_inst));
-                                            *raw_latest_frame.write().await = Some((frame_bytes_arc.clone(), now_inst));
-                                            let _ = frame_tx.send(frame_bytes_arc);
-                                            continue;
+                                let mut len_buf = [0u8; 4];
+                                while is_running.load(Ordering::Relaxed) {
+                                    let now = chrono::Utc::now().timestamp();
+                                    if now - last_requested_at.load(Ordering::Relaxed) > 20 {
+                                        tracing::info!("Screen stream idle timeout, shutting down background hardware screen worker");
+                                        break;
+                                    }
+
+                                    if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut len_buf)).await {
+                                        let frame_len = u32::from_be_bytes(len_buf) as usize;
+                                        if frame_len > 0 && frame_len < 5_000_000 {
+                                            let mut frame_data = vec![0u8; frame_len];
+                                            if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut frame_data)).await {
+                                                let frame_bytes_arc = axum::body::Bytes::from(frame_data);
+                                                let size = frame_bytes_arc.len();
+                                                let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_bytes_arc);
+                                                let now_inst = std::time::Instant::now();
+                                                *latest_frame.write().await = Some((b64, size, now_inst));
+                                                *raw_latest_frame.write().await = Some((frame_bytes_arc.clone(), now_inst));
+                                                let _ = frame_tx.send(frame_bytes_arc);
+                                                continue;
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            if let Some(mut proc) = child_handle.lock().await.take() {
-                                let _ = proc.kill().await;
+                                if let Some(mut proc) = child_handle.lock().await.take() {
+                                    let _ = proc.kill().await;
+                                }
                             }
                         }
+                        Err(e) => {
+                            tracing::error!("Failed to spawn screen streamer binary '{}': {}", bin, e);
+                        }
                     }
+                } else {
+                    tracing::error!("No screen streamer binary found in helper paths");
                 }
             }
 
@@ -616,8 +638,8 @@ pub async fn take_screenshot_handler() -> Result<Json<serde_json::Value>, (axum:
     let stream = get_screen_stream();
     ensure_screen_stream_running().await;
 
-    // Fast-path: return cached stream frame from memory (wait up to 400ms on initial cold start)
-    for _ in 0..10 {
+    // Fast-path: return cached stream frame from memory (wait up to 1000ms on initial cold start)
+    for _ in 0..30 {
         if let Some((ref frame, size, ref instant)) = *stream.latest_frame.read().await {
             if instant.elapsed() < std::time::Duration::from_millis(3000) {
                 return Ok(Json(serde_json::json!({
@@ -1254,9 +1276,10 @@ pub async fn antigravity_live_chat_handler(
 
     conv_dirs.sort_by(|a, b| b.2.cmp(&a.2));
 
-    let active_id = query.id.clone().unwrap_or_else(|| {
-        conv_dirs.first().map(|(id, _, _)| id.clone()).unwrap_or_default()
-    });
+    let mut active_id = query.id.clone().unwrap_or_default();
+    if active_id.is_empty() || !brain_dir.join(&active_id).join(".system_generated").join("logs").join("transcript.jsonl").exists() {
+        active_id = conv_dirs.first().map(|(id, _, _)| id.clone()).unwrap_or_default();
+    }
 
     let target_log = brain_dir
         .join(&active_id)
@@ -1265,13 +1288,18 @@ pub async fn antigravity_live_chat_handler(
         .join("transcript.jsonl");
 
     let mut messages = Vec::new();
+    let mut edited_files_set = std::collections::HashSet::new();
+    let mut active_model = "Gemini 3.7 Flash".to_string();
+    let active_effort = "High".to_string();
+    let mut is_generating = false;
+
     if target_log.exists() {
         if let Ok(content) = std::fs::read_to_string(&target_log) {
             let lines: Vec<&str> = content.lines().collect();
-            let limit = query.limit.unwrap_or(80);
+            let limit = query.limit.unwrap_or(120);
             let start = if lines.len() > limit { lines.len() - limit } else { 0 };
 
-            for line in &lines[start..] {
+            for (idx, line) in lines[start..].iter().enumerate() {
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
                     let step_type = val["type"].as_str().unwrap_or("");
                     let source = val["source"].as_str().unwrap_or("");
@@ -1280,11 +1308,28 @@ pub async fn antigravity_live_chat_handler(
                     let tool_calls = val["tool_calls"].clone();
                     let created_at = val["created_at"].as_str().unwrap_or("");
 
+                    if (start + idx) == lines.len() - 1 {
+                        is_generating = step_type == "PLANNER_RESPONSE" && content_str.is_empty();
+                    }
+
                     if step_type == "USER_INPUT" || source == "USER_EXPLICIT" {
                         let mut user_msg = content_str.to_string();
                         if let Some(start_tag) = user_msg.find("<USER_REQUEST>") {
                             if let Some(end_tag) = user_msg.find("</USER_REQUEST>") {
                                 user_msg = user_msg[start_tag + 14..end_tag].trim().to_string();
+                            }
+                        }
+                        if let Some(start_tag) = content_str.find("<USER_SETTINGS_CHANGE>") {
+                            if let Some(end_tag) = content_str.find("</USER_SETTINGS_CHANGE>") {
+                                let change = &content_str[start_tag + 22..end_tag];
+                                if let Some(pos) = change.find("to ") {
+                                    let model_part = change[pos + 3..].trim();
+                                    if let Some(dot) = model_part.find('.') {
+                                        active_model = model_part[..dot].trim().to_string();
+                                    } else {
+                                        active_model = model_part.to_string();
+                                    }
+                                }
                             }
                         }
                         messages.push(serde_json::json!({
@@ -1312,10 +1357,86 @@ pub async fn antigravity_live_chat_handler(
                             }));
                         }
                         if tool_calls.is_array() && !tool_calls.as_array().unwrap().is_empty() {
+                            let mut structured_tools = Vec::new();
+                            if let Some(arr) = tool_calls.as_array() {
+                                for t in arr {
+                                    let name = t["name"].as_str().unwrap_or("tool");
+                                    let args = &t["args"];
+                                    
+                                    let mut tool_obj = serde_json::json!({
+                                        "name": name,
+                                        "raw_args": args,
+                                    });
+
+                                    if name == "replace_file_content" || name == "multi_replace_file_content" {
+                                        let target = args["TargetFile"].as_str().unwrap_or("").to_string();
+                                        let instruction = args["Instruction"].as_str().unwrap_or("").to_string();
+                                        let desc = args["Description"].as_str().unwrap_or("").to_string();
+                                        let replacement = args["ReplacementContent"].as_str().unwrap_or("").to_string();
+                                        let file_basename = std::path::Path::new(&target)
+                                            .file_name()
+                                            .map(|n| n.to_string_lossy().to_string())
+                                            .unwrap_or_else(|| target.clone());
+
+                                        if !target.is_empty() {
+                                            edited_files_set.insert(target.clone());
+                                        }
+
+                                        tool_obj["category"] = serde_json::json!("FILE_EDIT");
+                                        tool_obj["file_path"] = serde_json::json!(target);
+                                        tool_obj["file_name"] = serde_json::json!(file_basename);
+                                        tool_obj["instruction"] = serde_json::json!(instruction);
+                                        tool_obj["description"] = serde_json::json!(desc);
+                                        tool_obj["diff_snippet"] = serde_json::json!(replacement);
+                                    } else if name == "write_to_file" {
+                                        let target = args["TargetFile"].as_str().unwrap_or("").to_string();
+                                        let desc = args["Description"].as_str().unwrap_or("").to_string();
+                                        let code = args["CodeContent"].as_str().unwrap_or("").to_string();
+                                        let file_basename = std::path::Path::new(&target)
+                                            .file_name()
+                                            .map(|n| n.to_string_lossy().to_string())
+                                            .unwrap_or_else(|| target.clone());
+
+                                        if !target.is_empty() {
+                                            edited_files_set.insert(target.clone());
+                                        }
+
+                                        tool_obj["category"] = serde_json::json!("FILE_CREATE");
+                                        tool_obj["file_path"] = serde_json::json!(target);
+                                        tool_obj["file_name"] = serde_json::json!(file_basename);
+                                        tool_obj["description"] = serde_json::json!(desc);
+                                        tool_obj["diff_snippet"] = serde_json::json!(code);
+                                    } else if name == "run_command" {
+                                        let cmd = args["CommandLine"].as_str().unwrap_or("").to_string();
+                                        let cwd = args["Cwd"].as_str().unwrap_or("").to_string();
+                                        tool_obj["category"] = serde_json::json!("COMMAND");
+                                        tool_obj["command"] = serde_json::json!(cmd);
+                                        tool_obj["cwd"] = serde_json::json!(cwd);
+                                    } else if name == "generate_image" {
+                                        let prompt = args["Prompt"].as_str().unwrap_or("").to_string();
+                                        let img_name = args["ImageName"].as_str().unwrap_or("").to_string();
+                                        tool_obj["category"] = serde_json::json!("IMAGE");
+                                        tool_obj["prompt"] = serde_json::json!(prompt);
+                                        tool_obj["image_name"] = serde_json::json!(img_name);
+                                    } else if name == "view_file" || name == "list_dir" || name == "grep_search" {
+                                        let p = args["AbsolutePath"]
+                                            .as_str()
+                                            .or_else(|| args["DirectoryPath"].as_str())
+                                            .or_else(|| args["SearchPath"].as_str())
+                                            .unwrap_or("")
+                                            .to_string();
+                                        tool_obj["category"] = serde_json::json!("INSPECTION");
+                                        tool_obj["target"] = serde_json::json!(p);
+                                    }
+
+                                    structured_tools.push(tool_obj);
+                                }
+                            }
+
                             messages.push(serde_json::json!({
                                 "role": "tool_call",
                                 "type": "TOOL_CALLS",
-                                "tools": tool_calls,
+                                "tools": structured_tools,
                                 "timestamp": created_at,
                             }));
                         }
@@ -1340,6 +1461,70 @@ pub async fn antigravity_live_chat_handler(
         }
     }
 
+    let mut edited_files: Vec<String> = edited_files_set.into_iter().collect();
+    edited_files.sort();
+
+    // 3. Compute real-time git diff numstat for uncommitted files & decisions
+    let mut changed_files = Vec::new();
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/Users/arronkianparejas/agentdeck"));
+    if let Ok(output) = std::process::Command::new("git")
+        .args(["diff", "--numstat"])
+        .current_dir(&cwd)
+        .output()
+    {
+        if let Ok(numstat) = String::from_utf8(output.stdout) {
+            for line in numstat.lines() {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 3 {
+                    let added = parts[0].parse::<u64>().unwrap_or(0);
+                    let deleted = parts[1].parse::<u64>().unwrap_or(0);
+                    let path = parts[2..].join(" ");
+                    let name = std::path::Path::new(&path)
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| path.clone());
+
+                    changed_files.push(serde_json::json!({
+                        "file_path": path,
+                        "file_name": name,
+                        "additions": added,
+                        "deletions": deleted,
+                        "status": "modified",
+                    }));
+                }
+            }
+        }
+    }
+
+    // Also check untracked new files
+    if let Ok(output) = std::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&cwd)
+        .output()
+    {
+        if let Ok(porcelain) = String::from_utf8(output.stdout) {
+            for line in porcelain.lines() {
+                if line.starts_with("?? ") {
+                    let path = line[3..].trim().to_string();
+                    let name = std::path::Path::new(&path)
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| path.clone());
+
+                    if !changed_files.iter().any(|c| c["file_path"] == path) {
+                        changed_files.push(serde_json::json!({
+                            "file_path": path,
+                            "file_name": name,
+                            "additions": 1,
+                            "deletions": 0,
+                            "status": "created",
+                        }));
+                    }
+                }
+            }
+        }
+    }
+
     let conv_list: Vec<serde_json::Value> = conv_dirs
         .iter()
         .take(15)
@@ -1357,7 +1542,89 @@ pub async fn antigravity_live_chat_handler(
         "conversations": conv_list,
         "total_messages": messages.len(),
         "messages": messages,
+        "edited_files": edited_files,
+        "changed_files": changed_files,
+        "active_model": active_model,
+        "active_effort": active_effort,
+        "is_generating": is_generating,
+        "has_uncommitted_changes": !changed_files.is_empty(),
     })))
+}
+
+#[derive(serde::Deserialize)]
+pub struct AntigravityDecisionRequest {
+    pub action: String, // "accept_all", "reject_all", "revert_file", "stop", "continue"
+    pub file_path: Option<String>,
+    pub prompt: Option<String>,
+}
+
+pub async fn antigravity_decision_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<AntigravityDecisionRequest>,
+) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/Users/arronkianparejas/agentdeck"));
+
+    match req.action.as_str() {
+        "accept_all" => {
+            let res = std::process::Command::new("git")
+                .args(["add", "-A"])
+                .current_dir(&cwd)
+                .output();
+
+            let success = res.map(|o| o.status.success()).unwrap_or(false);
+            Ok(Json(serde_json::json!({
+                "success": success,
+                "action": "accept_all",
+                "message": "All file modifications accepted and staged.",
+            })))
+        }
+        "reject_all" => {
+            let _ = std::process::Command::new("git")
+                .args(["restore", "."])
+                .current_dir(&cwd)
+                .output();
+            let _ = std::process::Command::new("git")
+                .args(["clean", "-fd"])
+                .current_dir(&cwd)
+                .output();
+
+            Ok(Json(serde_json::json!({
+                "success": true,
+                "action": "reject_all",
+                "message": "All uncommitted file edits reverted.",
+            })))
+        }
+        "revert_file" => {
+            if let Some(file) = &req.file_path {
+                let _ = std::process::Command::new("git")
+                    .args(["restore", file])
+                    .current_dir(&cwd)
+                    .output();
+            }
+            Ok(Json(serde_json::json!({
+                "success": true,
+                "action": "revert_file",
+                "file": req.file_path,
+            })))
+        }
+        "stop" => {
+            let _ = state.agent_manager.stop_session("antigravity", "active").await;
+            Ok(Json(serde_json::json!({
+                "success": true,
+                "action": "stop",
+                "message": "Agent session halted.",
+            })))
+        }
+        "continue" => {
+            let prompt = req.prompt.unwrap_or_else(|| "Proceed with execution.".to_string());
+            Ok(Json(serde_json::json!({
+                "success": true,
+                "action": "continue",
+                "prompt": prompt,
+            })))
+        }
+        _ => Err((axum::http::StatusCode::BAD_REQUEST, "Unknown decision action".to_string())),
+    }
 }
 
 

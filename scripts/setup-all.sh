@@ -26,10 +26,29 @@ export PATH="/opt/homebrew/bin:$PATH"
 cargo build --release
 
 # 2. Install binaries to /usr/local/bin if writable or ~/.local/bin
-echo -e "${YELLOW}[2/5] Installing binaries...${NC}"
+echo -e "${YELLOW}[2/5] Installing and code-signing binaries...${NC}"
 mkdir -p "$HOME/.local/bin"
 cp target/release/agentdeckd "$HOME/.local/bin/agentdeckd"
 cp target/release/agentdeck "$HOME/.local/bin/agentdeck"
+
+# On macOS, compile and sign hardware screen and camera streamer helpers with embedded Bundle IDs
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    if [ -f "$SCRIPT_DIR/screen_streamer.m" ]; then
+        clang -O2 -fmodules -framework ScreenCaptureKit -framework CoreMedia -framework CoreVideo -framework CoreImage -framework ImageIO -framework CoreGraphics \
+          -sectcreate __TEXT __info_plist "$SCRIPT_DIR/screen_streamer_info.plist" \
+          "$SCRIPT_DIR/screen_streamer.m" -o "$HOME/.local/bin/agentdeck-screen-streamer"
+        codesign --force --deep --sign - --identifier "com.agentdeck.screenstreamer" "$HOME/.local/bin/agentdeck-screen-streamer" 2>/dev/null || true
+        cp "$HOME/.local/bin/agentdeck-screen-streamer" "$SCRIPT_DIR/agentdeck-screen-streamer" 2>/dev/null || true
+    fi
+    if [ -f "$SCRIPT_DIR/camera_streamer.m" ]; then
+        clang -O2 -fmodules -framework AVFoundation -framework CoreMedia -framework CoreVideo -framework CoreImage -framework ImageIO -framework CoreGraphics \
+          -sectcreate __TEXT __info_plist "$SCRIPT_DIR/camera_streamer_info.plist" \
+          "$SCRIPT_DIR/camera_streamer.m" -o "$HOME/.local/bin/agentdeck-camera-streamer"
+        codesign --force --deep --sign - --identifier "com.agentdeck.camerastreamer" "$HOME/.local/bin/agentdeck-camera-streamer" 2>/dev/null || true
+        cp "$HOME/.local/bin/agentdeck-camera-streamer" "$SCRIPT_DIR/agentdeck-camera-streamer" 2>/dev/null || true
+    fi
+    codesign --force --deep --sign - "$HOME/.local/bin/agentdeckd" 2>/dev/null || true
+fi
 
 # 3. Check or Install Tailscale for Remote Online Access
 echo -e "${YELLOW}[3/5] Checking Tailscale for Private Mesh Remote Access...${NC}"

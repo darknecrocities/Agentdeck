@@ -69,7 +69,7 @@ class _GitGitHubScreenState extends State<GitGitHubScreen> {
     _commitMsgCtrl.clear();
     setState(() => _operating = false);
 
-    if (ok) {
+    if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Commit created successfully!')),
       );
@@ -80,6 +80,7 @@ class _GitGitHubScreenState extends State<GitGitHubScreen> {
   Future<void> _handlePush() async {
     setState(() => _operating = true);
     final ok = await _api.pushGit(widget.projectId);
+    if (!mounted) return;
     setState(() => _operating = false);
 
     if (ok) {

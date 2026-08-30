@@ -114,7 +114,7 @@ int main(int argc, const char * argv[]) {
                     fprintf(stderr, "Failed to start capture: %s\n", startErr.localizedDescription.UTF8String);
                     exit(1);
                 }
-                fprintf(stderr, "AgentDeck Hardware ScreenStreamer running (%dx%d @ %d FPS)\n", config.width, config.height, targetFps);
+                fprintf(stderr, "AgentDeck Hardware ScreenStreamer running (%d x %d @ %d FPS)\n", (int)config.width, (int)config.height, targetFps);
             }];
         }];
         

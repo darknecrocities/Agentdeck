@@ -33,5 +33,5 @@ binary = "ollama"
 
 [projects]
 roots = [
-    "/path/to/your/projects"
+    "/Users/arronkianparejas/agentdeck"
 ]

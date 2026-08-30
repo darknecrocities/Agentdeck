@@ -339,7 +339,7 @@ class ApiService {
       return {
         'active_account': 'developer@example.com',
         'accounts': ['developer@example.com'],
-        'auth_type': 'Google OAuth (Personal)',
+        'auth_type': 'Google OAuth',
         'status': 'authenticated',
       };
     }
@@ -358,9 +358,64 @@ class ApiService {
     }
   }
 
+  Future<bool> removeAntigravityAccount(String email) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/accounts/antigravity/remove'),
+        headers: _headers,
+        body: jsonEncode({'email': email}),
+      ).timeout(_timeout);
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> sendAntigravityDecision({
+    required String action, // "accept_all", "reject_all", "revert_file", "stop", "continue"
+    String? filePath,
+    String? prompt,
+  }) async {
+    final payload = <String, dynamic>{'action': action};
+    if (filePath != null) payload['file_path'] = filePath;
+    if (prompt != null) payload['prompt'] = prompt;
+    final data = await _post('/api/system/antigravity/decision', payload);
+    return data is Map<String, dynamic> ? data : {};
+  }
+
   // Token Quotas & Monitoring
   Future<Map<String, dynamic>> getTokenSummary() async {
     final data = await _get('/api/tokens/summary');
+    return data is Map<String, dynamic> ? data : {};
+  }
+
+  Future<Map<String, dynamic>> syncIdeQuota({
+    String? planName,
+    String? accountEmail,
+    bool? creditOveragesEnabled,
+    int? geminiWeekly,
+    String? geminiWeeklyText,
+    int? gemini5h,
+    String? gemini5hText,
+    int? claudeWeekly,
+    String? claudeWeeklyText,
+    int? claude5h,
+    String? claude5hText,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (planName != null) payload['plan_name'] = planName;
+    if (accountEmail != null) payload['account_email'] = accountEmail;
+    if (creditOveragesEnabled != null) payload['credit_overages_enabled'] = creditOveragesEnabled;
+    if (geminiWeekly != null) payload['gemini_weekly'] = geminiWeekly;
+    if (geminiWeeklyText != null) payload['gemini_weekly_text'] = geminiWeeklyText;
+    if (gemini5h != null) payload['gemini_5h'] = gemini5h;
+    if (gemini5hText != null) payload['gemini_5h_text'] = gemini5hText;
+    if (claudeWeekly != null) payload['claude_weekly'] = claudeWeekly;
+    if (claudeWeeklyText != null) payload['claude_weekly_text'] = claudeWeeklyText;
+    if (claude5h != null) payload['claude_5h'] = claude5h;
+    if (claude5hText != null) payload['claude_5h_text'] = claude5hText;
+
+    final data = await _post('/api/tokens/sync-ide-quota', payload);
     return data is Map<String, dynamic> ? data : {};
   }
 
@@ -391,11 +446,10 @@ class ApiService {
     String? path,
     String? url,
   }) async {
-    final data = await _post('/api/system/launch-app', {
-      'app': app,
-      if (path != null) 'path': path,
-      if (url != null) 'url': url,
-    });
+    final payload = <String, dynamic>{'app': app};
+    if (path != null) payload['path'] = path;
+    if (url != null) payload['url'] = url;
+    final data = await _post('/api/system/launch-app', payload);
     return data is Map<String, dynamic> ? data : {};
   }
 
@@ -455,11 +509,12 @@ class ApiService {
     String action = 'speak',
     String? voice,
   }) async {
-    final data = await _post('/api/system/speak', {
+    final payload = <String, dynamic>{
       'text': text,
       'action': action,
-      if (voice != null) 'voice': voice,
-    });
+    };
+    if (voice != null) payload['voice'] = voice;
+    final data = await _post('/api/system/speak', payload);
     return data is Map<String, dynamic> ? data : {};
   }
 

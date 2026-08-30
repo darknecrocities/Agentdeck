@@ -8,10 +8,10 @@
     <array>
         <string>/Users/arronkianparejas/.local/bin/agentdeckd</string>
         <string>--config</string>
-        <string>/path/to/your/projects/agentdeck.toml</string>
+        <string>/Users/arronkianparejas/agentdeck/agentdeck.toml</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/path/to/your/projects</string>
+    <string>/Users/arronkianparejas/agentdeck</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>

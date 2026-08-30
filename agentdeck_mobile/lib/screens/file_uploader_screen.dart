@@ -92,9 +92,11 @@ class _FileUploaderScreenState extends State<FileUploaderScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick files: $e', style: GoogleFonts.jetBrainsMono())),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick files: $e', style: GoogleFonts.jetBrainsMono())),
+        );
+      }
     }
   }
 

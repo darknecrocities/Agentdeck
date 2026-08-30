@@ -350,6 +350,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                             onPressed: creating
                                 ? null
                                 : () async {
+                                    final nav = Navigator.of(context);
                                     setModalState(() => creating = true);
                                     if (mode == 0) {
                                       final res = await _api.scaffoldProject(
@@ -362,9 +363,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                       if (ctx.mounted) Navigator.pop(ctx);
                                       _loadProjects();
 
-                                      if (mounted && res['session_id'] != null) {
-                                        Navigator.push(
-                                          context,
+                                      if (res['session_id'] != null) {
+                                        nav.push(
                                           MaterialPageRoute(
                                             builder: (_) => SessionScreen(
                                               sessionId: res['session_id'],
