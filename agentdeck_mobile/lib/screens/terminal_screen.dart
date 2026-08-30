@@ -26,6 +26,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   String _output = '';
   bool _connecting = true;
   bool _initialCommandExecuted = false;
+  bool _initialized = false;
 
   final List<String> _history = [];
   int _historyIndex = -1;
@@ -38,12 +39,15 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   void _onWorkstationChanged() {
-    if (mounted) {
-      _wsChannel?.sink.close();
-      _wsChannel = null;
+    // Only re-init if we're not already connecting and the screen is fully initialized
+    if (!mounted || _connecting) return;
+    _wsChannel?.sink.close();
+    _wsChannel = null;
+    setState(() {
       _output = '';
-      _initTerminal();
-    }
+      _initialCommandExecuted = false;
+    });
+    _initTerminal();
   }
 
   @override
@@ -56,7 +60,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   Future<void> _initTerminal() async {
+    if (_connecting && _initialized) return; // prevent double-init
     setState(() => _connecting = true);
+    _initialized = true;
     try {
       final res = await _api.spawnTerminal(cols: 80, rows: 28);
       _terminalId = res['id'] ?? '';
