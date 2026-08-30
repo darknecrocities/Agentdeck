@@ -28,26 +28,65 @@ cargo build --release
 # 2. Install binaries to /usr/local/bin if writable or ~/.local/bin
 echo -e "${YELLOW}[2/5] Installing and code-signing binaries...${NC}"
 mkdir -p "$HOME/.local/bin"
-cp target/release/agentdeckd "$HOME/.local/bin/agentdeckd"
 cp target/release/agentdeck "$HOME/.local/bin/agentdeck"
 
 # On macOS, compile and sign hardware screen and camera streamer helpers with embedded Bundle IDs
 if [[ "$OSTYPE" == "darwin"* ]]; then
+    # ── agentdeckd: embed stable Info.plist so TCC stores permission against
+    #    a fixed CFBundleIdentifier (com.agentdeck.daemon) instead of the
+    #    random linker hash that changes on every `cargo build`.
+    echo -e "${CYAN}  → Embedding stable Info.plist into agentdeckd for persistent TCC identity...${NC}"
+    cp target/release/agentdeckd "$HOME/.local/bin/agentdeckd"
+    # Inject the __info_plist section into the already-built binary via objcopy
+    # (available as part of Xcode's llvm toolchain on Apple Silicon)
+    if command -v objcopy &>/dev/null; then
+        objcopy --add-section __TEXT,__info_plist="$SCRIPT_DIR/agentdeckd_info.plist" \
+                --set-section-flags __TEXT,__info_plist=contents,readonly \
+                "$HOME/.local/bin/agentdeckd" || true
+    fi
+    # Re-sign with stable identifier and entitlements so TCC lookup is deterministic
+    codesign --force --sign - \
+        --identifier "com.agentdeck.daemon" \
+        "$HOME/.local/bin/agentdeckd" 2>/dev/null || true
+    echo -e "${GREEN}  ✓ agentdeckd signed as com.agentdeck.daemon${NC}"
+
+    # ── agentdeck-screen-streamer: compile, embed Info.plist, sign with
+    #    com.apple.security.screen-recording entitlement so ScreenCaptureKit
+    #    doesn't re-prompt even when the toggle is already ON in System Settings.
     if [ -f "$SCRIPT_DIR/screen_streamer.m" ]; then
-        clang -O2 -fmodules -framework ScreenCaptureKit -framework CoreMedia -framework CoreVideo -framework CoreImage -framework ImageIO -framework CoreGraphics \
+        echo -e "${CYAN}  → Building agentdeck-screen-streamer with ScreenCaptureKit...${NC}"
+        clang -O2 -fmodules \
+          -framework ScreenCaptureKit -framework CoreMedia -framework CoreVideo \
+          -framework CoreImage -framework ImageIO -framework CoreGraphics \
           -sectcreate __TEXT __info_plist "$SCRIPT_DIR/screen_streamer_info.plist" \
-          "$SCRIPT_DIR/screen_streamer.m" -o "$HOME/.local/bin/agentdeck-screen-streamer"
-        codesign --force --deep --sign - --identifier "com.agentdeck.screenstreamer" "$HOME/.local/bin/agentdeck-screen-streamer" 2>/dev/null || true
+          "$SCRIPT_DIR/screen_streamer.m" \
+          -o "$HOME/.local/bin/agentdeck-screen-streamer"
+        # Sign with the screen-recording entitlement — this is the critical fix:
+        # without this entitlement the binary triggers a fresh TCC dialog even
+        # when the user has already granted permission.
+        codesign --force --sign - \
+            --identifier "com.agentdeck.screenstreamer" \
+            --entitlements "$SCRIPT_DIR/screen_streamer_entitlements.plist" \
+            "$HOME/.local/bin/agentdeck-screen-streamer" 2>/dev/null || true
         cp "$HOME/.local/bin/agentdeck-screen-streamer" "$SCRIPT_DIR/agentdeck-screen-streamer" 2>/dev/null || true
+        echo -e "${GREEN}  ✓ agentdeck-screen-streamer signed with screen-recording entitlement${NC}"
     fi
+
+    # ── agentdeck-camera-streamer
     if [ -f "$SCRIPT_DIR/camera_streamer.m" ]; then
-        clang -O2 -fmodules -framework AVFoundation -framework CoreMedia -framework CoreVideo -framework CoreImage -framework ImageIO -framework CoreGraphics \
+        echo -e "${CYAN}  → Building agentdeck-camera-streamer with AVFoundation...${NC}"
+        clang -O2 -fmodules \
+          -framework AVFoundation -framework CoreMedia -framework CoreVideo \
+          -framework CoreImage -framework ImageIO -framework CoreGraphics \
           -sectcreate __TEXT __info_plist "$SCRIPT_DIR/camera_streamer_info.plist" \
-          "$SCRIPT_DIR/camera_streamer.m" -o "$HOME/.local/bin/agentdeck-camera-streamer"
-        codesign --force --deep --sign - --identifier "com.agentdeck.camerastreamer" "$HOME/.local/bin/agentdeck-camera-streamer" 2>/dev/null || true
+          "$SCRIPT_DIR/camera_streamer.m" \
+          -o "$HOME/.local/bin/agentdeck-camera-streamer"
+        codesign --force --sign - \
+            --identifier "com.agentdeck.camerastreamer" \
+            "$HOME/.local/bin/agentdeck-camera-streamer" 2>/dev/null || true
         cp "$HOME/.local/bin/agentdeck-camera-streamer" "$SCRIPT_DIR/agentdeck-camera-streamer" 2>/dev/null || true
+        echo -e "${GREEN}  ✓ agentdeck-camera-streamer signed as com.agentdeck.camerastreamer${NC}"
     fi
-    codesign --force --deep --sign - "$HOME/.local/bin/agentdeckd" 2>/dev/null || true
 fi
 
 # 3. Check or Install Tailscale for Remote Online Access

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.agentdeck.daemon</string>
+    <key>CFBundleName</key>
+    <string>agentdeckd</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>AgentDeck needs screen recording access to stream your desktop to your mobile device.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>AgentDeck needs camera access to stream your webcam to your mobile device.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>AgentDeck needs microphone access for audio monitoring.</string>
+</dict>
+</plist>

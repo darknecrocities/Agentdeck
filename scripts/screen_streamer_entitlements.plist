@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Required for SCShareableContent / ScreenCaptureKit on macOS 12.3+ -->
+    <key>com.apple.security.screen-recording</key>
+    <true/>
+    <!-- Allow calling CGWindowListCreateImage and related APIs -->
+    <key>com.apple.security.get-task-allow</key>
+    <false/>
+</dict>
+</plist>
