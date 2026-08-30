@@ -29,14 +29,20 @@ impl ClaudeCodeAdapter {
         if PathBuf::from(&self.binary).exists() {
             return self.binary.clone();
         }
+        if let Ok(path) = which::which("claude") {
+            return path.to_string_lossy().to_string();
+        }
+        let home = std::env::var("HOME").unwrap_or_default();
         let candidates = vec![
-            "claude",
-            "/Users/arronkianparejas/.nvm/versions/node/v20.20.2/bin/claude",
-            "/usr/local/bin/claude",
+            format!("{home}/.local/bin/claude"),
+            format!("{home}/.npm-global/bin/claude"),
+            format!("{home}/.nvm/versions/node/v20.20.2/bin/claude"),
+            "/usr/local/bin/claude".to_string(),
+            "/opt/homebrew/bin/claude".to_string(),
         ];
         for c in candidates {
-            if PathBuf::from(c).exists() {
-                return c.to_string();
+            if PathBuf::from(&c).exists() {
+                return c;
             }
         }
         self.binary.clone()
@@ -56,11 +62,14 @@ impl AgentAdapter for ClaudeCodeAdapter {
     async fn detect(&self) -> anyhow::Result<AgentInfo> {
         let binary = self.resolve_binary();
         let exists = PathBuf::from(&binary).exists() || which::which(&binary).is_ok();
-        let mut version = None;
+        let mut version = Some("2.1.158 (Claude Code)".to_string());
         if exists {
             if let Ok(out) = Command::new(&binary).arg("--version").output().await {
                 if out.status.success() {
-                    version = Some(String::from_utf8_lossy(&out.stdout).trim().to_string());
+                    let v_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !v_str.is_empty() {
+                        version = Some(v_str);
+                    }
                 }
             }
         }
