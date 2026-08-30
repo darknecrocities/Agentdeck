@@ -446,6 +446,7 @@ pub fn get_screen_stream() -> &'static ScreenStreamState {
 
 pub async fn ensure_screen_stream_running() {
     use std::sync::atomic::Ordering;
+    use tokio::io::AsyncReadExt;
 
     let stream = get_screen_stream();
     stream.last_requested_at.store(chrono::Utc::now().timestamp(), Ordering::Relaxed);
@@ -462,83 +463,124 @@ pub async fn ensure_screen_stream_running() {
         tokio::spawn(async move {
             #[cfg(target_os = "macos")]
             {
-                // Use /usr/sbin/screencapture directly — it is a macOS system binary
-                // that inherits the calling process's TCC screen-recording grant.
-                // This avoids the per-binary TCC consent dialog that agentdeck-screen-streamer
-                // triggers (ad-hoc signed subprocesses have their own TCC identity and
-                // always prompt even when the parent's toggle is ON in System Settings).
-                use base64::Engine;
-                let screencapture_bin = if std::path::Path::new("/usr/sbin/screencapture").exists() {
-                    "/usr/sbin/screencapture"
-                } else {
-                    "screencapture"
-                };
-                let tmp_dir = std::env::temp_dir();
-                let pid = std::process::id();
-                let mut frame_idx: u64 = 0;
+                // Primary: Try hardware ScreenCaptureKit helper (agentdeck-screen-streamer)
+                let helper_paths = [
+                    "/Users/arronkianparejas/.local/bin/agentdeck-screen-streamer",
+                    "agentdeck-screen-streamer",
+                    "scripts/agentdeck-screen-streamer",
+                ];
 
-                tracing::info!("Screen stream starting via {} (system binary, inherits TCC grant)", screencapture_bin);
-
-                while is_running.load(Ordering::Relaxed) {
-                    let now_ts = chrono::Utc::now().timestamp();
-                    if now_ts - last_requested_at.load(Ordering::Relaxed) > 20 {
-                        tracing::info!("Screen stream idle timeout — shutting down screencapture loop");
+                let mut helper_bin = None;
+                for p in helper_paths {
+                    if std::path::Path::new(p).exists() || which::which(p).is_ok() {
+                        helper_bin = Some(p);
                         break;
                     }
-
-                    let frame_path = tmp_dir.join(format!("agentdeck_ss_{}_{}.jpg", pid, frame_idx));
-                    frame_idx += 1;
-
-                    // -x  suppress sound, -t jpg JPEG output, -m main display only
-                    let result = tokio::process::Command::new(screencapture_bin)
-                        .args([
-                            "-x",
-                            "-t", "jpg",
-                            "-m",
-                            frame_path.to_str().unwrap_or("/tmp/agentdeck_ss.jpg"),
-                        ])
-                        .output()
-                        .await;
-
-                    match result {
-                        Ok(out) if out.status.success() => {
-                            if let Ok(data) = tokio::fs::read(&frame_path).await {
-                                let _ = tokio::fs::remove_file(&frame_path).await;
-                                if !data.is_empty() {
-                                    let b64 = base64::engine::general_purpose::STANDARD.encode(&data);
-                                    let size = data.len();
-                                    let now_inst = std::time::Instant::now();
-                                    let frame_bytes = axum::body::Bytes::from(data);
-                                    *latest_frame.write().await = Some((b64, size, now_inst));
-                                    *raw_latest_frame.write().await = Some((frame_bytes.clone(), now_inst));
-                                    let _ = frame_tx.send(frame_bytes);
-                                }
-                            } else {
-                                let _ = tokio::fs::remove_file(&frame_path).await;
-                            }
-                        }
-                        Ok(out) => {
-                            tracing::warn!(
-                                "screencapture exited non-zero ({}): {}",
-                                out.status,
-                                String::from_utf8_lossy(&out.stderr).trim()
-                            );
-                            // Back off — permission may not be granted yet
-                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                        }
-                        Err(e) => {
-                            tracing::error!("Failed to invoke screencapture: {}", e);
-                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                        }
-                    }
-
-                    // ~4 fps — adequate for mobile remote view, avoids disk thrash
-                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
                 }
 
-                // Clean up any child handle left over from a prior run
-                if let Some(mut proc) = child_handle.lock().await.take() {
-                    let _ = proc.kill().await;
+                use base64::Engine;
+                let mut hardware_streamer_success = false;
+
+                if let Some(bin) = helper_bin {
+                    tracing::info!("Attempting hardware ScreenCaptureKit streamer: {}", bin);
+                    let mut cmd = tokio::process::Command::new(bin);
+                    cmd.args(["960", "30", "0.40"]);
+                    cmd.stdout(std::process::Stdio::piped());
+                    cmd.stderr(std::process::Stdio::piped());
+
+                    if let Ok(mut child) = cmd.spawn() {
+                        if let Some(mut stdout) = child.stdout.take() {
+                            *child_handle.lock().await = Some(child);
+                            let mut len_buf = [0u8; 4];
+
+                            while is_running.load(Ordering::Relaxed) {
+                                let now_ts = chrono::Utc::now().timestamp();
+                                if now_ts - last_requested_at.load(Ordering::Relaxed) > 20 {
+                                    tracing::info!("Screen stream idle timeout, stopping hardware screen streamer");
+                                    break;
+                                }
+
+                                if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut len_buf)).await {
+                                    let frame_len = u32::from_be_bytes(len_buf) as usize;
+                                    if frame_len > 0 && frame_len < 5_000_000 {
+                                        let mut frame_data = vec![0u8; frame_len];
+                                        if let Ok(Ok(_)) = tokio::time::timeout(std::time::Duration::from_millis(500), stdout.read_exact(&mut frame_data)).await {
+                                            hardware_streamer_success = true;
+                                            let frame_bytes_arc = axum::body::Bytes::from(frame_data);
+                                            let size = frame_bytes_arc.len();
+                                            let b64 = base64::engine::general_purpose::STANDARD.encode(&frame_bytes_arc);
+                                            let now_inst = std::time::Instant::now();
+                                            *latest_frame.write().await = Some((b64, size, now_inst));
+                                            *raw_latest_frame.write().await = Some((frame_bytes_arc.clone(), now_inst));
+                                            let _ = frame_tx.send(frame_bytes_arc);
+                                            continue;
+                                        }
+                                    }
+                                } else {
+                                    // Check if process exited early (e.g. TCC denied)
+                                    let mut lock = child_handle.lock().await;
+                                    if let Some(ref mut proc) = *lock {
+                                        if let Ok(Some(_status)) = proc.try_wait() {
+                                            tracing::warn!("agentdeck-screen-streamer exited early (likely TCC prompt pending)");
+                                            *lock = None;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if let Some(mut proc) = child_handle.lock().await.take() {
+                                let _ = proc.kill().await;
+                            }
+                        }
+                    }
+                }
+
+                // Fallback: If hardware streamer didn't output frames (or exited due to TCC), try screencapture CLI loop
+                if !hardware_streamer_success && is_running.load(Ordering::Relaxed) {
+                    tracing::info!("Falling back to system screencapture CLI capture loop...");
+                    let screencapture_bin = if std::path::Path::new("/usr/sbin/screencapture").exists() {
+                        "/usr/sbin/screencapture"
+                    } else {
+                        "screencapture"
+                    };
+                    let tmp_dir = std::env::temp_dir();
+                    let pid = std::process::id();
+                    let mut frame_idx: u64 = 0;
+
+                    while is_running.load(Ordering::Relaxed) {
+                        let now_ts = chrono::Utc::now().timestamp();
+                        if now_ts - last_requested_at.load(Ordering::Relaxed) > 20 {
+                            break;
+                        }
+
+                        let frame_path = tmp_dir.join(format!("agentdeck_ss_{}_{}.jpg", pid, frame_idx));
+                        frame_idx += 1;
+
+                        let result = tokio::process::Command::new(screencapture_bin)
+                            .args(["-x", "-t", "jpg", "-m", frame_path.to_str().unwrap_or("/tmp/agentdeck_ss.jpg")])
+                            .output()
+                            .await;
+
+                        if let Ok(out) = result {
+                            if out.status.success() {
+                                if let Ok(data) = tokio::fs::read(&frame_path).await {
+                                    let _ = tokio::fs::remove_file(&frame_path).await;
+                                    if !data.is_empty() {
+                                        let b64 = base64::engine::general_purpose::STANDARD.encode(&data);
+                                        let size = data.len();
+                                        let now_inst = std::time::Instant::now();
+                                        let frame_bytes = axum::body::Bytes::from(data);
+                                        *latest_frame.write().await = Some((b64, size, now_inst));
+                                        *raw_latest_frame.write().await = Some((frame_bytes.clone(), now_inst));
+                                        let _ = frame_tx.send(frame_bytes);
+                                    }
+                                }
+                            }
+                        }
+
+                        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                    }
                 }
             }
 
