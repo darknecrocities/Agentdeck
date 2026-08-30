@@ -78,38 +78,96 @@ flowchart TB
 
 ## 🌟 Key Features
 
-### 1. First-Class Google Antigravity CLI (`agy`) Integration
-- Direct execution via `--output-format stream-json`.
-- Event streaming for `ThinkingStarted`, `ThinkingUpdate`, `ToolStarted`, `ToolFinished`, `FileCreated`, `FileModified`, `CommandStarted`, `CommandFinished`, and `SubagentStarted`.
-- Native session continuation with `agy --continue` or `agy --conversation <id>`.
+### 1. 🤖 First-Class Multi-Agent AI Engine Integration
+- **Google Antigravity (`agy`) Core Integration**:
+  - Native JSON stream execution (`--output-format stream-json`).
+  - Interception of Chain of Thought (CoT) reasoning (`THINKING` steps, planning milestones, subagent delegation).
+  - Real-time live transcript parser reading `~/.gemini/antigravity-ide/brain/<id>/.system_generated/logs/transcript.jsonl`.
+  - Session continuation via `agy --continue` or `agy --conversation <id>`.
+  - Interactive prompt dispatching and structured decision interception.
+- **Multi-Agent Ecosystem Support**:
+  - Unified `AgentAdapter` async trait supporting **Google Antigravity (`agy`)**, **Anthropic Claude Code (`claude`)**, **Google Gemini CLI (`gemini`)**, and **Ollama Local Fleet (`ollama`)**.
+  - Claude Code `<thinking>` XML token parsing and print streaming.
+  - Gemini CLI long-context execution with structured function calling.
+  - Ollama local fleet support for offline models (`deepseek-r1`, `qwen2.5-coder:32b`, `codellama:70b`, `llama3.3:70b`) with native R1 `<think>` token stream parsing.
+- **Automated System Doctor & Capability Matrix**:
+  - CLI diagnostic tool (`agentdeck doctor`) for binary detection, PATH verification, and daemon connectivity.
 
-### 2. Multi-Agent Ecosystem
-- Unified `AgentAdapter` async trait supporting **Antigravity CLI**, **Claude Code**, **Gemini CLI**, and **Ollama Local**.
-- Automated binary detection, capability matrices, and status diagnostics.
+### 2. 🔑 Remote Account Switcher & Auth Management
+- **1-Tap Google OAuth Account Switcher**:
+  - Remote management of active Google profiles in `~/.gemini/google_accounts.json` and `~/.gemini/oauth_creds.json`.
+  - Switch active Google coding accounts instantly from mobile without touching host terminal.
+  - Profile linking, account removal, and credential auth status verification.
 
-### 3. Persistent 24/7 Local Daemon (`agentdeckd`)
-- Jobs continue executing when the phone disconnects or goes to sleep.
-- Monotonic `event_id` sequential database replay allows the app to catch up instantly upon reconnection.
+### 3. 📊 Token Quota & Usage Rate Limit Monitor
+- **Gemini & Claude Token Usage Tracking**:
+  - Live RPM / TPM rate limit visualization and quota meters.
+  - Real-time token consumption history per active session.
+  - Synchronized IDE quota monitoring directly from mobile client.
 
-### 4. Interactive PTY Terminal Subsystem
-- Real `/bin/zsh` pseudo-terminal instances powered by `portable-pty`.
-- Mobile touch modifier key bar: `Ctrl+C`, `Tab`, `Esc`, `↑`, `↓`, `Enter`, `Clear`.
+### 4. 💻 Workstation Telemetry & Remote Hardware Control
+- **Multi-Workstation Fleet Switcher**:
+  - Seamlessly switch control between multiple workstation nodes (macOS, Windows, Linux) from one mobile app.
+- **Live Desktop Screen Streaming & Remote Snapshot**:
+  - Low-latency continuous workstation screen streaming (`/ws/screen`) with double-tap pinch zoom and live frame capture.
+- **Live Webcam Monitoring & Hardware Privacy Control**:
+  - Workstation webcam live feed and snapshot view.
+  - Hardware privacy toggle (`/api/system/camera/stop`) to immediately release camera device & turn off hardware LED.
+- **Voice Walkie-Talkie & OS Speech Synthesis**:
+  - Speak into mobile phone to broadcast voice directly through workstation speakers via native OS TTS (`say` on macOS, PowerShell SAPI on Windows, `espeak` on Linux).
+  - Dispatch voice prompts directly into active AI coding agent sessions.
+- **Workstation Locating Audio Alarm**:
+  - 1-tap remote audio alert chime to locate physical host machine in home/office (`/api/system/play-sound`).
+- **1-Tap Remote App Launcher**:
+  - Instantly launch desktop applications (VS Code, Terminal, Antigravity IDE, Google Chrome, Cursor) from mobile.
+- **Remote File Browser & Mobile File Uploader**:
+  - Full file tree browser, directory creation (`/api/system/mkdir`), and file content reader.
+  - Upload code assets, images, and files up to 500MB directly into project workspace folders.
+- **Hardware Telemetry Dashboard**:
+  - Real-time host CPU usage percentage, RAM utilization, and available Disk GB space.
 
-### 5. Security & Human-in-the-Loop Approvals
-- Path traversal protection (rejection of unauthorized workspace paths).
-- Risk classifier intercepts dangerous operations (`rm -rf`, `git push --force`, `drop database`) and holds them in an approval queue until confirmed on mobile.
+### 5. ⚡ Interactive Portable PTY Terminal Subsystem
+- **Full Pseudo-Terminal (`portable-pty`)**:
+  - Persistent `/bin/zsh` or PowerShell PTY instances streaming over WebSocket (`/ws/terminal/:id`).
+  - Windows `\r\n` line ending normalization for cross-platform terminal compatibility.
+- **Mobile Touch Modifier Quick-Bar**:
+  - Touch toolbar with `Ctrl+C`, `Tab`, `Esc`, `↑`, `↓`, `Enter`, `Clear`, and modifier keys.
+- **ANSI Color Rendering**:
+  - High-performance ANSI color code rendering and full output scrollback.
 
-### 6. Voice-to-Workstation Walkie-Talkie & Host Speech Synthesis
-- Speak into your mobile phone to broadcast voice directly through your computer's speakers via native OS Speech Synthesis (PowerShell SAPI / `.NET System.Speech` on Windows, `say` on macOS, `espeak` on Linux).
-- Dispatch spoken voice instructions directly to active AI agent sessions from the webcam/screenshare view.
+### 6. 🔍 Git & GitHub Repository Management
+- **Working Tree & Branch Tracking**:
+  - Real-time branch monitoring, modified files list, and git commit history (`/api/projects/:id/git/log`).
+- **Syntax-Highlighted Unified Diff Viewer**:
+  - File-by-file syntax diff inspection (`+` added, `-` removed lines) with line numbers and file breadcrumbs.
+- **1-Tap Mobile Commit, Push & Pull**:
+  - Stage, commit with message synthesis, and push/pull remote branches directly from mobile.
+- **GitHub Integration**:
+  - Pull Request status, creation, and issue linking (`/api/projects/:id/github`).
 
-### 7. Smooth Live Video Streaming for Webcam & Screenshare
-- Low-latency continuous video streaming with in-memory frame buffering.
-- Real-time workstation desktop view with double-tap pinch zoom and live camera feed.
+### 7. 🔒 Security, Sandboxing & Human-in-the-Loop Approvals
+- **Path Traversal Guard**:
+  - Strict canonical path verification blocking agents from accessing directories outside configured project roots.
+- **Automated Risk Classifier**:
+  - Intercepts high-risk destructive operations (`rm -rf`, `git push --force`, DB reset, credential file edits).
+- **Mobile Push Approvals Queue**:
+  - Suspends agent execution and pushes approval alert to mobile client with diff preview and 1-tap `Approve` / `Deny` gates.
+- **Zero Open Public Ports**:
+  - Local-first peer-to-peer WireGuard mesh encryption via Tailscale (`100.x.y.z`).
 
-### 8. Minimalist Black & White Monochrome Aesthetics
-- High-contrast OLED pure black (`#000000`) and razor white (`#FFFFFF`) palette.
-- Monospace typography via JetBrains Mono and ASCII progress bars (`████████░░░░ 75%`).
+### 8. ⚡ 24/7 Persistent Daemon (`agentdeckd`) & Event Replay
+- **Background Service Installation**:
+  - Auto-starting daemon via macOS `launchd` plist or Windows Scheduled Task (`AgentDeckDaemon`).
+- **SQLite Persistent Event Store**:
+  - Transactional event and log storage (`agentdeck.db`) surviving network dropouts or phone reboots.
+- **Monotonic `event_id` Replay**:
+  - Mobile client automatically catches up on missed events sequentially upon reconnection.
+
+### 9. 🎨 Obsidian Titanium Monochrome Design System
+- **Pure Black OLED Aesthetic**:
+  - High-contrast `#000000` dark mode with white accents (`#FFFFFF`).
+- **Monospace & Typography**:
+  - JetBrains Mono font, custom ASCII progress meters (`████████░░░░ 75%`), micro-animations, and status radars.
 
 ---
 
@@ -208,21 +266,36 @@ System is READY for AgentDeck mobile connections!
 | `/api/device` | `GET` | CPU, RAM, Disk, and Host telemetry |
 | `/api/status` | `GET` | Active sessions, approvals, and Tailscale info |
 | `/api/diagnostics` | `GET` | Comprehensive system & agent doctor diagnostics |
-| `/api/system/speak` | `POST` | Speak text on workstation speakers / dispatch voice prompt |
+| `/api/system/browse` | `GET` | Browse host machine directories |
+| `/api/system/mkdir` | `POST` | Create new directory on host machine |
+| `/api/system/ping_workstation` | `GET` | Ping workstation latency & health check |
+| `/api/system/launch-app` | `POST` | Launch remote desktop applications (VS Code, Terminal, etc.) |
+| `/api/system/speak` | `POST` | Broadcast mobile voice to workstation speakers via OS TTS |
 | `/api/system/play-sound` | `POST` | Play workstation locating audio alert |
-| `/api/system/screenshot` | `GET` | Capture high-speed workstation screen |
-| `/api/system/camera` | `GET` | Capture workstation webcam snapshot / stream frame |
-| `/api/system/camera/stop` | `POST` | Terminate webcam stream and release hardware LED |
+| `/api/system/screenshot` | `GET` | Capture high-speed workstation desktop frame |
+| `/api/system/camera` | `GET` | Capture workstation webcam frame / snapshot |
+| `/api/system/camera/stop` | `POST` | Stop webcam stream & release camera hardware LED |
+| `/api/files/upload` | `POST` | Upload media, code, and files into workspace directories |
 | `/api/projects` | `GET`, `POST` | List and register workspace directories |
-| `/api/projects/:id/files` | `GET` | File browser and contents inspection |
+| `/api/projects/scaffold` | `POST` | Bootstrap/scaffold new project templates |
+| `/api/projects/:id` | `DELETE` | Unregister project directory |
+| `/api/projects/:id/files` | `GET` | Workspace file tree navigation |
+| `/api/projects/:id/files/content` | `GET` | View file contents with line range support |
 | `/api/projects/:id/git/status` | `GET` | Repository branch and modified files |
 | `/api/projects/:id/git/diff` | `GET` | Unified working tree diff |
+| `/api/projects/:id/git/log` | `GET` | Git commit history log |
 | `/api/projects/:id/git/commit` | `POST` | Stage and commit workspace changes |
 | `/api/projects/:id/git/push` | `POST` | Push current branch to remote |
+| `/api/projects/:id/git/pull` | `POST` | Pull remote changes into working branch |
+| `/api/projects/:id/github` | `GET` | GitHub repository metadata & PR status |
 | `/api/agents` | `GET` | Installed agent adapters & capabilities |
+| `/api/accounts/antigravity` | `GET` | Current Antigravity Google account profile |
+| `/api/accounts/antigravity/switch` | `POST` | 1-tap switch active Google account profile |
+| `/api/tokens/summary` | `GET` | Gemini & Claude token quota usage summary |
+| `/api/tokens/sync-ide` | `POST` | Sync token quotas with active IDE instance |
 | `/api/sessions` | `GET`, `POST` | List and launch new agent sessions |
 | `/api/sessions/:id` | `GET` | Inspect active session state |
-| `/api/sessions/:id/prompt` | `POST` | Dispatch follow-up instruction to agent |
+| `/api/sessions/:id/prompt` | `POST` | Dispatch follow-up prompt to running agent |
 | `/api/sessions/:id/continue` | `POST` | Resume conversation with `--continue` |
 | `/api/sessions/:id/stop` | `POST` | Stop active agent process |
 | `/api/approvals` | `GET` | List pending high-risk approval requests |
@@ -232,6 +305,7 @@ System is READY for AgentDeck mobile connections!
 | `/ws/events` | `WS` | Real-time global event stream with replay |
 | `/ws/sessions/:id` | `WS` | Real-time session event stream |
 | `/ws/terminal/:id` | `WS` | Bidirectional PTY terminal stream |
+| `/ws/screen` | `WS` | Live workstation desktop screen video stream |
 
 ---
 

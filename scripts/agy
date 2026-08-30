@@ -158,12 +158,13 @@ class TerminalStreamRenderer:
                     # Extract file path if present
                     m_path = re.search(r'(?:filepath:|path:)\s*([^\s]+)', tag)
                     target = m_path.group(1) if m_path else tag
-                    self.code_target = target
-                    rendered_lines.append(f"\n\033[90m┌─── \033[1;32m[File: {target or 'Source'}]\033[90m " + "─" * max(10, 48 - len(target or 'Source')) + "\033[0m")
+                    display_target = re.sub(r'^/(?:Users|home)/[^/]+', '~', target) if target else 'Source'
+                    self.code_target = display_target
+                    rendered_lines.append(f"\n\033[90m┌─── \033[1;32m[File: {display_target}]\033[90m " + "─" * max(6, 40 - len(display_target)) + "\033[0m")
                 else:
                     self.in_code_block = False
                     if not self.is_tool_block:
-                        rendered_lines.append(f"\033[90m└─── \033[36m[End File: {self.code_target or 'Source'}]\033[90m " + "─" * max(10, 44 - len(self.code_target or 'Source')) + "\033[0m\n")
+                        rendered_lines.append(f"\033[90m└─── \033[36m[End File: {self.code_target or 'Source'}]\033[90m " + "─" * max(6, 36 - len(self.code_target or 'Source')) + "\033[0m\n")
                     self.is_tool_block = False
                     self.code_target = ""
                 continue

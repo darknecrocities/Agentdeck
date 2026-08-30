@@ -166,13 +166,35 @@ async fn handle_terminal_socket(socket: WebSocket, state: Arc<AppState>, termina
                 Message::Text(t) => {
                     use std::io::Write;
                     let mut w = writer.lock().unwrap();
-                    let _ = w.write_all(t.as_bytes());
+                    if cfg!(windows) {
+                        if t.contains('\n') && !t.contains("\r\n") {
+                            let normalized = t.replace('\n', "\r\n");
+                            let _ = w.write_all(normalized.as_bytes());
+                        } else {
+                            let _ = w.write_all(t.as_bytes());
+                        }
+                    } else {
+                        let _ = w.write_all(t.as_bytes());
+                    }
                     let _ = w.flush();
                 }
                 Message::Binary(b) => {
                     use std::io::Write;
                     let mut w = writer.lock().unwrap();
-                    let _ = w.write_all(&b);
+                    if cfg!(windows) {
+                        if let Ok(s) = std::str::from_utf8(&b) {
+                            if s.contains('\n') && !s.contains("\r\n") {
+                                let normalized = s.replace('\n', "\r\n");
+                                let _ = w.write_all(normalized.as_bytes());
+                            } else {
+                                let _ = w.write_all(&b);
+                            }
+                        } else {
+                            let _ = w.write_all(&b);
+                        }
+                    } else {
+                        let _ = w.write_all(&b);
+                    }
                     let _ = w.flush();
                 }
                 Message::Close(_) => break,
