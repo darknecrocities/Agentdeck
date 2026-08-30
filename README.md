@@ -150,7 +150,7 @@ This automatically:
 - Adds `~/.agentdeck/bin` to your User PATH.
 - Configures `.env` and detects your Windows Tailscale IP (`100.x.x.x`).
 - Registers a Windows Scheduled Task (`AgentDeckDaemon`) that auto-starts `agentdeckd` on login silently in the background without needing manual `cargo run`.
-- Configures Windows Firewall for port 3000.
+- Configures Windows Firewall for port 8765.
 
 ---
 
@@ -159,7 +159,7 @@ This automatically:
 Verify all agents and subsystems:
 
 ```bash
-# macOS
+# macOS / Linux
 ./target/release/agentdeck doctor
 
 # Windows
@@ -171,7 +171,7 @@ Output:
 ═══════════════════════════════════════════════════
            AGENTDECK SYSTEM DOCTOR REPORT          
 ═══════════════════════════════════════════════════
-Checking AgentDeck Daemon (http://127.0.0.1:3000) ... [OK]
+Checking AgentDeck Daemon (http://127.0.0.1:8765) ... [OK]
 Checking Antigravity CLI (`agy`) ... [FOUND]
 Checking Claude Code CLI (`claude`) ... [FOUND]
 Checking Gemini CLI (`gemini`) ... [FOUND]
@@ -186,15 +186,17 @@ System is READY for AgentDeck mobile connections!
 
 ---
 
-### Step 4: Connect Mobile App via Tailscale
+### Step 4: Connect Mobile App via Tailscale WireGuard Mesh
 
 1. Ensure **Tailscale** is running on both your machine and your phone under the same Tailscale network.
-2. In the **AgentDeck Mobile App**, navigate to **Settings** or **Workstations**.
+2. In the **AgentDeck Mobile App**, navigate to **Settings** or tap the **Tailscale Mesh** banner.
 3. Set the **Daemon Endpoint** to your machine's Tailscale IP:
    ```
-   http://100.x.x.x:3000
+   http://100.x.x.x:8765
    ```
 4. Tap **"Test Ping"** and **"Save Config"**.
+
+> 📖 **For full multi-node fleet setup, MagicDNS, and platform guides, see [SETUP.md](SETUP.md).**
 
 ---
 

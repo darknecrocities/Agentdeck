@@ -14,7 +14,7 @@ This skill provides complete operational runbooks for securely connecting mobile
 - **Tailscale IP Range**: `100.64.0.0/10` (CGNAT range, e.g. `100.x.y.z`).
 - **Daemon Default Port**: `8765` (HTTP REST API and WebSocket streams).
 - **MagicDNS Format**: `<device-name>.<tailnet-name>.ts.net:8765`.
-- **Latency Target**: Sub-50ms round-trip ping for low-latency PTY terminals and video streaming.
+- **Latency Target**: Sub-30ms round-trip ping for low-latency PTY terminals and video streaming.
 
 ---
 
@@ -31,7 +31,7 @@ cd /Users/arronkianparejas/agentdeck
 cargo run --bin agentdeckd
 ```
 
-### Windows (PowerShell)
+### Windows (PowerShell Administrator)
 ```powershell
 # Get Tailscale IP
 tailscale ip -4
@@ -58,10 +58,22 @@ cargo run --bin agentdeckd
 
 ---
 
-## 3. Connectivity Diagnostics & Troubleshooting
+## 3. Multi-Node Workstation Fleet Management
+
+1. **MagicDNS Hostnames**:
+   - MacBook Pro: `http://macbook-pro.your-tailnet.ts.net:8765`
+   - Linux Server: `http://dev-linux.your-tailnet.ts.net:8765`
+   - Windows Rig: `http://win-workstation.your-tailnet.ts.net:8765`
+2. **Mobile Switching**:
+   - In AgentDeck mobile app, tap the top node dropdown (`💻 ▾`) to switch active control plane.
+
+---
+
+## 4. Connectivity Diagnostics & Troubleshooting
 
 When a mobile device cannot connect to a host node:
 1. **Ping Check**: Execute `tailscale ping <target-ip>` to verify WireGuard tunnel reachability.
 2. **Health Check**: Run `curl -v http://100.x.y.z:8765/health` to confirm the Axum server is responding.
 3. **Binding Check**: Ensure `agentdeckd` is listening on `0.0.0.0:8765` (not strictly `127.0.0.1`).
 4. **Key Expiry**: Check if Tailscale machine key has expired in the Tailscale admin console.
+5. **USB Fallback**: For offline/local USB testing: `adb reverse tcp:8765 tcp:8765`.
