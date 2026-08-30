@@ -202,17 +202,24 @@ class _LiveIdeChatModalState extends State<LiveIdeChatModal> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$model ($effort)',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 11.5, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite),
-                ),
-                Text(desc, style: GoogleFonts.jetBrainsMono(fontSize: 9.5, color: TerminalColors.zinc)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$model ($effort)',
+                    style: GoogleFonts.jetBrainsMono(fontSize: 11.5, fontWeight: FontWeight.bold, color: TerminalColors.pureWhite),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(desc, style: GoogleFonts.jetBrainsMono(fontSize: 9.5, color: TerminalColors.zinc)),
+                ],
+              ),
             ),
-            if (isCurrent) const Icon(Icons.check_circle, color: Color(0xFF51CF66), size: 16),
+            if (isCurrent) const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Icon(Icons.check_circle, color: Color(0xFF51CF66), size: 16),
+            ),
           ],
         ),
       ),

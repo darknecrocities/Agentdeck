@@ -128,69 +128,68 @@ class AnsiParser {
                 // Inverse off
                 break;
 
-              // Pure Black & White Monochrome SGR Palette
+              // Standard SGR Color Palette (Obsidian Titanium with Vibrant Accents)
               case 30:
-                currentColor = const Color(0xFF525252); // Muted Dark
+                currentColor = const Color(0xFF495057); // Muted Dark Gray
                 break;
               case 31:
-                currentColor = const Color(0xFFE2E8F0); // Platinum
+                currentColor = const Color(0xFFFF6B6B); // Coral Red
                 break;
               case 32:
-                currentColor = const Color(0xFFFFFFFF); // Pure White Highlight
+                currentColor = const Color(0xFF51CF66); // Emerald Green Accent
                 break;
               case 33:
-                currentColor = const Color(0xFFD4D4D4); // Light Silver
+                currentColor = const Color(0xFFFCC419); // Amber Gold
                 break;
               case 34:
-                currentColor = const Color(0xFFE5E5E5); // Titanium White
+                currentColor = const Color(0xFF339AF0); // Neon Sky Blue
                 break;
               case 35:
-                currentColor = const Color(0xFFCBD5E1); // Silver
+                currentColor = const Color(0xFFCC5DE8); // Vibrant Purple / Magenta
                 break;
               case 36:
-                currentColor = const Color(0xFFFFFFFF); // Pure White Focus
+                currentColor = const Color(0xFF22D3EE); // Electric Cyan Focus
                 break;
               case 37:
-                currentColor = const Color(0xFFFFFFFF); // Pure White
+                currentColor = const Color(0xFFF8F9FA); // Pure Titanium White
                 break;
               case 38:
                 if (i + 2 < codes.length && codes[i + 1] == 5) {
-                  currentColor = _getMonochrome256Color(codes[i + 2]);
+                  currentColor = _get256Color(codes[i + 2]);
                   i += 2;
                 } else if (i + 4 < codes.length && codes[i + 1] == 2) {
                   final r = codes[i + 2];
                   final g = codes[i + 3];
                   final b = codes[i + 4];
-                  final grey = ((r * 299 + g * 587 + b * 114) ~/ 1000).clamp(60, 255);
-                  currentColor = Color.fromARGB(255, grey, grey, grey);
+                  currentColor = Color.fromARGB(255, r, g, b);
                   i += 4;
                 }
                 break;
               case 39:
-                currentColor = const Color(0xFFFFFFFF);
+                currentColor = const Color(0xFFF8F9FA);
                 break;
 
-              // Bright foreground colors
+              // High-Intensity / Bright Colors
               case 90:
-                currentColor = const Color(0xFF737373); // Neutral Slate
+                currentColor = const Color(0xFF868E96); // Slate Gray
                 break;
               case 91:
-                currentColor = const Color(0xFFE5E5E5); // Bright Silver
+                currentColor = const Color(0xFFFF8787); // Bright Coral
                 break;
               case 92:
-                currentColor = const Color(0xFFFFFFFF); // Pure White
+                currentColor = const Color(0xFF69DB7C); // Bright Mint Green
                 break;
               case 93:
-                currentColor = const Color(0xFFF5F5F5); // Bright White
+                currentColor = const Color(0xFFFFD43B); // Bright Gold
                 break;
               case 94:
-                currentColor = const Color(0xFFE2E8F0); // Platinum
+                currentColor = const Color(0xFF4DABF7); // Bright Sky Blue
                 break;
               case 95:
-                currentColor = const Color(0xFFD4D4D4); // Light Silver
+                currentColor = const Color(0xFFDA77F2); // Bright Violet
                 break;
               case 96:
-                currentColor = const Color(0xFFFFFFFF); // Pure White
+                currentColor = const Color(0xFF38D9A9); // Bright Teal / Aqua
                 break;
               case 97:
                 currentColor = const Color(0xFFFFFFFF); // Pure White
@@ -211,7 +210,7 @@ class AnsiParser {
                 break;
               case 48:
                 if (i + 2 < codes.length && codes[i + 1] == 5) {
-                  currentBg = _getMonochrome256Color(codes[i + 2]);
+                  currentBg = _get256Color(codes[i + 2]);
                   i += 2;
                 } else if (i + 4 < codes.length && codes[i + 1] == 2) {
                   final r = codes[i + 2];
@@ -254,13 +253,13 @@ class AnsiParser {
     return spans;
   }
 
-  static Color _getMonochrome256Color(int code) {
+  static Color _get256Color(int code) {
     if (code < 16) {
       const basic = [
-        Color(0xFF000000), Color(0xFFCBD5E1), Color(0xFFFFFFFF), Color(0xFFE2E8F0),
-        Color(0xFFFFFFFF), Color(0xFFD4D4D4), Color(0xFFFFFFFF), Color(0xFFE5E5E5),
-        Color(0xFF737373), Color(0xFFE2E8F0), Color(0xFFFFFFFF), Color(0xFFF5F5F5),
-        Color(0xFFE2E8F0), Color(0xFFD4D4D4), Color(0xFFFFFFFF), Color(0xFFFFFFFF),
+        Color(0xFF000000), Color(0xFFFF6B6B), Color(0xFF51CF66), Color(0xFFFCC419),
+        Color(0xFF339AF0), Color(0xFFCC5DE8), Color(0xFF22D3EE), Color(0xFFF8F9FA),
+        Color(0xFF868E96), Color(0xFFFF8787), Color(0xFF69DB7C), Color(0xFFFFD43B),
+        Color(0xFF4DABF7), Color(0xFFDA77F2), Color(0xFF38D9A9), Color(0xFFFFFFFF),
       ];
       return basic[code.clamp(0, 15)];
     } else if (code >= 232) {
@@ -271,8 +270,7 @@ class AnsiParser {
       final r = ((idx ~/ 36) % 6) * 51;
       final g = ((idx ~/ 6) % 6) * 51;
       final b = (idx % 6) * 51;
-      final grey = ((r * 299 + g * 587 + b * 114) ~/ 1000).clamp(40, 255);
-      return Color.fromARGB(255, grey, grey, grey);
+      return Color.fromARGB(255, r, g, b);
     }
   }
 }

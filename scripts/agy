@@ -78,6 +78,117 @@ def normalize_path(path_str, cwd):
         return os.path.abspath(os.path.join(cwd, clean))
     return os.path.abspath(clean)
 
+def format_line_ansi(line, in_code_block=False):
+    """
+    Transforms markdown syntax (###, *, **, `, ```) into rich ANSI terminal formatting.
+    """
+    if in_code_block:
+        # Subtle indentation and syntax highlight for code lines
+        hl = line
+        hl = re.sub(r'\b(const|let|var|function|return|if|else|import|export|from|class|default|async|await)\b', r'\033[1;35m\1\033[38;5;250m', hl)
+        hl = re.sub(r'\b(true|false|null|undefined)\b', r'\033[33m\1\033[38;5;250m', hl)
+        return f"\033[38;5;250m    {hl}\033[0m"
+
+    # Headers
+    if line.startswith("# "):
+        header_text = line[2:].strip()
+        return f"\n\033[1;37m━━━━━━━━━━━━━━━━━━━━ \033[1;32m{header_text}\033[1;37m ━━━━━━━━━━━━━━━━━━━━\033[0m"
+    elif line.startswith("## "):
+        header_text = line[3:].strip()
+        return f"\n\033[1;32m■ \033[1;37m{header_text}\033[0m"
+    elif line.startswith("### "):
+        header_text = line[4:].strip()
+        return f"\n\033[1;36m▶ \033[1;37m{header_text}\033[0m"
+    elif line.startswith("#### "):
+        header_text = line[5:].strip()
+        return f"\033[1;33m◆ \033[1;37m{header_text}\033[0m"
+
+    # Bullet lists (* or -)
+    if re.match(r'^\s*[\*\-]\s+', line):
+        content = re.sub(r'^\s*[\*\-]\s+', '', line).strip()
+        content = format_inline_markdown(content)
+        return f"  \033[1;32m•\033[0m {content}"
+
+    # Numbered lists (1. 2.)
+    m_num = re.match(r'^\s*(\d+)\.\s+(.*)', line)
+    if m_num:
+        num = m_num.group(1)
+        content = format_inline_markdown(m_num.group(2))
+        return f"  \033[1;36m{num}.\033[0m {content}"
+
+    return format_inline_markdown(line)
+
+def format_inline_markdown(text):
+    out = text
+    # Bold **text** -> Bright Titanium White Bold
+    out = re.sub(r'\*\*(.*?)\*\*', r'\033[1;37m\1\033[0m', out)
+    # Italic *text* -> Italic
+    out = re.sub(r'(?<!\*)\*([^*]+)\*(?!\*)', r'\033[3m\1\033[0m', out)
+    # Inline code `code` -> Gold/Amber
+    out = re.sub(r'`([^`]+)`', r'\033[1;33m\1\033[0m', out)
+    return out
+
+class TerminalStreamRenderer:
+    """
+    Parses streaming chunks in real-time and renders structured ANSI code blocks,
+    headers, and badges without dumping raw markdown backticks or tool JSON.
+    """
+    def __init__(self):
+        self.buffer = ""
+        self.in_code_block = False
+        self.is_tool_block = False
+        self.code_target = ""
+
+    def process_chunk(self, chunk):
+        self.buffer += chunk
+        lines = self.buffer.split("\n")
+        # Keep last partial line in buffer
+        self.buffer = lines[-1]
+        rendered_lines = []
+
+        for line in lines[:-1]:
+            if line.startswith("```"):
+                if not self.in_code_block:
+                    self.in_code_block = True
+                    tag = line.strip("`").strip()
+                    if "tool" in tag:
+                        self.is_tool_block = True
+                        continue
+                    self.is_tool_block = False
+                    # Extract file path if present
+                    m_path = re.search(r'(?:filepath:|path:)\s*([^\s]+)', tag)
+                    target = m_path.group(1) if m_path else tag
+                    self.code_target = target
+                    rendered_lines.append(f"\n\033[90m┌─── \033[1;32m[File: {target or 'Source'}]\033[90m " + "─" * max(10, 48 - len(target or 'Source')) + "\033[0m")
+                else:
+                    self.in_code_block = False
+                    if not self.is_tool_block:
+                        rendered_lines.append(f"\033[90m└─── \033[36m[End File: {self.code_target or 'Source'}]\033[90m " + "─" * max(10, 44 - len(self.code_target or 'Source')) + "\033[0m\n")
+                    self.is_tool_block = False
+                    self.code_target = ""
+                continue
+
+            if self.is_tool_block:
+                # Suppress raw JSON from tool block, will execute after stream
+                continue
+
+            rendered_lines.append(format_line_ansi(line, in_code_block=self.in_code_block))
+
+        if rendered_lines:
+            output_str = "\n".join(rendered_lines) + "\n"
+            sys.stdout.write(output_str)
+            sys.stdout.flush()
+
+    def flush(self):
+        if self.buffer.strip():
+            if not self.is_tool_block:
+                sys.stdout.write(format_line_ansi(self.buffer, in_code_block=self.in_code_block) + "\n")
+                sys.stdout.flush()
+        if self.in_code_block and not self.is_tool_block:
+            sys.stdout.write(f"\033[90m└─── \033[36m[End File Block]\033[90m " + "─" * 44 + "\033[0m\n")
+            sys.stdout.flush()
+        self.buffer = ""
+
 def tool_write_file(path_str, content, cwd):
     target = normalize_path(path_str, cwd)
     try:
@@ -168,7 +279,7 @@ def execute_agent_tools(response_text, cwd):
         except Exception:
             pass
 
-    # 2. Parse file blocks with explicit file headers (e.g. ```html filepath:/Users/.../index.html)
+    # 2. Parse file blocks with explicit file headers
     file_blocks = re.findall(r'```(?:[a-zA-Z0-9_\-]+)?\s*(?:filepath:|path:)\s*([^\n\r`]+)\n([\s\S]*?)```', response_text)
     for path_raw, content in file_blocks:
         path_clean = clean_path_string(path_raw)
@@ -192,9 +303,9 @@ You have FULL LOCAL SYSTEM ACCESS on macOS.
 Active working directory: {working_dir}
 User home directory: {HOME}
 
-When the user asks you to build, create, or code something (vibecoding):
+When the user asks you to build, create, or code something:
 1. Plan the project structure and explain your approach concisely.
-2. ALWAYS output the complete files using this EXACT format:
+2. ALWAYS output complete code files using this EXACT format:
 ```html filepath:{HOME}/Documents/project_name/index.html
 <!DOCTYPE html>
 ...complete code...
@@ -213,196 +324,28 @@ When the user asks you to build, create, or code something (vibecoding):
 {{"tool": "run_command", "args": {{"cmd": "mkdir -p {HOME}/Documents/project_name"}}}}
 ```
 
-4. Write modern, stunning, responsive, obsidian dark themed UI with glassmorphism, glowing badges, and interactive JavaScript.
-5. Never output placeholders or truncated code. Always complete the entire solution."""
+4. Write modern, stunning, responsive, dark themed UI with glassmorphism and interactive JavaScript.
+5. Never output placeholders or truncated code. Always write complete files."""
 
     response_text = ""
     first_token = True
+    renderer = TerminalStreamRenderer()
 
     try:
         for token in query_llm_stream(system_prompt, prompt, model_name=DEFAULT_MODEL):
             if first_token:
-                progress.stop(f"\033[1;32m▶ Antigravity ({model}) Reasoning & Code Stream:\033[0m\n")
+                progress.stop(f"\033[1;32m▶ Antigravity ({model}) Stream:\033[0m\n")
                 first_token = False
             response_text += token
-            # Stream tokens live with flush
-            sys.stdout.write(token)
-            sys.stdout.flush()
+            renderer.process_chunk(token)
     finally:
         progress.stop()
+        renderer.flush()
 
     print("\n\033[1;37m" + "─" * 64 + "\033[0m")
     print("\033[1;36m▶ Executing Actions & Writing Artifacts to Filesystem...\033[0m\n")
 
     created_files, executed_commands = execute_agent_tools(response_text, working_dir)
-
-    # If the user asked for a web/theme/portfolio project and no files were parsed, do an autonomous build
-    if not created_files and ("build" in prompt.lower() or "website" in prompt.lower() or "portfolio" in prompt.lower() or "folder" in prompt.lower()):
-        m_name = re.search(r'(?:name|named|called)\s+([a-zA-Z0-9_\-]+)', prompt.lower())
-        proj_name = m_name.group(1) if m_name else "sample_project"
-        target_dir = os.path.join(HOME, "Documents", proj_name)
-        os.makedirs(target_dir, exist_ok=True)
-        print(f"\033[1;32m✓ [Directory Created]\033[0m \033[1;37m{target_dir}\033[0m")
-
-        # Create rich index.html
-        html_path = os.path.join(target_dir, "index.html")
-        css_path = os.path.join(target_dir, "style.css")
-        js_path = os.path.join(target_dir, "app.js")
-
-        html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{proj_name.title()} • Built with Antigravity</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;900&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-</head>
-<body class="dark-theme">
-  <div class="glow-orb"></div>
-  <header>
-    <div class="logo">
-      <span class="pulse-dot"></span>
-      <span class="brand-text">{proj_name.upper()}</span>
-    </div>
-    <nav>
-      <a href="#features">Features</a>
-      <a href="#terminal">Terminal</a>
-      <a href="#stats">Telemetry</a>
-    </nav>
-    <button class="cta-btn" id="launchBtn">Live Preview</button>
-  </header>
-
-  <main>
-    <section class="hero">
-      <div class="badge">● ANTIGRAVITY ENGINE V2.0 ACTIVE</div>
-      <h1>Next-Gen Autonomous <span class="gradient-text">Vibecoding Experience</span></h1>
-      <p>Engineered with Obsidian Titanium aesthetic, real-time telemetry, and full-stack local control.</p>
-      
-      <div class="interactive-terminal" id="terminal">
-        <div class="term-header">
-          <div class="dots"><span></span><span></span><span></span></div>
-          <div class="term-title">agy@macbook ~ %</div>
-        </div>
-        <div class="term-body">
-          <p class="term-line"><span class="prompt">agy></span> <span class="cmd">build website theme --obsidian-titanium</span></p>
-          <p class="term-out success">✓ Project generated in {target_dir}</p>
-          <p class="term-out info">ℹ Live hot-reload server listening on port 3000</p>
-          <p class="term-line typing"><span class="prompt">agy></span> <span class="cursor">█</span></p>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <script src="app.js"></script>
-</body>
-</html>"""
-
-        css_content = """* { box-sizing: border-box; margin: 0; padding: 0; }
-body.dark-theme {
-  background-color: #050505;
-  color: #F8F9FA;
-  font-family: 'Outfit', sans-serif;
-  min-height: 100vh;
-  overflow-x: hidden;
-  position: relative;
-}
-.glow-orb {
-  position: absolute;
-  top: -150px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(81, 207, 102, 0.15) 0%, rgba(5,5,5,0) 70%);
-  pointer-events: none;
-}
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 40px;
-  border-bottom: 1px solid #1C1C1C;
-  backdrop-filter: blur(12px);
-}
-.logo { display: flex; align-items: center; gap: 10px; }
-.pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #51CF66; box-shadow: 0 0 10px #51CF66; }
-.brand-text { font-family: 'JetBrains Mono', monospace; font-weight: 900; letter-spacing: 1.5px; }
-nav a { color: #888888; text-decoration: none; margin: 0 15px; font-size: 14px; transition: color 0.2s; }
-nav a:hover { color: #FFFFFF; }
-.cta-btn {
-  background: #FFFFFF;
-  color: #000000;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-.cta-btn:hover { transform: scale(1.04); }
-.hero { text-align: center; padding: 80px 20px; max-width: 900px; margin: 0 auto; }
-.badge {
-  display: inline-block;
-  padding: 4px 12px;
-  background: rgba(81, 207, 102, 0.1);
-  border: 1px solid #51CF66;
-  color: #51CF66;
-  border-radius: 20px;
-  font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
-  margin-bottom: 24px;
-}
-h1 { font-size: 52px; font-weight: 800; line-height: 1.15; margin-bottom: 18px; }
-.gradient-text { background: linear-gradient(135deg, #51CF66 0%, #38D9A9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-p { color: #A0A0A0; font-size: 18px; margin-bottom: 40px; }
-.interactive-terminal {
-  background: #0C0C0C;
-  border: 1px solid #262626;
-  border-radius: 8px;
-  text-align: left;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.8);
-}
-.term-header {
-  background: #141414;
-  padding: 10px 16px;
-  border-bottom: 1px solid #262626;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.dots { display: flex; gap: 6px; }
-.dots span { width: 10px; height: 10px; border-radius: 50%; background: #333333; }
-.dots span:nth-child(1) { background: #FF5F56; }
-.dots span:nth-child(2) { background: #FFBD2E; }
-.dots span:nth-child(3) { background: #27C93F; }
-.term-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #777777; }
-.term-body { padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
-.prompt { color: #51CF66; font-weight: bold; }
-.success { color: #51CF66; margin: 6px 0; }
-.info { color: #4DABF7; margin-bottom: 6px; }
-.cursor { animation: blink 1s infinite; color: #51CF66; }
-@keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-"""
-
-        js_content = """document.addEventListener('DOMContentLoaded', () => {
-  console.log('Antigravity Vibecoding Engine Initialized');
-  const btn = document.getElementById('launchBtn');
-  if (btn) {
-    btn.addEventListener('click', () => {
-      alert('Antigravity Mission Control Active! Ready for deployment.');
-    });
-  }
-});
-"""
-
-        tool_write_file(html_path, html_content, working_dir)
-        tool_write_file(css_path, css_content, working_dir)
-        tool_write_file(js_path, js_content, working_dir)
-        created_files.extend([html_path, css_path, js_path])
 
     # Final summary output
     print("\033[1;32m━" * 64 + "\033[0m")
