@@ -27,6 +27,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   bool _connecting = true;
   bool _initialCommandExecuted = false;
   bool _initialized = false;
+  String _activeEndpoint = ''; // track endpoint to avoid re-init on same connection
+  int _promptReadyCount = 0;  // number of data frames received (used for prompt timing)
 
   final List<String> _history = [];
   int _historyIndex = -1;
@@ -39,13 +41,18 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   void _onWorkstationChanged() {
-    // Only re-init if we're not already connecting and the screen is fully initialized
     if (!mounted || _connecting) return;
+    // Only re-init when the active endpoint actually changes
+    final newEndpoint = WorkstationManager().currentWorkstation?.endpoint ?? '';
+    if (newEndpoint.isEmpty || newEndpoint == _activeEndpoint) return;
+    _activeEndpoint = newEndpoint;
     _wsChannel?.sink.close();
     _wsChannel = null;
+    _initialized = false;
     setState(() {
       _output = '';
       _initialCommandExecuted = false;
+      _promptReadyCount = 0;
     });
     _initTerminal();
   }
@@ -63,17 +70,24 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (_connecting && _initialized) return; // prevent double-init
     setState(() => _connecting = true);
     _initialized = true;
+    _promptReadyCount = 0;
+    _activeEndpoint = WorkstationManager().currentWorkstation?.endpoint ?? '';
     try {
       final res = await _api.spawnTerminal(cols: 80, rows: 28);
       _terminalId = res['id'] ?? '';
       if (_terminalId.isNotEmpty) {
         _wsChannel = _api.connectTerminalStream(_terminalId);
+        final isWindows = WorkstationManager().currentWorkstation?.os.toLowerCase().contains('windows') == true;
+        // Windows PowerShell takes longer to load its profile
+        final promptDelayMs = isWindows ? 1800 : 400;
+
         _wsChannel!.stream.listen(
           (data) {
             final text = data is List<int> ? utf8.decode(data, allowMalformed: true) : data.toString();
             if (mounted) {
               setState(() {
                 _output += text;
+                _promptReadyCount++;
                 // keep output buffer from growing infinitely
                 if (_output.length > 50000) {
                   _output = _output.substring(_output.length - 30000);
@@ -81,12 +95,20 @@ class _TerminalScreenState extends State<TerminalScreen> {
               });
               _scrollToBottom();
 
-              // Auto-run initial command once prompt is ready
+              // Auto-run initial command once prompt signals readiness.
+              // On Windows we wait for prompt chars (PS>, >, C:\) to appear.
+              // On Unix we wait for $ or % or #.
               if (widget.initialCommand != null && !_initialCommandExecuted) {
-                _initialCommandExecuted = true;
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  _submitCommand(widget.initialCommand);
-                });
+                final promptReady = isWindows
+                    ? (_output.contains('PS>') || _output.contains('>') || _output.contains(r'C:\'))
+                    : (_output.contains(r'$ ') || _output.contains(r'% ') || _output.contains(r'# ') || _promptReadyCount >= 2);
+                if (promptReady) {
+                  _initialCommandExecuted = true;
+                  Future.delayed(Duration(milliseconds: promptDelayMs), () {
+                    if (mounted && !_initialCommandExecuted) return; // guard against re-entry
+                    _submitCommand(widget.initialCommand);
+                  });
+                }
               }
             }
           },
