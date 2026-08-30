@@ -41,13 +41,21 @@ impl TerminalManager {
         })?;
 
         let shell = if cfg!(windows) {
-            std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string())
+            if which::which("powershell.exe").is_ok() {
+                "powershell.exe".to_string()
+            } else if which::which("pwsh.exe").is_ok() {
+                "pwsh.exe".to_string()
+            } else {
+                std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
+            }
         } else {
             std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string())
         };
         let mut cmd = CommandBuilder::new(&shell);
         if cfg!(windows) {
             cmd.env("TERM", "xterm-256color");
+            cmd.env("COLORTERM", "truecolor");
+            cmd.env("PYTHONIOENCODING", "utf-8");
         } else {
             let path = std::env::var("PATH").unwrap_or_default();
             let extended_path = format!("/opt/homebrew/bin:/usr/local/bin:{path}");
@@ -119,7 +127,20 @@ impl TerminalManager {
     pub fn write_input(&self, id: &str, data: &[u8]) -> anyhow::Result<()> {
         if let Some(session) = self.get_session(id) {
             let mut writer = session.writer.lock().unwrap();
-            writer.write_all(data)?;
+            if cfg!(windows) {
+                if let Ok(s) = std::str::from_utf8(data) {
+                    if s.contains('\n') && !s.contains("\r\n") {
+                        let normalized = s.replace('\n', "\r\n");
+                        writer.write_all(normalized.as_bytes())?;
+                    } else {
+                        writer.write_all(data)?;
+                    }
+                } else {
+                    writer.write_all(data)?;
+                }
+            } else {
+                writer.write_all(data)?;
+            }
             writer.flush()?;
             Ok(())
         } else {

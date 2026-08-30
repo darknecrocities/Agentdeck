@@ -127,7 +127,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
       _history.add(cmd);
       _historyIndex = _history.length;
     }
-    _sendInput('$cmd\n');
+    final isWindows = WorkstationManager().currentWorkstation?.os.toLowerCase().contains('windows') == true;
+    final lineEnd = isWindows ? '\r\n' : '\n';
+    _sendInput('$cmd$lineEnd');
     _inputCtrl.clear();
   }
 
@@ -151,6 +153,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ws = WorkstationManager().currentWorkstation;
+    final isWindows = ws?.os.toLowerCase().contains('windows') == true;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -200,7 +205,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                         children: _output.isEmpty
                             ? [
                                 TextSpan(
-                                  text: 'AgentDeck Remote ${(WorkstationManager().currentWorkstation?.os ?? "Host")} Terminal Connected (${WorkstationManager().currentWorkstation?.name ?? "Workstation"}).\nType commands or tap shortcuts below.\n\n',
+                                  text: 'AgentDeck Remote ${(ws?.os ?? "Host")} Terminal Connected (${ws?.name ?? "Workstation"}).\nType commands or tap shortcuts below.\n\n',
                                   style: GoogleFonts.jetBrainsMono(color: TerminalColors.zinc, fontSize: 11.5),
                                 )
                               ]
@@ -213,7 +218,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
             ),
           ),
 
-          // Quick Keys Modifier Bar
+          // Quick Keys Modifier Bar (Adaptive for Windows / macOS / Linux)
           Container(
             color: TerminalColors.surface,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -228,12 +233,22 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   _buildTouchKey('↓', () => _cycleHistory(false)),
                   _buildTouchKey('Clear', () {
                     setState(() => _output = '');
-                    _sendInput('clear\n');
+                    final clearCmd = isWindows ? 'cls' : 'clear';
+                    _submitCommand(clearCmd);
                   }),
-                  _buildTouchKey('ls -la', () => _submitCommand('ls -la')),
-                  _buildTouchKey('git status', () => _submitCommand('git status')),
-                  _buildTouchKey('pwd', () => _submitCommand('pwd')),
-                  _buildTouchKey('top', () => _submitCommand('top -l 1 | head -n 12')),
+                  if (isWindows) ...[
+                    _buildTouchKey('dir', () => _submitCommand('dir')),
+                    _buildTouchKey('git status', () => _submitCommand('git status')),
+                    _buildTouchKey('whoami', () => _submitCommand('whoami')),
+                    _buildTouchKey('tasklist', () => _submitCommand('tasklist')),
+                    _buildTouchKey('agy', () => _submitCommand('agy')),
+                  ] else ...[
+                    _buildTouchKey('ls -la', () => _submitCommand('ls -la')),
+                    _buildTouchKey('git status', () => _submitCommand('git status')),
+                    _buildTouchKey('pwd', () => _submitCommand('pwd')),
+                    _buildTouchKey('top', () => _submitCommand('top -l 1 | head -n 12')),
+                    _buildTouchKey('agy', () => _submitCommand('agy')),
+                  ],
                 ],
               ),
             ),
@@ -246,11 +261,11 @@ class _TerminalScreenState extends State<TerminalScreen> {
             child: Row(
               children: [
                 Text(
-                  '\$ ',
+                  isWindows ? 'PS> ' : '\$ ',
                   style: GoogleFonts.jetBrainsMono(
                     color: TerminalColors.pureWhite,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
                 Expanded(
@@ -261,7 +276,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                       fontSize: 12.5,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Enter command (e.g. ls, git status, agy)...',
+                      hintText: isWindows ? 'Enter command (e.g. dir, git status, agy)...' : 'Enter command (e.g. ls, git status, agy)...',
                       hintStyle: GoogleFonts.jetBrainsMono(
                         color: TerminalColors.textMuted,
                         fontSize: 11.5,
